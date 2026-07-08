@@ -3,10 +3,14 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'db.json');
+
+const require = createRequire(import.meta.url);
+let db = require('./db.json');
 
 const app = express();
 const PORT = 5000;
@@ -16,21 +20,16 @@ app.use(express.json());
 
 // Helper to read database
 const readDB = () => {
-  try {
-    const data = fs.readFileSync(dbPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error reading database:", error);
-    return { doctors: [], staff: [], patients: [] };
-  }
+  return db;
 };
 
 // Helper to write database
-const writeDB = (data) => {
+const writeDB = (newData) => {
+  db = newData;
   try {
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+    fs.writeFileSync(dbPath, JSON.stringify(newData, null, 2), 'utf8');
   } catch (error) {
-    console.error("Error writing database:", error);
+    console.log("Database write ignored (read-only filesystem):", error.message);
   }
 };
 
@@ -169,3 +168,5 @@ app.delete('/api/staff/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+export default app;

@@ -6,6 +6,7 @@ import PharmacyDashboard from './components/PharmacyDashboard';
 import WardDashboard from './components/WardDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import './App.css';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import { 
   Stethoscope, 
@@ -104,9 +105,9 @@ function App() {
       try {
         setLoading(true);
         const [patientsRes, doctorsRes, staffRes] = await Promise.all([
-          fetch('/api/patients'),
-          fetch('/api/doctors'),
-          fetch('/api/staff')
+          fetch(`${API_BASE}/api/patients`),
+          fetch(`${API_BASE}/api/doctors`),
+          fetch(`${API_BASE}/api/staff`)
         ]);
         
         if (patientsRes.ok && doctorsRes.ok && staffRes.ok) {
@@ -144,7 +145,7 @@ function App() {
   // Admin Actions
   const handleAddDoctor = async (docData) => {
     try {
-      const response = await fetch('/api/doctors', {
+      const response = await fetch(`${API_BASE}/api/doctors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(docData)
@@ -160,7 +161,7 @@ function App() {
 
   const handleDeleteDoctor = async (id) => {
     try {
-      const response = await fetch(`/api/doctors/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/doctors/${id}`, { method: 'DELETE' });
       if (response.ok) {
         setDoctorsList(doctorsList.filter(d => d.id !== id));
       }
@@ -171,7 +172,7 @@ function App() {
 
   const handleAddStaff = async (staffData) => {
     try {
-      const response = await fetch('/api/staff', {
+      const response = await fetch(`${API_BASE}/api/staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(staffData)
@@ -187,7 +188,7 @@ function App() {
 
   const handleDeleteStaff = async (id) => {
     try {
-      const response = await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/staff/${id}`, { method: 'DELETE' });
       if (response.ok) {
         setStaffList(staffList.filter(s => s.id !== id));
       }
@@ -199,7 +200,7 @@ function App() {
   // Receptionist Actions
   const handleRegisterPatient = async (newPatientData) => {
     try {
-      const response = await fetch('/api/patients', {
+      const response = await fetch(`${API_BASE}/api/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPatientData)
@@ -221,7 +222,7 @@ function App() {
         paymentStatus: newStatus,
         status: newStatus === 'Paid' && patient.status === 'Completed' ? 'Completed' : patient.status
       };
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -244,7 +245,7 @@ function App() {
         prescription: data.prescription,
         prescriptionImg: data.prescriptionImg
       };
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -265,7 +266,7 @@ function App() {
         followUpNotes: data.followUpNotes,
         nextVisitDate: data.nextVisitDate
       };
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -287,7 +288,7 @@ function App() {
         status: isPartial ? 'Reviewing' : 'Completed',
         issuedMedication: issuedString
       };
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
@@ -304,7 +305,7 @@ function App() {
   // Ward Staff Actions
   const handleAssignBed = async (patientId, bedId) => {
     try {
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wardBedId: bedId })
@@ -320,7 +321,7 @@ function App() {
 
   const handleDischargePatient = async (patientId) => {
     try {
-      const response = await fetch(`/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wardBedId: null })

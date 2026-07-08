@@ -1,27 +1,15 @@
 {
-  "name": "edoc-doctor-appointment-system",
+  "name": "edoc-hms-workspace",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"vite\" \"node server/server.js\"",
-    "build": "vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "dev": "concurrently \"npm run --prefix frontend dev\" \"node backend/server.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "lucide-react": "^1.23.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "express": "^4.19.2"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "concurrently": "^8.2.2",
-    "oxlint": "^1.71.0",
-    "vite": "^8.1.1"
+    "concurrently": "^8.2.2"
   }
 }
