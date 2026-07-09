@@ -107,7 +107,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
             Ward Room Occupancy Map
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+          <div className="beds-grid">
             {beds.map(bed => {
               const patient = patients.find(p => p.id === bed.patientId);
               const isOccupied = bed.patientId !== null;

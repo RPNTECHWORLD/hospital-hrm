@@ -111,6 +111,8 @@ const Login = ({ onLogin }) => {
               <option value="doctor">Doctor</option>
               <option value="pharmacy">Pharmacy Staff</option>
               <option value="ward">Ward Room Staff</option>
+              <option value="injection">Injection Room Staff</option>
+              <option value="lab">Lab / Investigation Staff</option>
               <option value="admin">Administrator</option>
             </select>
           </div>
@@ -175,7 +177,7 @@ const Login = ({ onLogin }) => {
           }}/>
         </div>
 
-        <div className="quick-login-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="quick-login-grid">
           <button 
             className="quick-login-btn"
             onClick={() => handleQuickLogin('admin', 'admin@vijayas.com', 'System Admin')}
@@ -231,6 +233,24 @@ const Login = ({ onLogin }) => {
           >
             <div className="quick-login-role">Ward Staff</div>
             <div className="quick-login-desc">1 User</div>
+          </button>
+
+          <button 
+            className="quick-login-btn"
+            onClick={() => handleQuickLogin('injection', 'injection@vijayas.com', 'Injection Staff')}
+            style={{ borderColor: '#f59e0b', background: 'rgba(245,158,11,0.06)' }}
+          >
+            <div className="quick-login-role" style={{ color: '#f59e0b' }}>Injection Desk</div>
+            <div className="quick-login-desc">Nurse / Staff</div>
+          </button>
+
+          <button 
+            className="quick-login-btn"
+            onClick={() => handleQuickLogin('lab', 'lab@vijayas.com', 'Lab Staff')}
+            style={{ borderColor: '#10b981', background: 'rgba(16,185,129,0.06)' }}
+          >
+            <div className="quick-login-role" style={{ color: '#10b981' }}>Lab Staff</div>
+            <div className="quick-login-desc">Investigation</div>
           </button>
         </div>
       </div>

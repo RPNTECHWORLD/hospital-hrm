@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail } from 'lucide-react';
+import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
 
-const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmitReview, onPrintPrescription, onEmailPrescription }) => {
+const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
   
-  // Diagnosis state
+  // Diagnosis and Clinical states
   const [diagnosis, setDiagnosis] = useState('');
+  const [complaints, setComplaints] = useState('');
+  const [pastHistory, setPastHistory] = useState('');
+  const [examination, setExamination] = useState('');
+  const [investigation, setInvestigation] = useState('');
   const [medicines, setMedicines] = useState([{ name: '', dosage: '', duration: 10 }]);
   
   // Drawing Prescription state
@@ -27,17 +32,28 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
   const doctorName = isDoc2 ? 'Dr. Sarah' : 'Dr. Vijayan';
 
   const myPatients = patients.filter(p => p.assignedDoctorId === doctorId);
-  const consultationQueue = myPatients.filter(p => p.status === 'Registered');
+  const consultationQueue = myPatients
+    .filter(p => ['Registered', 'Consulting'].includes(p.status))
+    .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
   const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
 
   const handleSelectPatient = (patient) => {
     setActivePatient(patient);
-    setDiagnosis('');
-    setMedicines([{ name: '', dosage: '', duration: 10 }]);
-    setFollowUpNotes('');
-    setNextVisitDate('');
-    setPrescriptionMode('form');
-    setCanvasDataUrl(null);
+    setDiagnosis(patient.diagnosis || '');
+    setComplaints(patient.complaints || '');
+    setPastHistory(patient.pastHistory || '');
+    setExamination(patient.examination || '');
+    setInvestigation(patient.investigation || '');
+    setMedicines(patient.prescription || [{ name: '', dosage: '', duration: 10 }]);
+    setFollowUpNotes(patient.followUpNotes || '');
+    setNextVisitDate(patient.nextVisitDate || '');
+    setPrescriptionMode(patient.prescriptionImg ? 'drawing' : 'form');
+    setCanvasDataUrl(patient.prescriptionImg || null);
+    setShowHistory(false);
+
+    if (patient.status === 'Registered' && onStartConsultation) {
+      onStartConsultation(patient.id);
+    }
   };
 
   const handleAddMedicine = () => {
@@ -70,18 +86,16 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       
       const finalDiagnosis = diagnosis || 'Handwritten Prescription Sheet';
       
-      onSubmitPrescription(activePatient.id, {
-        diagnosis: finalDiagnosis,
-        prescription: null,
-        prescriptionImg: canvasDataUrl
-      });
-
-      // Trigger share prescription popup
+      // Trigger share prescription popup (preview mode)
       setSharePatient({
         ...activePatient,
         diagnosis: finalDiagnosis,
         prescription: null,
-        prescriptionImg: canvasDataUrl
+        prescriptionImg: canvasDataUrl,
+        complaints,
+        pastHistory,
+        examination,
+        investigation
       });
     } else {
       if (!diagnosis) {
@@ -90,23 +104,20 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       }
       if (medicines.some(m => !m.name || !m.dosage)) return;
       
-      onSubmitPrescription(activePatient.id, {
-        diagnosis,
-        prescription: medicines,
-        prescriptionImg: null
-      });
-
-      // Trigger share prescription popup
+      // Trigger share prescription popup (preview mode)
       setSharePatient({
         ...activePatient,
         diagnosis,
         prescription: medicines,
-        prescriptionImg: null
+        prescriptionImg: null,
+        complaints,
+        pastHistory,
+        examination,
+        investigation
       });
     }
 
     setShowShareModal(true);
-    setActivePatient(null);
   };
 
   const handleReviewSubmit = (e) => {
@@ -149,8 +160,23 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                     onClick={() => handleSelectPatient(p)}
                   >
                     <div style={{ flexGrow: 1 }}>
-                      <div style={{ fontWeight: 700 }}>{p.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.age} Yrs • {p.gender}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700 }}>{p.name}</span>
+                        <span style={{ 
+                          background: 'rgba(59, 130, 246, 0.15)', 
+                          color: 'var(--primary)', 
+                          fontWeight: 800, 
+                          fontSize: '0.75rem', 
+                          padding: '0.15rem 0.5rem', 
+                          borderRadius: '4px' 
+                        }}>
+                          Token #{p.tokenNumber || '--'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        {p.age} Yrs • {p.gender} • ID: #{p.id}
+                        {p.status === 'Consulting' && <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontWeight: 600 }}>• Consulting</span>}
+                      </div>
                     </div>
                     <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
                   </div>
@@ -201,20 +227,143 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
           ) : (
             <div className="card fade-in">
               <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.5rem' }}>{activePatient.name}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  {activePatient.gender} • {activePatient.age} Yrs • Contact: {activePatient.contact}
-                </p>
-                {activePatient.address && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Address: {activePatient.address}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{activePatient.name}</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+                      ID: #{activePatient.id} • {activePatient.gender} • {activePatient.age} Yrs • Contact: {activePatient.contact}
+                    </p>
+                  </div>
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: 'var(--success)',
+                    fontWeight: 800,
+                    fontSize: '1.2rem',
+                    padding: '0.4rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    Token #{activePatient.tokenNumber || '--'}
+                  </div>
+                </div>
+                
+                {(activePatient.fatherOrHusbandName || activePatient.alternatePhone || activePatient.address) && (
+                  <div style={{ 
+                    marginTop: '0.75rem', 
+                    padding: '0.75rem', 
+                    background: 'rgba(255,255,255,0.01)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: '8px',
+                    fontSize: '0.85rem', 
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1.5rem'
+                  }}>
+                    {activePatient.fatherOrHusbandName && <div><strong>Father / Husband:</strong> {activePatient.fatherOrHusbandName}</div>}
+                    {activePatient.alternatePhone && <div><strong>Alternate Phone:</strong> {activePatient.alternatePhone}</div>}
+                    {activePatient.address && <div><strong>Address:</strong> {activePatient.address}</div>}
+                  </div>
+                )}
+
+                {(activePatient.height || activePatient.weight || activePatient.bp || activePatient.hr || activePatient.spo2 || activePatient.grbs || activePatient.temp) && (
+                  <div style={{ 
+                    marginTop: '0.75rem', 
+                    padding: '0.75rem', 
+                    background: 'rgba(99, 102, 241, 0.04)', 
+                    border: '1px solid rgba(99, 102, 241, 0.15)', 
+                    borderRadius: '8px',
+                    fontSize: '0.85rem', 
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Receptionist Triage Vitals
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem 1.5rem' }}>
+                      {activePatient.height && <div><strong>Height (Ht):</strong> {activePatient.height} cm</div>}
+                      {activePatient.weight && <div><strong>Weight (Wt):</strong> {activePatient.weight} kg</div>}
+                      {activePatient.bp && <div><strong>BP:</strong> {activePatient.bp}</div>}
+                      {activePatient.hr && <div><strong>Pulse (HR):</strong> {activePatient.hr} bpm</div>}
+                      {activePatient.spo2 && <div><strong>SPO2:</strong> {activePatient.spo2}%</div>}
+                      {activePatient.grbs && <div><strong>GRBS:</strong> {activePatient.grbs}</div>}
+                      {activePatient.temp && <div><strong>Temp (TEMP):</strong> {activePatient.temp} °F</div>}
+                      {activePatient.bmi && <div><strong>BMI:</strong> <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{activePatient.bmi}</span></div>}
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Consultation flow (Registered status) */}
-              {activePatient.status === 'Registered' && (
+              {/* Collapsible Patient History */}
+              {((activePatient.history && activePatient.history.length > 0) || activePatient.diagnosis) && (
+                <div style={{ marginBottom: '1.5rem', background: 'rgba(21, 115, 136, 0.05)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(21, 115, 136, 0.15)' }}>
+                  <h5 
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, color: 'var(--primary)', cursor: 'pointer', fontSize: '0.95rem', justifyContent: 'space-between' }} 
+                    onClick={() => setShowHistory(!showHistory)}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <History size={16} />
+                      Clinical History ({(activePatient.history?.length || 0) + (activePatient.diagnosis ? 1 : 0)} Visit Records)
+                    </span>
+                    <span style={{ fontSize: '0.85rem' }}>{showHistory ? '▲ Hide' : '▼ Show'}</span>
+                  </h5>
+                  {showHistory && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                      {/* Current Active or Un-archived last visit */}
+                      {activePatient.diagnosis && (
+                        <div style={{ background: 'rgba(255,255,255,0.4)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--warning)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            <span>Active / Last Checkup</span>
+                            <span>Doctor's diagnosis</span>
+                          </div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '0.25rem' }}>Diagnosis: {activePatient.diagnosis}</div>
+                          {activePatient.prescription && activePatient.prescription.length > 0 && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                              Prescription: {activePatient.prescription.map(m => `${m.name} (${m.dosage} - ${m.duration} Days)`).join(', ')}
+                            </div>
+                          )}
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Status: {activePatient.status} • Payment: {activePatient.paymentStatus}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Archived History */}
+                      {activePatient.history && activePatient.history.slice().reverse().map((visit, index) => (
+                        <div key={index} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            <span>{visit.date}</span>
+                            <span>Doc: {visit.doctorName}</span>
+                          </div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '0.25rem' }}>Diagnosis: {visit.diagnosis}</div>
+                          {visit.prescription && visit.prescription.length > 0 && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                              Prescription: {visit.prescription.map(m => `${m.name} (${m.dosage} - ${m.duration} Days)`).join(', ')}
+                            </div>
+                          )}
+                          {visit.prescriptionImg && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                              Handwritten prescription sheet recorded
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            <span>Status: {visit.status}</span>
+                            <span>Payment: {visit.paymentStatus}</span>
+                            <span>Issued: {visit.issuedMedication || 'None'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Consultation flow (Registered/Consulting status) */}
+              {(activePatient.status === 'Registered' || activePatient.status === 'Consulting') && (
                 <form onSubmit={handlePrescriptionSubmit}>
                   <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Doctor Consultation</h4>
                   
+
+
                   <div className="form-group">
                     <label className="form-label">Diagnosis & Clinical Notes</label>
                     <textarea 
@@ -270,7 +419,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                       </div>
 
                       {medicines.map((med, idx) => (
-                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '0.75rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                        <div key={idx} className="medicine-row-grid">
                           <input 
                             type="text" 
                             className="form-input" 
@@ -383,70 +532,186 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
         <div className="modal-overlay">
           <div className="card modal-content fade-in" style={{ padding: '2rem' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Prescription Created</h3>
-              <button className="close-btn" onClick={() => setShowShareModal(false)}>✕</button>
+              <h3 className="modal-title">Review & Send Prescription</h3>
+              <button className="close-btn" onClick={() => { setShowShareModal(false); setSharePatient(null); }}>✕</button>
             </div>
 
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              The prescription has been recorded digitally and sent to the Pharmacy. How would you like to share/deliver it to the patient?
+              Please review the digital prescription details below. Clicking 'Send to Pharmacy' will record and dispatch this prescription to the Pharmacy.
             </p>
 
             {/* Simulated Printed RX paper */}
-            <div className="prescription-paper" id="printable-rx">
-              <div className="rx-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="rx-logo">VIJAYAS HOSPITAL</div>
-                    <div className="rx-sub">DIGITAL PRESCRIPTION</div>
+            <div className="prescription-paper" id="printable-rx" style={{
+              background: '#fff',
+              color: '#000',
+              fontFamily: '"Outfit", "Inter", sans-serif',
+              padding: '0.4in',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              maxWidth: '8.5in',
+              margin: '0 auto',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              boxShadow: 'none'
+            }}>
+              <div>
+                {/* Letterhead Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                  {/* Left side of header */}
+                  <div style={{ width: '55%', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {/* Logo icon */}
+                      <div style={{
+                        background: 'rgb(239, 68, 68)',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '1.25rem'
+                      }}>
+                        V
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#b91c1c', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                          VIJAYA'S HEALTH CARE
+                        </div>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.1rem' }}>
+                          YOUR HEALTH OUR MISSION
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#1e293b', lineHeight: '1.3' }}>
+                      <div><strong>Rtn Dr. N.ANBU</strong>, M.B.B.S., FIDM, FCCM</div>
+                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                      <div style={{ marginTop: '0.2rem' }}><strong>Dr. SINDHUJA ANBU</strong>, M.B.B.S., DNB (Pediatrics)</div>
+                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>குழந்தைகள் சிறப்பு மருத்துவர்</div>
+                      <div style={{ marginTop: '0.2rem' }}><strong>Dr. N.ARAVINDRAJ</strong> M.B.B.S.,</div>
+                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#64748b' }}>
-                    <div>Date: {new Date().toLocaleDateString()}</div>
-                    <div>Doc: {doctorName}</div>
+
+                  {/* Right side of header */}
+                  <div style={{ width: '40%', textAlign: 'right' }}>
+                    <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Latha, sans-serif' }}>
+                      விஜயலெட்சுமி
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.15rem' }}>
+                      குழந்தைகள் நல மருத்துவமனை
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: '#334155', marginTop: '0.4rem', lineHeight: '1.4' }}>
+                      <div>RN Complex, Railway Road,</div>
+                      <div>Kollidam, Tamil Nadu, India.</div>
+                      <div>Ph: 04364 - 278558, Cell: 84890 61807</div>
+                      <div>E-mail: vijayahealthcare@gmail.com</div>
+                      <div>Web: www.vijayahealthcare.com</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vitals & Patient Info Table */}
+                <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
+                    <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
+                      <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{sharePatient.name}</span>
+                    </div>
+                    <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
+                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <strong>Age:</strong> {sharePatient.age}
+                      </div>
+                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <strong>Sex:</strong> {sharePatient.gender}
+                      </div>
+                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <strong>Ht:</strong> {sharePatient.height || '--'}
+                      </div>
+                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <strong>Wt:</strong> {sharePatient.weight || '--'}
+                      </div>
+                      <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                        <strong>Date:</strong> {new Date(sharePatient.registrationDate || Date.now()).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
+                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                      <strong>BP:</strong> {sharePatient.bp || '--'}
+                    </div>
+                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                      <strong>HR:</strong> {sharePatient.hr || '--'}
+                    </div>
+                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                      <strong>SPO2:</strong> {sharePatient.spo2 || '--'}%
+                    </div>
+                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                      <strong>GRBS:</strong> {sharePatient.grbs || '--'}
+                    </div>
+                    <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                      <strong>TEMP:</strong> {sharePatient.temp || '--'}°F
+                    </div>
+                  </div>
+                </div>
+
+                {/* Clean Rx Layout */}
+                <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
+                      ℞
+                    </div>
+                    {sharePatient.diagnosis && (
+                      <div style={{ fontSize: '0.85rem', color: '#334155' }}>
+                        <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{sharePatient.diagnosis}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div style={{ marginTop: '0.5rem' }}>
+                    {sharePatient.prescriptionImg ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <img 
+                          src={sharePatient.prescriptionImg} 
+                          style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px' }} 
+                          alt="Prescription Drawing" 
+                        />
+                      </div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                            <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
+                            <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
+                            <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sharePatient.prescription?.map((m, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
+                              <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
+                              <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
-                <strong>Patient:</strong> {sharePatient.name} ({sharePatient.age} Yrs • {sharePatient.gender})
-              </div>
-
-              <div className="rx-symbol">℞</div>
-              
-              <div style={{ marginBottom: '1.5rem' }}>
-                <strong style={{ fontSize: '0.9rem', color: '#475569' }}>Diagnosis:</strong>
-                <p style={{ marginTop: '0.25rem', fontSize: '0.95rem' }}>{sharePatient.diagnosis}</p>
-              </div>
-
-              <div>
-                <strong style={{ fontSize: '0.9rem', color: '#475569' }}>Medicines:</strong>
-                {sharePatient.prescriptionImg ? (
-                  <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-                    <img 
-                      src={sharePatient.prescriptionImg} 
-                      style={{ maxWidth: '100%', height: 'auto', border: '1px solid #cbd5e1', borderRadius: '4px' }} 
-                      alt="Handwritten Prescription" 
-                    />
+              {/* Footer Section */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
+                <div style={{ textAlign: 'center', width: '2in' }}>
+                  <div style={{ borderBottom: '1px dashed #000', height: '15px' }}></div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
+                    Doctor's Signature
                   </div>
-                ) : (
-                  <table style={{ width: '100%', marginTop: '0.5rem', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem 0' }}>Medicine</th>
-                        <th style={{ padding: '0.5rem 0' }}>Dosage</th>
-                        <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sharePatient.prescription?.map((m, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '0.5rem 0' }}>{m.name}</td>
-                          <td style={{ padding: '0.5rem 0' }}>{m.dosage}</td>
-                          <td style={{ padding: '0.5rem 0', textAlign: 'right' }}>{m.duration} Days</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                </div>
               </div>
             </div>
 
@@ -455,21 +720,32 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                 className="btn btn-primary" 
                 style={{ flexGrow: 1 }}
                 onClick={() => {
-                  onEmailPrescription(sharePatient);
-                  alert(`Prescription successfully emailed to patient's contact email!`);
+                  onSubmitPrescription(sharePatient.id, {
+                    diagnosis: sharePatient.diagnosis,
+                    prescription: sharePatient.prescription,
+                    prescriptionImg: sharePatient.prescriptionImg,
+                    complaints: sharePatient.complaints,
+                    pastHistory: sharePatient.pastHistory,
+                    examination: sharePatient.examination,
+                    investigation: sharePatient.investigation
+                  });
+                  setShowShareModal(false);
+                  setSharePatient(null);
+                  setActivePatient(null);
+                  alert(`Prescription successfully sent to Pharmacy!`);
                 }}
               >
-                <Mail size={16} /> Email Prescription
+                <Send size={16} /> Send to Pharmacy
               </button>
               <button 
                 className="btn btn-secondary"
                 style={{ flexGrow: 1 }}
                 onClick={() => {
-                  onPrintPrescription();
-                  alert(`Opening browser print dialogue...`);
+                  setShowShareModal(false);
+                  setSharePatient(null);
                 }}
               >
-                <Printer size={16} /> Print Prescription
+                Edit / Cancel
               </button>
             </div>
           </div>

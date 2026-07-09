@@ -8,7 +8,9 @@ const AdminDashboard = ({
   onAddDoctor, 
   onDeleteDoctor, 
   onAddStaff, 
-  onDeleteStaff 
+  onDeleteStaff,
+  onDeletePatient,
+  onDeleteAllPatients
 }) => {
   const [activeTab, setActiveTab] = useState('doctors');
   
@@ -330,13 +332,49 @@ const AdminDashboard = ({
             )}
 
             {activeTab === 'patients' && (
-              <table className="custom-table">
+              <>
+                {patients.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                    <button 
+                      type="button" 
+                      className="btn"
+                      style={{ 
+                        padding: '0.45rem 1rem', 
+                        fontSize: '0.8rem', 
+                        background: '#dc2626', 
+                        border: 'none',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        color: 'white',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        if (window.confirm("WARNING: Are you sure you want to delete ALL patients in the system? This action cannot be undone!")) {
+                          const code = window.prompt("Type 'DELETE ALL' to confirm:");
+                          if (code === 'DELETE ALL') {
+                            onDeleteAllPatients();
+                          } else {
+                            alert("Confirmation failed. No action taken.");
+                          }
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} /> Delete All Patients
+                    </button>
+                  </div>
+                )}
+                <table className="custom-table">
                 <thead>
                   <tr>
+                    <th>Patient ID</th>
                     <th>Patient</th>
                     <th>Doctor</th>
                     <th>Status</th>
                     <th>Payment</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -344,6 +382,7 @@ const AdminDashboard = ({
                     const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
                     return (
                       <tr key={patient.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--primary)' }}>#{patient.id}</td>
                         <td>
                           <div style={{ fontWeight: 600 }}>{patient.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -365,12 +404,27 @@ const AdminDashboard = ({
                             {patient.paymentStatus || 'Unpaid'}
                           </span>
                         </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            className="btn-logout" 
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
+                                onDeletePatient(patient.id);
+                              }
+                            }}
+                            title="Delete Patient"
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            )}
+            </>
+          )}
           </div>
         </div>
       </div>

@@ -1,0 +1,322 @@
+import React, { useState, useEffect } from 'react';
+import { Monitor, LogOut } from 'lucide-react';
+
+const TvQueueDisplay = ({ patients, doctors, onExit }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{
+      background: '#0f172a',
+      color: '#f8fafc',
+      minHeight: '100vh',
+      fontFamily: "'Outfit', 'Inter', sans-serif",
+      padding: '2rem',
+      display: 'flex',
+      flexDirection: 'column',
+      boxSizing: 'border-box'
+    }}>
+      {/* Top Banner */}
+      <header style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '3px solid #3b82f6',
+        paddingBottom: '1.5rem',
+        marginBottom: '2rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+            padding: '0.75rem',
+            borderRadius: '12px',
+            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+          }}>
+            <Monitor size={32} color="#ffffff" />
+          </div>
+          <div>
+            <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em', color: '#ffffff' }}>
+              VIJAYAS HOSPITAL <span style={{ color: '#60a5fa', fontWeight: 400 }}>LIVE QUEUE MONITOR</span>
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+              <span style={{
+                width: '10px',
+                height: '10px',
+                background: '#10b981',
+                borderRadius: '50%',
+                display: 'inline-block'
+              }}></span>
+              <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 600 }}>LIVE UPDATES ACTIVE</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Time and Exit */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f8fafc' }}>
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>
+              {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+          </div>
+
+          <button 
+            onClick={onExit}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#94a3b8',
+              padding: '0.75rem 1.25rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s'
+            }}
+          >
+            Exit Display
+          </button>
+        </div>
+      </header>
+
+      {/* Main Boards Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+        gap: '2.5rem',
+        flexGrow: 1
+      }}>
+        {doctors.map(doctor => {
+          // Filter patients assigned to this doctor
+          const docPatients = patients.filter(p => p.assignedDoctorId === doctor.id);
+          
+          // Now Consulting patient
+          const nowConsulting = docPatients.find(p => p.status === 'Consulting');
+          
+          // Up Next patients (status is Registered, sorted by Token Number)
+          const upNext = docPatients
+            .filter(p => p.status === 'Registered')
+            .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
+
+          return (
+            <div key={doctor.id} style={{
+              background: '#1e293b',
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.05)',
+              padding: '2.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            }}>
+              {/* Doctor Details */}
+              <div style={{
+                borderBottom: '2px solid rgba(255,255,255,0.05)',
+                paddingBottom: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: '#3b82f6' }}>{doctor.name}</h2>
+                <div style={{ color: '#94a3b8', fontSize: '1.1rem', fontWeight: 500, marginTop: '0.25rem' }}>
+                  {doctor.specialty} • ROOM 0{doctor.id}
+                </div>
+              </div>
+
+              {/* Currently Consulting Board */}
+              <div style={{ marginBottom: '2.5rem' }}>
+                <div style={{
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  color: '#94a3b8',
+                  letterSpacing: '0.1em',
+                  marginBottom: '1rem'
+                }}>
+                  NOW CONSULTING
+                </div>
+
+                {nowConsulting ? (
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '2px solid #10b981',
+                    borderRadius: '20px',
+                    padding: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2rem'
+                  }}>
+                    <div style={{
+                      background: '#10b981',
+                      color: '#ffffff',
+                      fontSize: '3rem',
+                      fontWeight: 950,
+                      padding: '0.75rem 1.75rem',
+                      borderRadius: '16px',
+                      minWidth: '100px',
+                      textAlign: 'center',
+                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                    }}>
+                      {String(nowConsulting.tokenNumber).padStart(2, '0')}
+                    </div>
+                    <div style={{ flexGrow: 1 }}>
+                      <h3 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+                        {nowConsulting.name}
+                      </h3>
+                      <div style={{ fontSize: '1.1rem', color: '#a7f3d0', fontWeight: 500, marginTop: '0.25rem' }}>
+                        In Consultation Room
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '2px dashed rgba(255,255,255,0.05)',
+                    borderRadius: '20px',
+                    padding: '3rem',
+                    textAlign: 'center',
+                    color: '#64748b',
+                    fontSize: '1.5rem',
+                    fontWeight: 600
+                  }}>
+                    Awaiting Next Patient
+                  </div>
+                )}
+              </div>
+
+              {/* Waiting Queue List */}
+              <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  color: '#94a3b8',
+                  letterSpacing: '0.1em',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>UP NEXT IN QUEUE</span>
+                  <span style={{ color: '#3b82f6' }}>{upNext.length} WAITING</span>
+                </div>
+
+                {upNext.length === 0 ? (
+                  <div style={{
+                    background: 'rgba(0,0,0,0.1)',
+                    borderRadius: '16px',
+                    padding: '2.5rem',
+                    textAlign: 'center',
+                    color: '#475569',
+                    fontSize: '1.2rem',
+                    fontWeight: 500,
+                    flexGrow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    Queue is empty.
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.85rem',
+                    overflowY: 'auto',
+                    maxHeight: '380px',
+                    paddingRight: '0.5rem'
+                  }}>
+                    {upNext.map((patient, index) => (
+                      <div 
+                        key={patient.id} 
+                        style={{
+                          background: index === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                          border: index === 0 ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.05)',
+                          borderRadius: '16px',
+                          padding: '1.25rem 1.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                          <span style={{
+                            background: index === 0 ? '#3b82f6' : 'rgba(255, 255, 255, 0.05)',
+                            color: index === 0 ? '#ffffff' : '#94a3b8',
+                            fontWeight: 800,
+                            fontSize: '1.25rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: '8px',
+                            minWidth: '40px',
+                            textAlign: 'center'
+                          }}>
+                            {String(patient.tokenNumber).padStart(2, '0')}
+                          </span>
+                          <span style={{
+                            fontSize: '1.35rem',
+                            fontWeight: 700,
+                            color: index === 0 ? '#ffffff' : '#cbd5e1'
+                          }}>
+                            {patient.name}
+                          </span>
+                        </div>
+                        <div style={{
+                          fontSize: '0.9rem',
+                          color: index === 0 ? '#60a5fa' : '#64748b',
+                          fontWeight: 600
+                        }}>
+                          {index === 0 ? 'PREPARING' : 'WAITING'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer ticker info */}
+      <footer style={{
+        marginTop: '2rem',
+        background: '#1e293b',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        borderRadius: '12px',
+        padding: '0.75rem 1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          background: '#ef4444',
+          color: '#ffffff',
+          fontWeight: 800,
+          fontSize: '0.8rem',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '4px',
+          whiteSpace: 'nowrap'
+        }}>
+          ANNOUNCEMENT
+        </div>
+        <div style={{
+          fontSize: '1rem',
+          color: '#cbd5e1',
+          fontWeight: 500,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}>
+          Please cooperate with clinic staff. Wait for your Token Number to be called before entering the consultation room. Thank you.
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default TvQueueDisplay;

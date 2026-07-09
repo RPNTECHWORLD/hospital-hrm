@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
-import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert } from 'lucide-react';
+import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp } from 'lucide-react';
 
-const PharmacyDashboard = ({ patients, doctors, onIssueMedication }) => {
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
   
   // Issues state
   const [issueType, setIssueType] = useState('full'); // 'full' or 'partial'
   const [partialDays, setPartialDays] = useState(5);
 
+  // Previous prescriptions panel
+  const [showPrevRx, setShowPrevRx] = useState(false);
+  const [selectedHistIdx, setSelectedHistIdx] = useState(0);
+
   const pendingPrescriptions = patients.filter(p => p.status === 'At Pharmacy');
   const completedIssues = patients.filter(p => ['Reviewing', 'Completed'].includes(p.status)).length;
+
+  const docName = activePatient 
+    ? (doctors.find(d => d.id === activePatient.assignedDoctorId)?.name || 'Doctor')
+    : 'Doctor';
 
   const handleSelectPatient = (patient) => {
     setActivePatient(patient);
     setIssueType('full');
+    setShowPrevRx(false);
+    setSelectedHistIdx(0);
     // Calculate a default partial day count (half of the first medicine's duration)
     const firstMedDuration = patient.prescription?.[0]?.duration || 10;
     setPartialDays(Math.max(1, Math.floor(firstMedDuration / 2)));
@@ -112,38 +124,328 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication }) => {
               </div>
 
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label">Digital Prescription Details</label>
-                <div style={{ background: 'rgba(255,255,255,0.01)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  {activePatient.prescriptionImg ? (
-                    <div style={{ textAlign: 'center' }}>
-                      <img 
-                        src={activePatient.prescriptionImg} 
-                        style={{ maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', border: '1px solid var(--border)', borderRadius: '4px', background: '#ffffff' }} 
-                        alt="Handwritten Prescription Canvas" 
-                      />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Digital Prescription Details</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      type="button"
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
+                      onClick={() => {
+                        onEmailPrescription(activePatient);
+                        alert(`Prescription successfully emailed to patient's contact email!`);
+                      }}
+                    >
+                      <Mail size={14} /> Email Prescription
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
+                      onClick={() => {
+                        onPrintPrescription();
+                        alert(`Opening browser print dialogue...`);
+                      }}
+                    >
+                      <Printer size={14} /> Print Prescription
+                    </button>
+                  </div>
+                </div>
+
+                {/* Simulated Printed RX paper */}
+                <div className="prescription-paper" id="printable-rx" style={{
+                  background: '#fff',
+                  color: '#000',
+                  fontFamily: '"Outfit", "Inter", sans-serif',
+                  padding: '0.4in',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  maxWidth: '8.5in',
+                  margin: '0 auto',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: 'none'
+                }}>
+                  <div>
+                    {/* Letterhead Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                      {/* Left side of header */}
+                      <div style={{ width: '55%', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {/* Logo icon */}
+                          <div style={{
+                            background: 'rgb(239, 68, 68)',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: '1.25rem'
+                          }}>
+                            V
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#b91c1c', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                              VIJAYA'S HEALTH CARE
+                            </div>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.1rem' }}>
+                              YOUR HEALTH OUR MISSION
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#1e293b', lineHeight: '1.3' }}>
+                          <div><strong>Rtn Dr. N.ANBU</strong>, M.B.B.S., FIDM, FCCM</div>
+                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                          <div style={{ marginTop: '0.2rem' }}><strong>Dr. SINDHUJA ANBU</strong>, M.B.B.S., DNB (Pediatrics)</div>
+                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>குழந்தைகள் சிறப்பு மருத்துவர்</div>
+                          <div style={{ marginTop: '0.2rem' }}><strong>Dr. N.ARAVINDRAJ</strong> M.B.B.S.,</div>
+                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                        </div>
+                      </div>
+
+                      {/* Right side of header */}
+                      <div style={{ width: '40%', textAlign: 'right' }}>
+                        <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Latha, sans-serif' }}>
+                          விஜயலெட்சுமி
+                        </div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.15rem' }}>
+                          குழந்தைகள் நல மருத்துவமனை
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: '#334155', marginTop: '0.4rem', lineHeight: '1.4' }}>
+                          <div>RN Complex, Railway Road,</div>
+                          <div>Kollidam, Tamil Nadu, India.</div>
+                          <div>Ph: 04364 - 278558, Cell: 84890 61807</div>
+                          <div>E-mail: vijayahealthcare@gmail.com</div>
+                          <div>Web: www.vijayahealthcare.com</div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <table className="custom-table" style={{ width: '100%' }}>
-                      <thead>
-                        <tr>
-                          <th style={{ padding: '0.5rem 0', background: 'transparent' }}>Medicine</th>
-                          <th style={{ padding: '0.5rem 0', background: 'transparent' }}>Dosage</th>
-                          <th style={{ padding: '0.5rem 0', background: 'transparent', textAlign: 'right' }}>Prescribed Duration</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activePatient.prescription?.map((med, idx) => (
-                          <tr key={idx}>
-                            <td style={{ padding: '0.5rem 0' }}>{med.name}</td>
-                            <td style={{ padding: '0.5rem 0' }}>{med.dosage}</td>
-                            <td style={{ padding: '0.5rem 0', textAlign: 'right' }}>{med.duration} Days</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+
+                    {/* Vitals & Patient Info Table */}
+                    <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
+                        <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
+                          <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{activePatient.name}</span>
+                        </div>
+                        <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Age:</strong> {activePatient.age}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Sex:</strong> {activePatient.gender}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Ht:</strong> {activePatient.height || '--'}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Wt:</strong> {activePatient.weight || '--'}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                            <strong>Date:</strong> {new Date(activePatient.registrationDate || Date.now()).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
+                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                          <strong>BP:</strong> {activePatient.bp || '--'}
+                        </div>
+                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                          <strong>HR:</strong> {activePatient.hr || '--'}
+                        </div>
+                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                          <strong>SPO2:</strong> {activePatient.spo2 || '--'}%
+                        </div>
+                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                          <strong>GRBS:</strong> {activePatient.grbs || '--'}
+                        </div>
+                        <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                          <strong>TEMP:</strong> {activePatient.temp || '--'}°F
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clean Rx Layout */}
+                    <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
+                          ℞
+                        </div>
+                        {activePatient.diagnosis && (
+                          <div style={{ fontSize: '0.85rem', color: '#334155' }}>
+                            <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{activePatient.diagnosis}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ marginTop: '0.5rem' }}>
+                        {activePatient.prescriptionImg ? (
+                          <div style={{ textAlign: 'center' }}>
+                            <img 
+                              src={activePatient.prescriptionImg} 
+                              style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px' }} 
+                              alt="Prescription Drawing" 
+                            />
+                          </div>
+                        ) : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                                <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
+                                <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
+                                <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePatient.prescription?.map((m, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
+                                  <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
+                                  <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Section */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
+                    <div style={{ textAlign: 'center', width: '2in' }}>
+                      <div style={{ borderBottom: '1px dashed #000', height: '15px' }}></div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
+                        Doctor's Signature
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* ===== Previous Prescriptions Toggle ===== */}
+              {activePatient.history && activePatient.history.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrevRx(!showPrevRx)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.75rem 1rem',
+                      background: showPrevRx ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)',
+                      border: '1.5px solid',
+                      borderColor: showPrevRx ? 'var(--primary)' : 'var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                      <History size={16} style={{ color: 'var(--primary)' }} />
+                      Previous Prescriptions ({activePatient.history.length} visit{activePatient.history.length > 1 ? 's' : ''})
+                    </span>
+                    {showPrevRx ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+
+                  {showPrevRx && (
+                    <div style={{ marginTop: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                      {/* Visit tabs */}
+                      <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
+                        {activePatient.history.map((h, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setSelectedHistIdx(idx)}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              whiteSpace: 'nowrap',
+                              fontSize: '0.78rem',
+                              fontWeight: selectedHistIdx === idx ? 700 : 400,
+                              color: selectedHistIdx === idx ? 'var(--primary)' : 'var(--text-secondary)',
+                              background: selectedHistIdx === idx ? 'rgba(99,102,241,0.1)' : 'transparent',
+                              border: 'none',
+                              borderBottom: selectedHistIdx === idx ? '2px solid var(--primary)' : '2px solid transparent',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            {idx === 0 ? '🕐 Latest' : `Visit ${idx + 1}`}
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                              {new Date(activePatient.history[idx].date).toLocaleDateString()}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Selected visit prescription in letterhead style */}
+                      {(() => {
+                        const hist = activePatient.history[selectedHistIdx];
+                        if (!hist) return null;
+                        const prevRx = hist.prescription || [];
+                        return (
+                          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.98)', color: '#1e293b', fontFamily: 'serif' }}>
+                            {/* Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '2px solid #b91c1c' }}>
+                              <div>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c' }}>PREVIOUS VISIT PRESCRIPTION</div>
+                                <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.2rem' }}>
+                                  Date: {new Date(hist.date).toLocaleString()} &nbsp;|&nbsp; Dr: {hist.doctorName}
+                                </div>
+                                {hist.diagnosis && (
+                                  <div style={{ fontSize: '0.7rem', color: '#0f172a', marginTop: '0.2rem' }}>
+                                    <strong>Dx:</strong> {hist.diagnosis}
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.65rem', color: '#64748b', textAlign: 'right' }}>
+                                <div>Status: <strong>{hist.status}</strong></div>
+                                <div>Payment: <strong>{hist.paymentStatus}</strong></div>
+                                {hist.issuedMedication && <div>Issued: <strong>{hist.issuedMedication}</strong></div>}
+                              </div>
+                            </div>
+
+                            {/* Rx Symbol + medicines */}
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b91c1c', marginBottom: '0.5rem' }}>℞</div>
+                            {prevRx.length === 0 ? (
+                              <div style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                No structured prescription — handwritten sheet used.
+                              </div>
+                            ) : (
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                                    <th style={{ padding: '0.4rem 0', width: '50%' }}>Medicine</th>
+                                    <th style={{ padding: '0.4rem 0', width: '30%' }}>Dosage</th>
+                                    <th style={{ padding: '0.4rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {prevRx.map((m, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                      <td style={{ padding: '0.5rem 0', fontWeight: 600 }}>{m.name}</td>
+                                      <td style={{ padding: '0.5rem 0' }}>{m.dosage}</td>
+                                      <td style={{ padding: '0.5rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <form onSubmit={handleSubmitIssue}>
                 <div className="form-group">

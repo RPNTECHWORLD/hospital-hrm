@@ -5,7 +5,12 @@ import DoctorDashboard from './components/DoctorDashboard';
 import PharmacyDashboard from './components/PharmacyDashboard';
 import WardDashboard from './components/WardDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import TvQueueDisplay from './components/TvQueueDisplay';
 import './App.css';
+import InjectionRoom from './components/InjectionRoom';
+import LabDashboard from './components/LabDashboard';
+import DirectoryLedger from './components/DirectoryLedger';
+import UtilityLogs from './components/UtilityLogs';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import { 
@@ -18,7 +23,14 @@ import {
   Bed, 
   Activity,
   Shield,
-  FileText
+  FileText,
+  Menu,
+  X,
+  Monitor,
+  Syringe,
+  FlaskConical,
+  BookOpen,
+  ClipboardList
 } from 'lucide-react';
 
 // Setup default Doctors
@@ -91,15 +103,35 @@ const INITIAL_PATIENTS = [
 ];
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hms_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Each tab always starts at 'admin' view — never persisted so tabs are fully independent
   const [adminActiveView, setAdminActiveView] = useState('admin');
+  const [tvMode, setTvMode] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [doctorsList, setDoctorsList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch initial data from Backend Node API
+  // Sync user state to localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('hms_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('hms_user');
+    }
+  }, [user]);
+
+
+  // Fetch initial data and start polling from Backend Node API
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -126,8 +158,22 @@ function App() {
       }
     };
 
+    const pollPatients = async () => {
+      try {
+        const patientsRes = await fetch(`${API_BASE}/api/patients`);
+        if (patientsRes.ok) {
+          const patientsData = await patientsRes.json();
+          setPatients(patientsData);
+        }
+      } catch (err) {
+        console.error("Error polling patients:", err);
+      }
+    };
+
     if (user) {
       loadInitialData();
+      const interval = setInterval(pollPatients, 3000); // Poll every 3 seconds
+      return () => clearInterval(interval);
     }
   }, [user]);
 
@@ -140,6 +186,9 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
+    setPatients([]);
+    setAdminActiveView('admin');
+    localStorage.removeItem('hms_user');
   };
 
   // Admin Actions
@@ -197,20 +246,137 @@ function App() {
     }
   };
 
+  const handleDeletePatient = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        setPatients(patients.map(p => p.id === id ? { ...p, status: 'Inactive', tokenNumber: null, registrationDate: null } : p));
+      }
+    } catch (err) {
+      console.error("Error deleting patient:", err);
+    }
+  };
+
+  const handleDeleteAllPatients = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients`, { method: 'DELETE' });
+      if (response.ok) {
+        setPatients([]);
+      }
+    } catch (err) {
+      console.error("Error deleting all patients:", err);
+    }
+  };
+
   // Receptionist Actions
   const handleRegisterPatient = async (newPatientData) => {
     try {
+      const docId = parseInt(newPatientData.assignedDoctorId);
+      const todayStr = new Date().toLocaleDateString();
+      
+      // Filter patients assigned to this doctor registered today
+      const activeForDocToday = patients.filter(p => 
+        p.assignedDoctorId === docId && 
+        p.registrationDate === todayStr
+      );
+      
+      const nextToken = activeForDocToday.length > 0 
+        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1 
+        : 1;
+
+      const patientWithToken = {
+        ...newPatientData,
+        tokenNumber: nextToken,
+        registrationDate: todayStr
+      };
+
       const response = await fetch(`${API_BASE}/api/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPatientData)
+        body: JSON.stringify(patientWithToken)
       });
       if (response.ok) {
         const newPatient = await response.json();
         setPatients([...patients, newPatient]);
+        return newPatient;
       }
     } catch (err) {
       console.error("Error registering patient:", err);
+    }
+  };
+
+  const handleReRegisterPatient = async (patientId, doctorId, vitalsData = {}) => {
+    try {
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient) return;
+
+      const doctors = doctorsList;
+      let updatedHistory = patient.history || [];
+      
+      if (patient.diagnosis || (patient.prescription && patient.prescription.length > 0)) {
+        const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
+        const archiveEntry = {
+          visitId: Date.now(),
+          date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          doctorName: assignedDoc ? assignedDoc.name : 'Unknown Doctor',
+          diagnosis: patient.diagnosis || 'No diagnosis recorded',
+          prescription: patient.prescription || [],
+          issuedMedication: patient.issuedMedication || 'None',
+          paymentStatus: patient.paymentStatus,
+          status: patient.status
+        };
+        
+        const isDuplicate = updatedHistory.some(h => 
+          h.diagnosis === archiveEntry.diagnosis && 
+          JSON.stringify(h.prescription) === JSON.stringify(archiveEntry.prescription)
+        );
+        
+        if (!isDuplicate) {
+          updatedHistory = [...updatedHistory, archiveEntry];
+        }
+      }
+
+      const docIdInt = parseInt(doctorId);
+      const todayStr = new Date().toLocaleDateString();
+      
+      // Filter patients assigned to this doctor registered today
+      const activeForDocToday = patients.filter(p => 
+        p.assignedDoctorId === docIdInt && 
+        p.registrationDate === todayStr
+      );
+      
+      const nextToken = activeForDocToday.length > 0 
+        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1 
+        : 1;
+
+      const updatedPatientData = {
+        ...patient,
+        assignedDoctorId: docIdInt,
+        status: 'Registered',
+        diagnosis: '',
+        prescription: null,
+        issuedMedication: null,
+        paymentStatus: 'Unpaid',
+        wardBedId: null,
+        tokenNumber: nextToken,
+        registrationDate: todayStr,
+        history: updatedHistory,
+        ...vitalsData
+      };
+
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPatientData)
+      });
+
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        return updatedPatient;
+      }
+    } catch (err) {
+      console.error("Error re-registering patient:", err);
     }
   };
 
@@ -280,12 +446,27 @@ function App() {
     }
   };
 
+  const handleStartConsultation = async (patientId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Consulting' })
+      });
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+      }
+    } catch (err) {
+      console.error("Error starting consultation:", err);
+    }
+  };
+
   // Pharmacy Actions
   const handleIssueMedication = async (patientId, issuedString) => {
     try {
-      const isPartial = issuedString.toLowerCase().includes('partial');
       const updatedData = {
-        status: isPartial ? 'Reviewing' : 'Completed',
+        status: 'Reviewing',
         issuedMedication: issuedString
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
@@ -348,6 +529,16 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  if (tvMode) {
+    return (
+      <TvQueueDisplay 
+        patients={patients} 
+        doctors={doctorsList} 
+        onExit={() => setTvMode(false)} 
+      />
+    );
+  }
+
   const activeView = user.role === 'admin' ? adminActiveView : user.role;
 
   // Dashboard Renderer based on current active view
@@ -374,6 +565,8 @@ function App() {
             onDeleteDoctor={handleDeleteDoctor}
             onAddStaff={handleAddStaff}
             onDeleteStaff={handleDeleteStaff}
+            onDeletePatient={handleDeletePatient}
+            onDeleteAllPatients={handleDeleteAllPatients}
           />
         );
       case 'receptionist':
@@ -383,6 +576,9 @@ function App() {
             doctors={doctorsList} 
             onRegisterPatient={handleRegisterPatient}
             onUpdatePaymentStatus={handleUpdatePaymentStatus}
+            onReRegisterPatient={handleReRegisterPatient}
+            isAdmin={user?.role === 'admin'}
+            onDeletePatient={handleDeletePatient}
           />
         );
       case 'doctor':
@@ -392,6 +588,7 @@ function App() {
             doctorEmail={user.email}
             onSubmitPrescription={handleSubmitPrescription}
             onSubmitReview={handleSubmitReview}
+            onStartConsultation={handleStartConsultation}
             onPrintPrescription={handlePrintPrescription}
             onEmailPrescription={handleEmailPrescription}
           />
@@ -402,6 +599,8 @@ function App() {
             patients={patients} 
             doctors={doctorsList}
             onIssueMedication={handleIssueMedication}
+            onPrintPrescription={handlePrintPrescription}
+            onEmailPrescription={handleEmailPrescription}
           />
         );
       case 'ward':
@@ -411,6 +610,22 @@ function App() {
             onAssignBed={handleAssignBed}
             onDischargePatient={handleDischargePatient}
           />
+        );
+      case 'injection':
+        return (
+          <InjectionRoom patients={patients} />
+        );
+      case 'lab':
+        return (
+          <LabDashboard patients={patients} />
+        );
+      case 'directory':
+        return (
+          <DirectoryLedger />
+        );
+      case 'utility':
+        return (
+          <UtilityLogs />
         );
       default:
         return (
@@ -422,9 +637,32 @@ function App() {
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      {/* Mobile top navigation bar */}
+      <div className="mobile-header">
+        <button className="menu-toggle-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
+          <Menu size={24} />
+        </button>
+        <div className="mobile-logo">
+          <div className="logo-icon" style={{ padding: '0.35rem', boxShadow: 'none' }}>
+            <Stethoscope size={18} />
+          </div>
+          <span className="logo-text-mobile">Vijayas <span className="logo-sub">HMS</span></span>
+        </div>
+        <div className="mobile-avatar" onClick={() => setIsSidebarOpen(true)}>
+          {user.name.charAt(0)}
+        </div>
+      </div>
+
+      {/* Sidebar backdrop overlay */}
+      {isSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />}
+
       {/* Sidebar navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu">
+          <X size={20} />
+        </button>
+
         <div className="logo-container">
           <div className="logo-icon">
             <Stethoscope size={24} />
@@ -439,38 +677,66 @@ function App() {
             <>
               <div 
                 className={`nav-item ${adminActiveView === 'admin' ? 'active' : ''}`}
-                onClick={() => setAdminActiveView('admin')}
+                onClick={() => { setAdminActiveView('admin'); setIsSidebarOpen(false); }}
               >
                 <Shield size={18} />
                 <span>Admin Console</span>
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'receptionist' ? 'active' : ''}`}
-                onClick={() => setAdminActiveView('receptionist')}
+                onClick={() => { setAdminActiveView('receptionist'); setIsSidebarOpen(false); }}
               >
                 <Users size={18} />
                 <span>Receptionist Module</span>
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'doctor' ? 'active' : ''}`}
-                onClick={() => setAdminActiveView('doctor')}
+                onClick={() => { setAdminActiveView('doctor'); setIsSidebarOpen(false); }}
               >
                 <Activity size={18} />
                 <span>Doctor Consultations</span>
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'pharmacy' ? 'active' : ''}`}
-                onClick={() => setAdminActiveView('pharmacy')}
+                onClick={() => { setAdminActiveView('pharmacy'); setIsSidebarOpen(false); }}
               >
                 <Pill size={18} />
                 <span>Pharmacy Module</span>
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'ward' ? 'active' : ''}`}
-                onClick={() => setAdminActiveView('ward')}
+                onClick={() => { setAdminActiveView('ward'); setIsSidebarOpen(false); }}
               >
                 <Bed size={18} />
                 <span>Ward & Beds Module</span>
+              </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'injection' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('injection'); setIsSidebarOpen(false); }}
+              >
+                <Syringe size={18} />
+                <span>Injection Desk</span>
+              </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'lab' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('lab'); setIsSidebarOpen(false); }}
+              >
+                <FlaskConical size={18} />
+                <span>Laboratory Module</span>
+              </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'directory' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('directory'); setIsSidebarOpen(false); }}
+              >
+                <BookOpen size={18} />
+                <span>Directory & Ledgers</span>
+              </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'utility' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('utility'); setIsSidebarOpen(false); }}
+              >
+                <ClipboardList size={18} />
+                <span>Checklists & Logs</span>
               </div>
             </>
           )}
@@ -499,6 +765,27 @@ function App() {
               <span>Ward & Beds Module</span>
             </div>
           )}
+          {user.role === 'injection' && (
+            <div className="nav-item active" style={{ borderLeft: '3px solid #f59e0b' }}>
+              <Syringe size={18} style={{ color: '#f59e0b' }} />
+              <span>Injection Desk</span>
+            </div>
+          )}
+          {user.role === 'lab' && (
+            <div className="nav-item active" style={{ borderLeft: '3px solid #10b981' }}>
+              <FlaskConical size={18} style={{ color: '#10b981' }} />
+              <span>Laboratory Module</span>
+            </div>
+          )}
+          
+          <div 
+            className="nav-item"
+            style={{ marginTop: 'auto', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1.25rem', opacity: 0.8 }}
+            onClick={() => { setTvMode(true); setIsSidebarOpen(false); }}
+          >
+            <Monitor size={18} />
+            <span>TV Queue Display</span>
+          </div>
         </div>
 
         {/* User profile section at the bottom */}
@@ -510,7 +797,7 @@ function App() {
             <span className="user-name">{user.name}</span>
             <span className="user-role">{user.role.toUpperCase()}</span>
           </div>
-          <button className="btn-logout" onClick={handleLogout} title="Sign Out">
+          <button className="btn-logout" onClick={() => { handleLogout(); setIsSidebarOpen(false); }} title="Sign Out">
             <LogOut size={20} />
           </button>
         </div>
@@ -526,6 +813,10 @@ function App() {
               {activeView === 'doctor' && 'Doctor Consultation Terminal'}
               {activeView === 'pharmacy' && 'Pharmacy Dispatch Desk'}
               {activeView === 'ward' && 'Ward Room Occupancy System'}
+              {activeView === 'injection' && 'Injection Desk'}
+              {activeView === 'lab' && 'Laboratory Investigation Module'}
+              {activeView === 'directory' && 'Directory & Expense Ledger Book'}
+              {activeView === 'utility' && 'Housekeeping, Attendance & Waste Logs'}
             </h2>
             <p className="header-subtitle">Welcome back, {user.name} • Hospital Management Workspace</p>
           </div>

@@ -1,0 +1,705 @@
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.join(__dirname, 'hospital.db');
+const dbJsonPath = path.join(__dirname, 'db.json');
+
+const db = new sqlite3.Database(dbPath);
+
+// Helper to run queries using promises
+const dbRun = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(query, params, function(err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const dbAll = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+const dbGet = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+// Initialize Database Tables
+export const initDB = async () => {
+  // Create Doctors
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS doctors (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      specialty TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    )
+  `);
+
+  // Create Staff
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS staff (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      role TEXT NOT NULL,
+      password TEXT NOT NULL
+    )
+  `);
+
+  // Create Patients
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS patients (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      age INTEGER NOT NULL,
+      gender TEXT NOT NULL,
+      contact TEXT NOT NULL,
+      address TEXT,
+      assignedDoctorId INTEGER,
+      status TEXT NOT NULL,
+      diagnosis TEXT,
+      prescription TEXT, -- JSON string of prescription array
+      issuedMedication TEXT,
+      paymentStatus TEXT NOT NULL,
+      wardBedId INTEGER,
+      fatherOrHusbandName TEXT,
+      alternatePhone TEXT,
+      tokenNumber INTEGER,
+      registrationDate TEXT,
+      prescriptionImg TEXT,
+      height TEXT,
+      weight TEXT,
+      bp TEXT,
+      hr TEXT,
+      spo2 TEXT,
+      grbs TEXT,
+      temp TEXT,
+      complaints TEXT,
+      pastHistory TEXT,
+      examination TEXT,
+      investigation TEXT
+    )
+  `);
+
+  // Migrate tables to add columns if they do not exist
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN fatherOrHusbandName TEXT`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN alternatePhone TEXT`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN tokenNumber INTEGER`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN registrationDate TEXT`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN prescriptionImg TEXT`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  
+  const triageCols = ['height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp', 'complaints', 'pastHistory', 'examination', 'investigation'];
+  for (const col of triageCols) {
+    try {
+      await dbRun(`ALTER TABLE patients ADD COLUMN ${col} TEXT`);
+    } catch (e) {
+      // Ignore error if column already exists
+    }
+  }
+
+  // Create Patient History
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS patient_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patientId TEXT NOT NULL,
+      visitId INTEGER,
+      date TEXT NOT NULL,
+      doctorName TEXT NOT NULL,
+      diagnosis TEXT,
+      prescription TEXT, -- JSON string of prescription array
+      issuedMedication TEXT,
+      paymentStatus TEXT,
+      status TEXT,
+      FOREIGN KEY (patientId) REFERENCES patients(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Add BMI column migration
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN bmi TEXT`);
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
+  // Create Staff Attendance
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS staff_attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      staffId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      status TEXT NOT NULL,
+      markedBy TEXT
+    )
+  `);
+
+  // Create Directory Ledger
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS directory_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      details TEXT,
+      amount REAL DEFAULT 0
+    )
+  `);
+
+  // Create Housekeeping Checklist
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS housekeeping_checklist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      placeName TEXT NOT NULL,
+      date TEXT NOT NULL,
+      isCleaned INTEGER DEFAULT 0,
+      isPlantsWatered INTEGER DEFAULT 0,
+      notes TEXT
+    )
+  `);
+
+  // Create Medical Waste Log
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS medical_waste (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      wasteType TEXT NOT NULL,
+      weight REAL NOT NULL,
+      agencyName TEXT NOT NULL,
+      billAmount REAL DEFAULT 0,
+      billAttachment TEXT
+    )
+  `);
+
+  // Create Pharmacy Ledger
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS pharmacy_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      agencyName TEXT
+    )
+  `);
+
+  // Create Lab Logs
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS lab_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patientId TEXT NOT NULL,
+      testName TEXT NOT NULL,
+      dateOrdered TEXT NOT NULL,
+      status TEXT NOT NULL,
+      reportNotes TEXT
+    )
+  `);
+
+  // Create Vaccinations Log
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS vaccinations_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patientId TEXT NOT NULL,
+      vaccineName TEXT NOT NULL,
+      dateGiven TEXT NOT NULL,
+      dosage TEXT,
+      nextDueDate TEXT
+    )
+  `);
+
+  // Create Injections Log
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS injections_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patientId TEXT NOT NULL,
+      injectionName TEXT NOT NULL,
+      dosage TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      dateGiven TEXT
+    )
+  `);
+
+  // Ensure injection and lab default staff accounts always exist
+  await dbRun(
+    `INSERT OR IGNORE INTO staff (name, email, role, password) VALUES (?, ?, ?, ?)`,
+    ['Injection Desk Nurse', 'injection@vijayas.com', 'injection', 'password123']
+  );
+  await dbRun(
+    `INSERT OR IGNORE INTO staff (name, email, role, password) VALUES (?, ?, ?, ?)`,
+    ['Lab Investigation Staff', 'lab@vijayas.com', 'lab', 'password123']
+  );
+
+  // Migrate data from db.json if database is empty
+  const docCount = await dbGet(`SELECT count(*) as count FROM doctors`);
+  if (docCount.count === 0 && fs.existsSync(dbJsonPath)) {
+    console.log("Migrating data from db.json to SQLite database...");
+    try {
+      const dbJson = JSON.parse(fs.readFileSync(dbJsonPath, 'utf8'));
+
+      // Insert doctors
+      if (dbJson.doctors) {
+        for (const doc of dbJson.doctors) {
+          await dbRun(
+            `INSERT OR IGNORE INTO doctors (id, name, specialty, email, password) VALUES (?, ?, ?, ?, ?)`,
+            [doc.id, doc.name, doc.specialty, doc.email, doc.password || 'password123']
+          );
+        }
+      }
+
+      // Insert staff
+      if (dbJson.staff) {
+        for (const st of dbJson.staff) {
+          await dbRun(
+            `INSERT OR IGNORE INTO staff (id, name, email, role, password) VALUES (?, ?, ?, ?, ?)`,
+            [st.id, st.name, st.email, st.role, st.password || 'password123']
+          );
+        }
+      }
+
+      // Insert patients and their history
+      if (dbJson.patients) {
+        for (const pat of dbJson.patients) {
+          await dbRun(
+            `INSERT OR IGNORE INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              pat.id,
+              pat.name,
+              pat.age,
+              pat.gender,
+              pat.contact,
+              pat.address || '',
+              pat.assignedDoctorId,
+              pat.status || 'Registered',
+              pat.diagnosis || '',
+              pat.prescription ? JSON.stringify(pat.prescription) : null,
+              pat.issuedMedication || null,
+              pat.paymentStatus || 'Unpaid',
+              pat.wardBedId
+            ]
+          );
+
+          // Insert patient history
+          if (pat.history && pat.history.length > 0) {
+            for (const h of pat.history) {
+              await dbRun(
+                `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, issuedMedication, paymentStatus, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  pat.id,
+                  h.visitId || Date.now(),
+                  h.date,
+                  h.doctorName,
+                  h.diagnosis,
+                  h.prescription ? JSON.stringify(h.prescription) : null,
+                  h.issuedMedication,
+                  h.paymentStatus,
+                  h.status
+                ]
+              );
+            }
+          }
+        }
+      }
+      console.log("Migration complete!");
+    } catch (err) {
+      console.error("Failed to migrate database:", err.message);
+    }
+  }
+};
+
+// Database APIs
+export const getDoctors = () => dbAll(`SELECT * FROM doctors`);
+export const addDoctor = async (doc) => {
+  const id = doc.id || Date.now();
+  await dbRun(
+    `INSERT INTO doctors (id, name, specialty, email, password) VALUES (?, ?, ?, ?, ?)`,
+    [id, doc.name, doc.specialty, doc.email, doc.password || 'password123']
+  );
+  return { id, name: doc.name, specialty: doc.specialty, email: doc.email };
+};
+export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ?`, [id]);
+
+export const getStaff = () => dbAll(`SELECT * FROM staff`);
+export const addStaff = async (st) => {
+  const id = st.id || Date.now();
+  await dbRun(
+    `INSERT INTO staff (id, name, email, role, password) VALUES (?, ?, ?, ?, ?)`,
+    [id, st.name, st.email, st.role, st.password || 'password123']
+  );
+  return { id, name: st.name, email: st.email, role: st.role };
+};
+export const deleteStaff = (id) => dbRun(`DELETE FROM staff WHERE id = ?`, [id]);
+export const deletePatient = (id) => dbRun(
+  `UPDATE patients SET status = 'Inactive', tokenNumber = NULL, registrationDate = NULL WHERE id = ?`,
+  [id]
+);
+export const deleteAllPatients = async () => {
+  await dbRun(`DELETE FROM patients`);
+  await dbRun(`DELETE FROM patient_history`);
+};
+
+export const getPatients = async () => {
+  const patients = await dbAll(`SELECT * FROM patients`);
+  const result = [];
+  for (const pat of patients) {
+    const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [pat.id]);
+    const history = historyRows.map(h => ({
+      visitId: h.visitId,
+      date: h.date,
+      doctorName: h.doctorName,
+      diagnosis: h.diagnosis,
+      prescription: h.prescription ? JSON.parse(h.prescription) : [],
+      issuedMedication: h.issuedMedication,
+      paymentStatus: h.paymentStatus,
+      status: h.status
+    }));
+
+    result.push({
+      id: pat.id,
+      name: pat.name,
+      age: pat.age,
+      gender: pat.gender,
+      contact: pat.contact,
+      address: pat.address,
+      assignedDoctorId: pat.assignedDoctorId,
+      status: pat.status,
+      diagnosis: pat.diagnosis,
+      prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
+      issuedMedication: pat.issuedMedication,
+      paymentStatus: pat.paymentStatus,
+      wardBedId: pat.wardBedId,
+      fatherOrHusbandName: pat.fatherOrHusbandName || '',
+      alternatePhone: pat.alternatePhone || '',
+      tokenNumber: pat.tokenNumber || null,
+      registrationDate: pat.registrationDate || '',
+      prescriptionImg: pat.prescriptionImg || null,
+      height: pat.height || '',
+      weight: pat.weight || '',
+      bp: pat.bp || '',
+      hr: pat.hr || '',
+      spo2: pat.spo2 || '',
+      grbs: pat.grbs || '',
+      temp: pat.temp || '',
+      complaints: pat.complaints || '',
+      pastHistory: pat.pastHistory || '',
+      examination: pat.examination || '',
+      investigation: pat.investigation || '',
+      bmi: pat.bmi || '',
+      history: history
+    });
+  }
+  return result;
+};
+
+const getNextPatientId = async () => {
+  const patients = await dbAll(`SELECT id FROM patients`);
+  let maxNum = 0;
+  for (const pat of patients) {
+    const idStr = String(pat.id);
+    if (idStr.startsWith('VH')) {
+      const num = parseInt(idStr.substring(2));
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  }
+  const nextNum = maxNum + 1;
+  return `VH${String(nextNum).padStart(3, '0')}`;
+};
+
+export const addPatient = async (pat) => {
+  const id = pat.id || (await getNextPatientId());
+  await dbRun(
+    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, fatherOrHusbandName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      pat.name,
+      pat.age,
+      pat.gender,
+      pat.contact,
+      pat.address || '',
+      pat.assignedDoctorId,
+      pat.status || 'Registered',
+      pat.diagnosis || '',
+      pat.prescription ? JSON.stringify(pat.prescription) : null,
+      pat.issuedMedication || null,
+      pat.paymentStatus || 'Unpaid',
+      pat.wardBedId || null,
+      pat.fatherOrHusbandName || '',
+      pat.alternatePhone || '',
+      pat.tokenNumber || null,
+      pat.registrationDate || '',
+      pat.prescriptionImg || null,
+      pat.height || '',
+      pat.weight || '',
+      pat.bp || '',
+      pat.hr || '',
+      pat.spo2 || '',
+      pat.grbs || '',
+      pat.temp || '',
+      pat.complaints || '',
+      pat.pastHistory || '',
+      pat.examination || '',
+      pat.investigation || '',
+      pat.bmi || ''
+    ]
+  );
+  
+  return {
+    id,
+    name: pat.name,
+    age: pat.age,
+    gender: pat.gender,
+    contact: pat.contact,
+    address: pat.address || '',
+    assignedDoctorId: pat.assignedDoctorId,
+    status: pat.status || 'Registered',
+    diagnosis: pat.diagnosis || '',
+    prescription: pat.prescription || null,
+    issuedMedication: pat.issuedMedication || null,
+    paymentStatus: pat.paymentStatus || 'Unpaid',
+    wardBedId: pat.wardBedId || null,
+    fatherOrHusbandName: pat.fatherOrHusbandName || '',
+    alternatePhone: pat.alternatePhone || '',
+    tokenNumber: pat.tokenNumber || null,
+    registrationDate: pat.registrationDate || '',
+    prescriptionImg: pat.prescriptionImg || null,
+    height: pat.height || '',
+    weight: pat.weight || '',
+    bp: pat.bp || '',
+    hr: pat.hr || '',
+    spo2: pat.spo2 || '',
+    grbs: pat.grbs || '',
+    temp: pat.temp || '',
+    complaints: pat.complaints || '',
+    pastHistory: pat.pastHistory || '',
+    examination: pat.examination || '',
+    investigation: pat.investigation || '',
+    bmi: pat.bmi || '',
+    history: []
+  };
+};
+
+export const updatePatient = async (id, data) => {
+  const existing = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  if (!existing) throw new Error("Patient not found");
+
+  const fields = [];
+  const params = [];
+
+  const keys = [
+    'name', 'age', 'gender', 'contact', 'address', 
+    'assignedDoctorId', 'status', 'diagnosis', 
+    'prescription', 'issuedMedication', 'paymentStatus', 'wardBedId',
+    'fatherOrHusbandName', 'alternatePhone', 'tokenNumber', 'registrationDate',
+    'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
+    'complaints', 'pastHistory', 'examination', 'investigation', 'bmi'
+  ];
+
+  for (const k of keys) {
+    if (data[k] !== undefined) {
+      fields.push(`${k} = ?`);
+      if (k === 'prescription') {
+        params.push(data[k] ? JSON.stringify(data[k]) : null);
+      } else {
+        params.push(data[k]);
+      }
+    }
+  }
+
+  if (fields.length > 0) {
+    params.push(id);
+    await dbRun(`UPDATE patients SET ${fields.join(', ')} WHERE id = ?`, params);
+  }
+
+  // Handle history updates if present
+  if (data.history !== undefined) {
+    await dbRun(`DELETE FROM patient_history WHERE patientId = ?`, [id]);
+    for (const h of data.history) {
+      await dbRun(
+        `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, issuedMedication, paymentStatus, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          h.visitId || Date.now(),
+          h.date,
+          h.doctorName,
+          h.diagnosis,
+          h.prescription ? JSON.stringify(h.prescription) : null,
+          h.issuedMedication,
+          h.paymentStatus,
+          h.status
+        ]
+      );
+    }
+  }
+
+  const updated = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [id]);
+  const history = historyRows.map(h => ({
+    visitId: h.visitId,
+    date: h.date,
+    doctorName: h.doctorName,
+    diagnosis: h.diagnosis,
+    prescription: h.prescription ? JSON.parse(h.prescription) : [],
+    issuedMedication: h.issuedMedication,
+    paymentStatus: h.paymentStatus,
+    status: h.status
+  }));
+
+  return {
+    id: updated.id,
+    name: updated.name,
+    age: updated.age,
+    gender: updated.gender,
+    contact: updated.contact,
+    address: updated.address,
+    assignedDoctorId: updated.assignedDoctorId,
+    status: updated.status,
+    diagnosis: updated.diagnosis,
+    prescription: updated.prescription ? JSON.parse(updated.prescription) : null,
+    issuedMedication: updated.issuedMedication,
+    paymentStatus: updated.paymentStatus,
+    wardBedId: updated.wardBedId,
+    fatherOrHusbandName: updated.fatherOrHusbandName || '',
+    alternatePhone: updated.alternatePhone || '',
+    tokenNumber: updated.tokenNumber || null,
+    registrationDate: updated.registrationDate || '',
+    prescriptionImg: updated.prescriptionImg || null,
+    height: updated.height || '',
+    weight: updated.weight || '',
+    bp: updated.bp || '',
+    hr: updated.hr || '',
+    spo2: updated.spo2 || '',
+    grbs: updated.grbs || '',
+    temp: updated.temp || '',
+    complaints: updated.complaints || '',
+    pastHistory: updated.pastHistory || '',
+    examination: updated.examination || '',
+    investigation: updated.investigation || '',
+    bmi: updated.bmi || '',
+    history: history
+  };
+};
+
+// Staff Attendance
+export const getAttendance = () => dbAll(`SELECT * FROM staff_attendance`);
+export const addAttendance = (att) => dbRun(
+  `INSERT INTO staff_attendance (staffId, date, status, markedBy) VALUES (?, ?, ?, ?)`,
+  [att.staffId, att.date, att.status, att.markedBy]
+);
+
+// Directory Ledger
+export const getDirectory = () => dbAll(`SELECT * FROM directory_ledger`);
+export const addDirectory = async (entry) => {
+  const result = await dbRun(
+    `INSERT INTO directory_ledger (name, category, phone, details, amount) VALUES (?, ?, ?, ?, ?)`,
+    [entry.name, entry.category, entry.phone, entry.details, entry.amount]
+  );
+  return { id: result.lastID, ...entry };
+};
+export const deleteDirectory = (id) => dbRun(`DELETE FROM directory_ledger WHERE id = ?`, [id]);
+
+// Housekeeping
+export const getHousekeeping = () => dbAll(`SELECT * FROM housekeeping_checklist`);
+export const addHousekeeping = async (task) => {
+  const result = await dbRun(
+    `INSERT INTO housekeeping_checklist (placeName, date, isCleaned, isPlantsWatered, notes) VALUES (?, ?, ?, ?, ?)`,
+    [task.placeName, task.date, task.isCleaned, task.isPlantsWatered, task.notes]
+  );
+  return { id: result.lastID, ...task };
+};
+
+// Medical Waste
+export const getMedicalWaste = () => dbAll(`SELECT * FROM medical_waste`);
+export const addMedicalWaste = async (waste) => {
+  const result = await dbRun(
+    `INSERT INTO medical_waste (date, wasteType, weight, agencyName, billAmount, billAttachment) VALUES (?, ?, ?, ?, ?, ?)`,
+    [waste.date, waste.wasteType, waste.weight, waste.agencyName, waste.billAmount, waste.billAttachment]
+  );
+  return { id: result.lastID, ...waste };
+};
+
+// Pharmacy Ledger
+export const getPharmacyLedger = () => dbAll(`SELECT * FROM pharmacy_ledger`);
+export const addPharmacyLedger = async (ledger) => {
+  const result = await dbRun(
+    `INSERT INTO pharmacy_ledger (date, type, description, amount, agencyName) VALUES (?, ?, ?, ?, ?)`,
+    [ledger.date, ledger.type, ledger.description, ledger.amount, ledger.agencyName]
+  );
+  return { id: result.lastID, ...ledger };
+};
+
+// Lab Logs
+export const getLabLogs = () => dbAll(`SELECT * FROM lab_logs`);
+export const addLabLog = async (log) => {
+  const result = await dbRun(
+    `INSERT INTO lab_logs (patientId, testName, dateOrdered, status, reportNotes) VALUES (?, ?, ?, ?, ?)`,
+    [log.patientId, log.testName, log.dateOrdered, log.status || 'Ordered', log.reportNotes || '']
+  );
+  return { id: result.lastID, ...log };
+};
+export const updateLabLogStatus = (id, status, reportNotes) => dbRun(
+  `UPDATE lab_logs SET status = ?, reportNotes = ? WHERE id = ?`,
+  [status, reportNotes, id]
+);
+
+// Vaccinations
+export const getVaccinesByPatient = (patientId) => dbAll(`SELECT * FROM vaccinations_log WHERE patientId = ?`, [patientId]);
+export const addVaccine = async (vac) => {
+  const result = await dbRun(
+    `INSERT INTO vaccinations_log (patientId, vaccineName, dateGiven, dosage, nextDueDate) VALUES (?, ?, ?, ?, ?)`,
+    [vac.patientId, vac.vaccineName, vac.dateGiven, vac.dosage, vac.nextDueDate]
+  );
+  return { id: result.lastID, ...vac };
+};
+
+// Injections
+export const getInjections = () => dbAll(`SELECT * FROM injections_log`);
+export const addInjection = async (inj) => {
+  const result = await dbRun(
+    `INSERT INTO injections_log (patientId, injectionName, dosage, status, dateGiven) VALUES (?, ?, ?, ?, ?)`,
+    [inj.patientId, inj.injectionName, inj.dosage, inj.status || 'Pending', inj.dateGiven || '']
+  );
+  return { id: result.lastID, ...inj };
+};
+export const updateInjectionStatus = (id, status, dateGiven) => dbRun(
+  `UPDATE injections_log SET status = ?, dateGiven = ? WHERE id = ?`,
+  [status, dateGiven, id]
+);

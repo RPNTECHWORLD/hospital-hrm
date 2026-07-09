@@ -1,18 +1,74 @@
 {
   "doctors": [
-    { "id": 1, "name": "Dr. Vijayan", "specialty": "General Medicine", "email": "doctor1@vijayas.com", "password": "password123" },
-    { "id": 2, "name": "Dr. Sarah", "specialty": "Pediatrician", "email": "doctor2@vijayas.com", "password": "password123" }
+    {
+      "id": 1,
+      "name": "Dr. Vijayan",
+      "specialty": "General Medicine",
+      "email": "doctor1@vijayas.com",
+      "password": "password123"
+    },
+    {
+      "id": 2,
+      "name": "Dr. Sarah",
+      "specialty": "Pediatrician",
+      "email": "doctor2@vijayas.com",
+      "password": "password123"
+    }
   ],
   "staff": [
-    { "id": 1, "name": "System Admin", "email": "admin@vijayas.com", "role": "admin", "password": "password123" },
-    { "id": 2, "name": "Receptionist Staff", "email": "receptionist@vijayas.com", "role": "receptionist", "password": "password123" },
-    { "id": 3, "name": "Pharmacy Staff 1", "email": "pharmacy1@vijayas.com", "role": "pharmacy", "password": "password123" },
-    { "id": 4, "name": "Pharmacy Staff 2", "email": "pharmacy2@vijayas.com", "role": "pharmacy", "password": "password123" },
-    { "id": 5, "name": "Ward Room Staff", "email": "ward@vijayas.com", "role": "ward", "password": "password123" }
+    {
+      "id": 1,
+      "name": "System Admin",
+      "email": "admin@vijayas.com",
+      "role": "admin",
+      "password": "password123"
+    },
+    {
+      "id": 2,
+      "name": "Receptionist Staff",
+      "email": "receptionist@vijayas.com",
+      "role": "receptionist",
+      "password": "password123"
+    },
+    {
+      "id": 3,
+      "name": "Pharmacy Staff 1",
+      "email": "pharmacy1@vijayas.com",
+      "role": "pharmacy",
+      "password": "password123"
+    },
+    {
+      "id": 4,
+      "name": "Pharmacy Staff 2",
+      "email": "pharmacy2@vijayas.com",
+      "role": "pharmacy",
+      "password": "password123"
+    },
+    {
+      "id": 5,
+      "name": "Ward Room Staff",
+      "email": "ward@vijayas.com",
+      "role": "ward",
+      "password": "password123"
+    },
+    {
+      "id": 6,
+      "name": "Injection Desk Nurse",
+      "email": "injection@vijayas.com",
+      "role": "injection",
+      "password": "password123"
+    },
+    {
+      "id": 7,
+      "name": "Lab Investigation Staff",
+      "email": "lab@vijayas.com",
+      "role": "lab",
+      "password": "password123"
+    }
   ],
   "patients": [
     {
-      "id": 1,
+      "id": "VH001",
       "name": "John Doe",
       "age": 45,
       "gender": "Male",
@@ -27,7 +83,7 @@
       "wardBedId": null
     },
     {
-      "id": 2,
+      "id": "VH002",
       "name": "Aisha Rahman",
       "age": 28,
       "gender": "Female",
@@ -37,15 +93,23 @@
       "status": "At Pharmacy",
       "diagnosis": "Throat Infection & Fever",
       "prescription": [
-        { "name": "Amoxicillin 500mg", "dosage": "1-0-1 after food", "duration": 10 },
-        { "name": "Paracetamol 650mg", "dosage": "1-1-1 SOS", "duration": 5 }
+        {
+          "name": "Amoxicillin 500mg",
+          "dosage": "1-0-1 after food",
+          "duration": 10
+        },
+        {
+          "name": "Paracetamol 650mg",
+          "dosage": "1-1-1 SOS",
+          "duration": 5
+        }
       ],
       "issuedMedication": null,
       "paymentStatus": "Unpaid",
       "wardBedId": null
     },
     {
-      "id": 3,
+      "id": "VH003",
       "name": "Kumar Swamy",
       "age": 62,
       "gender": "Male",
@@ -55,11 +119,34 @@
       "status": "Reviewing",
       "diagnosis": "Severe Knee Pain & Inflammation",
       "prescription": [
-        { "name": "Aceclofenac 100mg", "dosage": "1-0-1 after food", "duration": 14 },
-        { "name": "Pantoprazole 40mg", "dosage": "1-0-0 before food", "duration": 14 }
+        {
+          "name": "Aceclofenac 100mg",
+          "dosage": "1-0-1 after food",
+          "duration": 14
+        },
+        {
+          "name": "Pantoprazole 40mg",
+          "dosage": "1-0-0 before food",
+          "duration": 14
+        }
       ],
       "issuedMedication": "Partial Duration (5 Days)",
       "paymentStatus": "Unpaid",
+      "wardBedId": null
+    },
+    {
+      "id": "VH004",
+      "name": "Eric Sheldon RS",
+      "age": 20,
+      "gender": "Male",
+      "contact": "09786787873",
+      "address": "295 railway road kollidam",
+      "assignedDoctorId": 1,
+      "status": "Registered",
+      "diagnosis": "",
+      "prescription": null,
+      "issuedMedication": null,
+      "paymentStatus": "Paid",
       "wardBedId": null
     }
   ]
