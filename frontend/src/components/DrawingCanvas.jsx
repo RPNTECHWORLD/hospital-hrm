@@ -43,17 +43,19 @@ const DrawingCanvas = ({ onSave }) => {
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    
     if (e.touches && e.touches.length > 0) {
-      return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top
-      };
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
     }
     
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
+    // Scale coordinates to match internal canvas resolution vs CSS displayed size
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
+    
+    return { x, y };
   };
 
   const startDrawing = (e) => {

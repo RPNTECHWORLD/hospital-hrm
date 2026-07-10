@@ -105,7 +105,7 @@ const INITIAL_PATIENTS = [
 function App() {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('hms_user');
+      const saved = sessionStorage.getItem('hms_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -121,12 +121,12 @@ function App() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Sync user state to localStorage
+  // Sync user state to sessionStorage
   useEffect(() => {
     if (user) {
-      localStorage.setItem('hms_user', JSON.stringify(user));
+      sessionStorage.setItem('hms_user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('hms_user');
+      sessionStorage.removeItem('hms_user');
     }
   }, [user]);
 
@@ -188,7 +188,7 @@ function App() {
     setUser(null);
     setPatients([]);
     setAdminActiveView('admin');
-    localStorage.removeItem('hms_user');
+    sessionStorage.removeItem('hms_user');
   };
 
   // Admin Actions
@@ -313,7 +313,7 @@ function App() {
       const doctors = doctorsList;
       let updatedHistory = patient.history || [];
       
-      if (patient.diagnosis || (patient.prescription && patient.prescription.length > 0)) {
+      if (patient.diagnosis || (patient.prescription && patient.prescription.length > 0) || patient.prescriptionImg) {
         const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
         const archiveEntry = {
           visitId: Date.now(),
@@ -321,6 +321,7 @@ function App() {
           doctorName: assignedDoc ? assignedDoc.name : 'Unknown Doctor',
           diagnosis: patient.diagnosis || 'No diagnosis recorded',
           prescription: patient.prescription || [],
+          prescriptionImg: patient.prescriptionImg || null,
           issuedMedication: patient.issuedMedication || 'None',
           paymentStatus: patient.paymentStatus,
           status: patient.status
@@ -328,7 +329,8 @@ function App() {
         
         const isDuplicate = updatedHistory.some(h => 
           h.diagnosis === archiveEntry.diagnosis && 
-          JSON.stringify(h.prescription) === JSON.stringify(archiveEntry.prescription)
+          JSON.stringify(h.prescription) === JSON.stringify(archiveEntry.prescription) &&
+          h.prescriptionImg === archiveEntry.prescriptionImg
         );
         
         if (!isDuplicate) {
@@ -355,6 +357,7 @@ function App() {
         status: 'Registered',
         diagnosis: '',
         prescription: null,
+        prescriptionImg: null,
         issuedMedication: null,
         paymentStatus: 'Unpaid',
         wardBedId: null,
@@ -463,7 +466,7 @@ function App() {
   };
 
   // Pharmacy Actions
-  const handleIssueMedication = async (patientId, issuedString) => {
+  const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
     try {
       const updatedData = {
         status: 'Reviewing',
@@ -477,6 +480,24 @@ function App() {
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+
+        if (injectionData) {
+          try {
+            await fetch(`${API_BASE}/api/injections`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                patientId: patientId,
+                injectionName: injectionData.name,
+                dosage: injectionData.dosage,
+                status: 'Pending Approval',
+                dateGiven: ''
+              })
+            });
+          } catch (err) {
+            console.error("Error saving injection:", err);
+          }
+        }
       }
     } catch (err) {
       console.error("Error issuing medication:", err);

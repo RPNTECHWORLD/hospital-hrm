@@ -1,41 +1,85 @@
-import sqlite3 from 'sqlite3';
+import pg from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, 'hospital.db');
 const dbJsonPath = path.join(__dirname, 'db.json');
 
-const db = new sqlite3.Database(dbPath);
-
-// Helper to run queries using promises
-const dbRun = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(query, params, function(err) {
-      if (err) reject(err);
-      else resolve(this);
+// Load environment variables from .env.local
+try {
+  const envPath = path.join(__dirname, '.env.local');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    envContent.split(/\r?\n/).forEach(line => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const key = match[1];
+        let val = match[2] || '';
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.substring(1, val.length - 1);
+        } else if (val.startsWith("'") && val.endsWith("'")) {
+          val = val.substring(1, val.length - 1);
+        }
+        process.env[key] = val;
+      }
     });
-  });
+  }
+} catch (e) {
+  console.log("No .env.local file loaded:", e.message);
+}
+
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const pool = new pg.Pool({
+  connectionString,
+  ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech')
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+// Helper to convert SQLite ? to Postgres $1, $2, etc.
+const convertPlaceholders = (sql) => {
+  let index = 1;
+  return sql.replace(/\?/g, () => `$${index++}`);
 };
 
-const dbAll = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(query, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+export const dbRun = async (query, params = []) => {
+  let sql = convertPlaceholders(query);
+  
+  if (sql.toUpperCase().includes('INSERT OR IGNORE')) {
+    sql = sql.replace(/INSERT OR IGNORE/gi, 'INSERT');
+    if (sql.toLowerCase().includes('staff')) {
+      sql += ' ON CONFLICT (email) DO NOTHING';
+    } else if (sql.toLowerCase().includes('doctors')) {
+      sql += ' ON CONFLICT (email) DO NOTHING';
+    }
+  }
+
+  const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
+  if (isInsert && !sql.toUpperCase().includes('RETURNING')) {
+    sql += ' RETURNING id';
+  }
+
+  const result = await pool.query(sql, params);
+  
+  if (isInsert && result.rows && result.rows.length > 0) {
+    return { lastID: result.rows[0].id };
+  }
+  return { lastID: null, rowsAffected: result.rowCount };
 };
 
-const dbGet = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(query, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+export const dbAll = async (query, params = []) => {
+  const sql = convertPlaceholders(query);
+  const result = await pool.query(sql, params);
+  return result.rows;
+};
+
+export const dbGet = async (query, params = []) => {
+  const sql = convertPlaceholders(query);
+  const result = await pool.query(sql, params);
+  return result.rows[0] || null;
 };
 
 // Initialize Database Tables
@@ -43,7 +87,7 @@ export const initDB = async () => {
   // Create Doctors
   await dbRun(`
     CREATE TABLE IF NOT EXISTS doctors (
-      id INTEGER PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       specialty TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
@@ -54,7 +98,7 @@ export const initDB = async () => {
   // Create Staff
   await dbRun(`
     CREATE TABLE IF NOT EXISTS staff (
-      id INTEGER PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       role TEXT NOT NULL,
@@ -93,74 +137,32 @@ export const initDB = async () => {
       complaints TEXT,
       pastHistory TEXT,
       examination TEXT,
-      investigation TEXT
+      investigation TEXT,
+      bmi TEXT
     )
   `);
-
-  // Migrate tables to add columns if they do not exist
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN fatherOrHusbandName TEXT`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN alternatePhone TEXT`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN tokenNumber INTEGER`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN registrationDate TEXT`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN prescriptionImg TEXT`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-  
-  const triageCols = ['height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp', 'complaints', 'pastHistory', 'examination', 'investigation'];
-  for (const col of triageCols) {
-    try {
-      await dbRun(`ALTER TABLE patients ADD COLUMN ${col} TEXT`);
-    } catch (e) {
-      // Ignore error if column already exists
-    }
-  }
 
   // Create Patient History
   await dbRun(`
     CREATE TABLE IF NOT EXISTS patient_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      patientId TEXT NOT NULL,
-      visitId INTEGER,
+      id SERIAL PRIMARY KEY,
+      patientId TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      visitId BIGINT,
       date TEXT NOT NULL,
       doctorName TEXT NOT NULL,
       diagnosis TEXT,
       prescription TEXT, -- JSON string of prescription array
+      prescriptionImg TEXT,
       issuedMedication TEXT,
       paymentStatus TEXT,
-      status TEXT,
-      FOREIGN KEY (patientId) REFERENCES patients(id) ON DELETE CASCADE
+      status TEXT
     )
   `);
-
-  // Add BMI column migration
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN bmi TEXT`);
-  } catch (e) {
-    // Ignore error if column already exists
-  }
 
   // Create Staff Attendance
   await dbRun(`
     CREATE TABLE IF NOT EXISTS staff_attendance (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       staffId INTEGER NOT NULL,
       date TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -171,7 +173,7 @@ export const initDB = async () => {
   // Create Directory Ledger
   await dbRun(`
     CREATE TABLE IF NOT EXISTS directory_ledger (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       category TEXT NOT NULL,
       phone TEXT NOT NULL,
@@ -183,7 +185,7 @@ export const initDB = async () => {
   // Create Housekeeping Checklist
   await dbRun(`
     CREATE TABLE IF NOT EXISTS housekeeping_checklist (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       placeName TEXT NOT NULL,
       date TEXT NOT NULL,
       isCleaned INTEGER DEFAULT 0,
@@ -195,7 +197,7 @@ export const initDB = async () => {
   // Create Medical Waste Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS medical_waste (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       date TEXT NOT NULL,
       wasteType TEXT NOT NULL,
       weight REAL NOT NULL,
@@ -208,7 +210,7 @@ export const initDB = async () => {
   // Create Pharmacy Ledger
   await dbRun(`
     CREATE TABLE IF NOT EXISTS pharmacy_ledger (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       date TEXT NOT NULL,
       type TEXT NOT NULL,
       description TEXT NOT NULL,
@@ -220,7 +222,7 @@ export const initDB = async () => {
   // Create Lab Logs
   await dbRun(`
     CREATE TABLE IF NOT EXISTS lab_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       patientId TEXT NOT NULL,
       testName TEXT NOT NULL,
       dateOrdered TEXT NOT NULL,
@@ -232,7 +234,7 @@ export const initDB = async () => {
   // Create Vaccinations Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS vaccinations_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       patientId TEXT NOT NULL,
       vaccineName TEXT NOT NULL,
       dateGiven TEXT NOT NULL,
@@ -244,7 +246,7 @@ export const initDB = async () => {
   // Create Injections Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS injections_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       patientId TEXT NOT NULL,
       injectionName TEXT NOT NULL,
       dosage TEXT NOT NULL,
@@ -317,8 +319,8 @@ export const initDB = async () => {
           if (pat.history && pat.history.length > 0) {
             for (const h of pat.history) {
               await dbRun(
-                `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, issuedMedication, paymentStatus, status)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, prescriptionImg, issuedMedication, paymentStatus, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                   pat.id,
                   h.visitId || Date.now(),
@@ -326,6 +328,7 @@ export const initDB = async () => {
                   h.doctorName,
                   h.diagnosis,
                   h.prescription ? JSON.stringify(h.prescription) : null,
+                  h.prescriptionImg || null,
                   h.issuedMedication,
                   h.paymentStatus,
                   h.status
@@ -384,6 +387,7 @@ export const getPatients = async () => {
       doctorName: h.doctorName,
       diagnosis: h.diagnosis,
       prescription: h.prescription ? JSON.parse(h.prescription) : [],
+      prescriptionImg: h.prescriptionImg || null,
       issuedMedication: h.issuedMedication,
       paymentStatus: h.paymentStatus,
       status: h.status
@@ -425,6 +429,59 @@ export const getPatients = async () => {
   }
   return result;
 };
+
+export const getPatientById = async (id) => {
+  const pat = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  if (!pat) return null;
+
+  const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [id]);
+  const history = historyRows.map(h => ({
+    visitId: h.visitId,
+    date: h.date,
+    doctorName: h.doctorName,
+    diagnosis: h.diagnosis,
+    prescription: h.prescription ? JSON.parse(h.prescription) : [],
+    prescriptionImg: h.prescriptionImg || null,
+    issuedMedication: h.issuedMedication,
+    paymentStatus: h.paymentStatus,
+    status: h.status
+  }));
+
+  return {
+    id: pat.id,
+    name: pat.name,
+    age: pat.age,
+    gender: pat.gender,
+    contact: pat.contact,
+    address: pat.address,
+    assignedDoctorId: pat.assignedDoctorId,
+    status: pat.status,
+    diagnosis: pat.diagnosis,
+    prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
+    issuedMedication: pat.issuedMedication,
+    paymentStatus: pat.paymentStatus,
+    wardBedId: pat.wardBedId,
+    fatherOrHusbandName: pat.fatherOrHusbandName || '',
+    alternatePhone: pat.alternatePhone || '',
+    tokenNumber: pat.tokenNumber || null,
+    registrationDate: pat.registrationDate || '',
+    prescriptionImg: pat.prescriptionImg || null,
+    height: pat.height || '',
+    weight: pat.weight || '',
+    bp: pat.bp || '',
+    hr: pat.hr || '',
+    spo2: pat.spo2 || '',
+    grbs: pat.grbs || '',
+    temp: pat.temp || '',
+    complaints: pat.complaints || '',
+    pastHistory: pat.pastHistory || '',
+    examination: pat.examination || '',
+    investigation: pat.investigation || '',
+    bmi: pat.bmi || '',
+    history: history
+  };
+};
+
 
 const getNextPatientId = async () => {
   const patients = await dbAll(`SELECT id FROM patients`);
@@ -553,8 +610,8 @@ export const updatePatient = async (id, data) => {
     await dbRun(`DELETE FROM patient_history WHERE patientId = ?`, [id]);
     for (const h of data.history) {
       await dbRun(
-        `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, issuedMedication, paymentStatus, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, prescriptionImg, issuedMedication, paymentStatus, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           h.visitId || Date.now(),
@@ -562,6 +619,7 @@ export const updatePatient = async (id, data) => {
           h.doctorName,
           h.diagnosis,
           h.prescription ? JSON.stringify(h.prescription) : null,
+          h.prescriptionImg || null,
           h.issuedMedication,
           h.paymentStatus,
           h.status
@@ -578,6 +636,7 @@ export const updatePatient = async (id, data) => {
     doctorName: h.doctorName,
     diagnosis: h.diagnosis,
     prescription: h.prescription ? JSON.parse(h.prescription) : [],
+    prescriptionImg: h.prescriptionImg || null,
     issuedMedication: h.issuedMedication,
     paymentStatus: h.paymentStatus,
     status: h.status

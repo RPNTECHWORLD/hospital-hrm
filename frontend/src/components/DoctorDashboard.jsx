@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
-import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [isHistoryPreview, setIsHistoryPreview] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
   
   // Diagnosis and Clinical states
   const [diagnosis, setDiagnosis] = useState('');
@@ -21,6 +32,47 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
   // Follow-up state
   const [followUpNotes, setFollowUpNotes] = useState('');
   const [nextVisitDate, setNextVisitDate] = useState('');
+
+  const [patientInjections, setPatientInjections] = useState([]);
+
+  useEffect(() => {
+    if (activePatient) {
+      const fetchPatientInjections = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/injections`);
+          if (res.ok) {
+            const data = await res.json();
+            const patInjs = data.filter(inj => String(inj.patientId).toUpperCase() === String(activePatient.id).toUpperCase());
+            setPatientInjections(patInjs);
+          }
+        } catch (err) {
+          console.error("Error fetching patient injections:", err);
+        }
+      };
+      fetchPatientInjections();
+    } else {
+      setPatientInjections([]);
+    }
+  }, [activePatient]);
+
+  const handleApproveInjection = async (injectionId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/injections/${injectionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Pending',
+          dateGiven: ''
+        })
+      });
+      if (res.ok) {
+        setPatientInjections(patientInjections.map(inj => inj.id === injectionId ? { ...inj, status: 'Pending' } : inj));
+        showToast('Injection approved successfully! Dispatched to the Injection Desk.', 'success');
+      }
+    } catch (err) {
+      console.error("Error approving injection:", err);
+    }
+  };
 
   // Prescription share overlay/modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -80,7 +132,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
 
     if (prescriptionMode === 'drawing') {
       if (!canvasDataUrl) {
-        alert('Please write something on the digital drawing board first!');
+        showToast('Please write something on the digital drawing board first!', 'danger');
         return;
       }
       
@@ -99,7 +151,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       });
     } else {
       if (!diagnosis) {
-        alert('Please enter a diagnosis first!');
+        showToast('Please enter a diagnosis first!', 'danger');
         return;
       }
       if (medicines.some(m => !m.name || !m.dosage)) return;
@@ -122,11 +174,11 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
 
   const handleReviewSubmit = (e) => {
     e.preventDefault();
-    if (!activePatient || !followUpNotes || !nextVisitDate) return;
+    if (!activePatient) return;
 
     onSubmitReview(activePatient.id, {
-      followUpNotes,
-      nextVisitDate
+      followUpNotes: '',
+      nextVisitDate: ''
     });
 
     setActivePatient(null);
@@ -226,7 +278,262 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             </div>
           ) : (
             <div className="card fade-in">
-              <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              {sharePatient ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <h3 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 750 }}>
+                      {isHistoryPreview ? "View Previous Prescription" : "Review & Send Prescription"}
+                    </h3>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                      onClick={() => {
+                        setSharePatient(null);
+                        setIsHistoryPreview(false);
+                      }}
+                    >
+                      ✕ Close Preview
+                    </button>
+                  </div>
+
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                    {isHistoryPreview 
+                      ? "Review this official patient prescription." 
+                      : "Please review the digital prescription details below. Clicking 'Send to Pharmacy' will record and dispatch this prescription."}
+                  </p>
+
+                  {/* Simulated Printed RX paper */}
+                  <div className="prescription-paper" id="printable-rx" style={{
+                    background: '#fff',
+                    color: '#000',
+                    fontFamily: '"Outfit", "Inter", sans-serif',
+                    padding: '0.4in',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    maxWidth: '100%',
+                    margin: '0 auto',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: 'none'
+                  }}>
+                    <div>
+                      {/* Letterhead Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                        {/* Left side of header */}
+                        <div style={{ width: '55%', textAlign: 'left' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{
+                              background: 'rgb(239, 68, 68)',
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#fff',
+                              fontWeight: 800,
+                              fontSize: '1.25rem'
+                            }}>
+                              V
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#b91c1c', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                                VIJAYA'S HEALTH CARE
+                              </div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.1rem' }}>
+                                YOUR HEALTH OUR MISSION
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#1e293b', lineHeight: '1.3' }}>
+                            <div><strong>Rtn Dr. N.ANBU</strong>, M.B.B.S., FIDM, FCCM</div>
+                            <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                            <div style={{ marginTop: '0.2rem' }}><strong>Dr. SINDHUJA ANBU</strong>, M.B.B.S., DNB (Pediatrics)</div>
+                            <div style={{ color: '#475569', fontSize: '0.65rem' }}>குழந்தைகள் சிறப்பு மருத்துவர்</div>
+                            <div style={{ marginTop: '0.2rem' }}><strong>Dr. N.ARAVINDRAJ</strong> M.B.B.S.,</div>
+                            <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
+                          </div>
+                        </div>
+
+                        {/* Right side of header */}
+                        <div style={{ width: '40%', textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Latha, sans-serif' }}>
+                            விஜயலெட்சுமி
+                          </div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.15rem' }}>
+                            குழந்தைகள் நல மருத்துவமனை
+                          </div>
+                          <div style={{ fontSize: '0.65rem', color: '#334155', marginTop: '0.4rem', lineHeight: '1.4' }}>
+                            <div>RN Complex, Railway Road,</div>
+                            <div>Kollidam, Tamil Nadu, India.</div>
+                            <div>Ph: 04364 - 278558, Cell: 84890 61807</div>
+                            <div>E-mail: vijayahealthcare@gmail.com</div>
+                            <div>Web: www.vijayahealthcare.com</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Vitals & Patient Info Table */}
+                      <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
+                          <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
+                            <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{sharePatient.name}</span>
+                          </div>
+                          <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
+                            <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                              <strong>Age:</strong> {sharePatient.age}
+                            </div>
+                            <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                              <strong>Sex:</strong> {sharePatient.gender}
+                            </div>
+                            <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                              <strong>Ht:</strong> {sharePatient.height || '--'}
+                            </div>
+                            <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                              <strong>Wt:</strong> {sharePatient.weight || '--'}
+                            </div>
+                            <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                              <strong>Date:</strong> {new Date(sharePatient.registrationDate || Date.now()).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>BP:</strong> {sharePatient.bp || '--'}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>HR:</strong> {sharePatient.hr || '--'}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>SPO2:</strong> {sharePatient.spo2 || '--'}%
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>GRBS:</strong> {sharePatient.grbs || '--'}
+                          </div>
+                          <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
+                            <strong>TEMP:</strong> {sharePatient.temp || '--'}°F
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Clean Rx Layout */}
+                      <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
+                            ℞
+                          </div>
+                          {sharePatient.diagnosis && (
+                            <div style={{ fontSize: '0.85rem', color: '#334155' }}>
+                              <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{sharePatient.diagnosis}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div style={{ marginTop: '0.5rem' }}>
+                          {sharePatient.prescriptionImg ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <img 
+                                src={sharePatient.prescriptionImg} 
+                                style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px' }} 
+                                alt="Prescription Drawing" 
+                              />
+                            </div>
+                          ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                                  <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
+                                  <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
+                                  <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sharePatient.prescription?.map((m, i) => (
+                                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
+                                    <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
+                                    <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Section */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
+                      <div style={{ textAlign: 'center', width: '2in' }}>
+                        <div style={{ borderBottom: '1px dashed #000', height: '15px' }}></div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
+                          Doctor's Signature
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                    {isHistoryPreview ? (
+                      <>
+                        <button 
+                          type="button"
+                          className="btn btn-primary" 
+                          style={{ flexGrow: 1 }}
+                          onClick={() => {
+                            onPrintPrescription();
+                          }}
+                        >
+                          <Printer size={16} /> Print Prescription
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ flexGrow: 1 }}
+                          onClick={() => {
+                            setSharePatient(null);
+                            setIsHistoryPreview(false);
+                          }}
+                        >
+                          Close
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          type="button"
+                          className="btn btn-primary" 
+                          style={{ flexGrow: 1 }}
+                          onClick={() => {
+                            onSubmitPrescription(activePatient.id, sharePatient);
+                            setSharePatient(null);
+                            setActivePatient(null);
+                            showToast(`Prescription successfully sent to Pharmacy!`, 'success');
+                          }}
+                        >
+                          <Send size={16} /> Send to Pharmacy
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ flexGrow: 1 }}
+                          onClick={() => {
+                            setSharePatient(null);
+                          }}
+                        >
+                          Edit / Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{activePatient.name}</h3>
@@ -321,8 +628,26 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                               Prescription: {activePatient.prescription.map(m => `${m.name} (${m.dosage} - ${m.duration} Days)`).join(', ')}
                             </div>
                           )}
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                            Status: {activePatient.status} • Payment: {activePatient.paymentStatus}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              Status: {activePatient.status} • Payment: {activePatient.paymentStatus}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', height: 'auto', border: '1px solid var(--border)' }}
+                              onClick={() => {
+                                setIsHistoryPreview(true);
+                                setSharePatient({
+                                  ...activePatient,
+                                  registrationDate: activePatient.registrationDate || new Date().toLocaleDateString(),
+                                  history: activePatient.history || []
+                                });
+                                setShowShareModal(true);
+                              }}
+                            >
+                              <FileText size={12} /> Prescription
+                            </button>
                           </div>
                         </div>
                       )}
@@ -340,15 +665,40 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                               Prescription: {visit.prescription.map(m => `${m.name} (${m.dosage} - ${m.duration} Days)`).join(', ')}
                             </div>
                           )}
-                          {visit.prescriptionImg && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.25rem', fontStyle: 'italic' }}>
-                              Handwritten prescription sheet recorded
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              <span>Status: {visit.status}</span>
+                              <span>Payment: {visit.paymentStatus}</span>
+                              <span>Issued: {visit.issuedMedication || 'None'}</span>
                             </div>
-                          )}
-                          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                            <span>Status: {visit.status}</span>
-                            <span>Payment: {visit.paymentStatus}</span>
-                            <span>Issued: {visit.issuedMedication || 'None'}</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', height: 'auto', border: '1px solid var(--border)' }}
+                              onClick={() => {
+                                setIsHistoryPreview(true);
+                                setSharePatient({
+                                  name: activePatient.name,
+                                  age: activePatient.age,
+                                  gender: activePatient.gender,
+                                  contact: activePatient.contact,
+                                  height: activePatient.height,
+                                  weight: activePatient.weight,
+                                  bp: activePatient.bp,
+                                  hr: activePatient.hr,
+                                  spo2: activePatient.spo2,
+                                  grbs: activePatient.grbs,
+                                  temp: activePatient.temp,
+                                  registrationDate: visit.date,
+                                  diagnosis: visit.diagnosis,
+                                  prescription: visit.prescription,
+                                  prescriptionImg: visit.prescriptionImg
+                                });
+                                setShowShareModal(true);
+                              }}
+                            >
+                              <FileText size={12} /> Prescription
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -489,28 +839,58 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Follow-up Guidance & Notes</label>
-                    <textarea 
-                      className="form-input" 
-                      rows="3" 
-                      placeholder="Add guidance, advice, or secondary diagnosis notes..."
-                      value={followUpNotes}
-                      onChange={(e) => setFollowUpNotes(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {/* Injection Approval Section */}
+                  {patientInjections && patientInjections.length > 0 && (
+                    <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                        <Syringe size={16} style={{ color: 'var(--primary)' }} />
+                        <span>Prescribed Injection Details</span>
+                      </label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {patientInjections.map(inj => (
+                          <div 
+                            key={inj.id} 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              padding: '0.75rem 1rem', 
+                              background: 'rgba(21, 115, 136, 0.05)', 
+                              border: '1px solid rgba(21, 115, 136, 0.15)', 
+                              borderRadius: '8px' 
+                            }}
+                          >
+                            <div>
+                              <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--primary)' }}>{inj.injectionName}</strong>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dosage: {inj.dosage}</span>
+                            </div>
+                            <div>
+                              {inj.status === 'Pending Approval' ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                  onClick={() => handleApproveInjection(inj.id)}
+                                >
+                                  <Check size={14} /> Allow Injection Desk
+                                </button>
+                              ) : inj.status === 'Pending' ? (
+                                <span className="badge badge-pending" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                                  Approved & Pending Desk
+                                </span>
+                              ) : (
+                                <span className="badge badge-success" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                                  Administered ✅ ({inj.dateGiven})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="form-group">
-                    <label className="form-label">Next Visit / Consult Date</label>
-                    <input 
-                      type="date" 
-                      className="form-input" 
-                      value={nextVisitDate}
-                      onChange={(e) => setNextVisitDate(e.target.value)}
-                      required
-                    />
-                  </div>
+
 
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
@@ -525,230 +905,33 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             </div>
           )}
         </div>
+      )}
+      </div>
       </div>
 
-      {/* Share / Delivery Modal */}
-      {showShareModal && sharePatient && (
-        <div className="modal-overlay">
-          <div className="card modal-content fade-in" style={{ padding: '2rem' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Review & Send Prescription</h3>
-              <button className="close-btn" onClick={() => { setShowShareModal(false); setSharePatient(null); }}>✕</button>
-            </div>
-
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Please review the digital prescription details below. Clicking 'Send to Pharmacy' will record and dispatch this prescription to the Pharmacy.
-            </p>
-
-            {/* Simulated Printed RX paper */}
-            <div className="prescription-paper" id="printable-rx" style={{
-              background: '#fff',
-              color: '#000',
-              fontFamily: '"Outfit", "Inter", sans-serif',
-              padding: '0.4in',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              maxWidth: '8.5in',
-              margin: '0 auto',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: 'none'
-            }}>
-              <div>
-                {/* Letterhead Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-                  {/* Left side of header */}
-                  <div style={{ width: '55%', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {/* Logo icon */}
-                      <div style={{
-                        background: 'rgb(239, 68, 68)',
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontWeight: 800,
-                        fontSize: '1.25rem'
-                      }}>
-                        V
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#b91c1c', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                          VIJAYA'S HEALTH CARE
-                        </div>
-                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.1rem' }}>
-                          YOUR HEALTH OUR MISSION
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#1e293b', lineHeight: '1.3' }}>
-                      <div><strong>Rtn Dr. N.ANBU</strong>, M.B.B.S., FIDM, FCCM</div>
-                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
-                      <div style={{ marginTop: '0.2rem' }}><strong>Dr. SINDHUJA ANBU</strong>, M.B.B.S., DNB (Pediatrics)</div>
-                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>குழந்தைகள் சிறப்பு மருத்துவர்</div>
-                      <div style={{ marginTop: '0.2rem' }}><strong>Dr. N.ARAVINDRAJ</strong> M.B.B.S.,</div>
-                      <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
-                    </div>
-                  </div>
-
-                  {/* Right side of header */}
-                  <div style={{ width: '40%', textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Latha, sans-serif' }}>
-                      விஜயலெட்சுமி
-                    </div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.15rem' }}>
-                      குழந்தைகள் நல மருத்துவமனை
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: '#334155', marginTop: '0.4rem', lineHeight: '1.4' }}>
-                      <div>RN Complex, Railway Road,</div>
-                      <div>Kollidam, Tamil Nadu, India.</div>
-                      <div>Ph: 04364 - 278558, Cell: 84890 61807</div>
-                      <div>E-mail: vijayahealthcare@gmail.com</div>
-                      <div>Web: www.vijayahealthcare.com</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vitals & Patient Info Table */}
-                <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
-                  <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
-                    <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
-                      <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{sharePatient.name}</span>
-                    </div>
-                    <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
-                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                        <strong>Age:</strong> {sharePatient.age}
-                      </div>
-                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                        <strong>Sex:</strong> {sharePatient.gender}
-                      </div>
-                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                        <strong>Ht:</strong> {sharePatient.height || '--'}
-                      </div>
-                      <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                        <strong>Wt:</strong> {sharePatient.weight || '--'}
-                      </div>
-                      <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
-                        <strong>Date:</strong> {new Date(sharePatient.registrationDate || Date.now()).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
-                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                      <strong>BP:</strong> {sharePatient.bp || '--'}
-                    </div>
-                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                      <strong>HR:</strong> {sharePatient.hr || '--'}
-                    </div>
-                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                      <strong>SPO2:</strong> {sharePatient.spo2 || '--'}%
-                    </div>
-                    <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                      <strong>GRBS:</strong> {sharePatient.grbs || '--'}
-                    </div>
-                    <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
-                      <strong>TEMP:</strong> {sharePatient.temp || '--'}°F
-                    </div>
-                  </div>
-                </div>
-
-                {/* Clean Rx Layout */}
-                <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
-                      ℞
-                    </div>
-                    {sharePatient.diagnosis && (
-                      <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                        <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{sharePatient.diagnosis}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div style={{ marginTop: '0.5rem' }}>
-                    {sharePatient.prescriptionImg ? (
-                      <div style={{ textAlign: 'center' }}>
-                        <img 
-                          src={sharePatient.prescriptionImg} 
-                          style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px' }} 
-                          alt="Prescription Drawing" 
-                        />
-                      </div>
-                    ) : (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
-                            <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
-                            <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
-                            <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sharePatient.prescription?.map((m, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
-                              <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
-                              <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Section */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
-                <div style={{ textAlign: 'center', width: '2in' }}>
-                  <div style={{ borderBottom: '1px dashed #000', height: '15px' }}></div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
-                    Doctor's Signature
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button 
-                className="btn btn-primary" 
-                style={{ flexGrow: 1 }}
-                onClick={() => {
-                  onSubmitPrescription(sharePatient.id, {
-                    diagnosis: sharePatient.diagnosis,
-                    prescription: sharePatient.prescription,
-                    prescriptionImg: sharePatient.prescriptionImg,
-                    complaints: sharePatient.complaints,
-                    pastHistory: sharePatient.pastHistory,
-                    examination: sharePatient.examination,
-                    investigation: sharePatient.investigation
-                  });
-                  setShowShareModal(false);
-                  setSharePatient(null);
-                  setActivePatient(null);
-                  alert(`Prescription successfully sent to Pharmacy!`);
-                }}
-              >
-                <Send size={16} /> Send to Pharmacy
-              </button>
-              <button 
-                className="btn btn-secondary"
-                style={{ flexGrow: 1 }}
-                onClick={() => {
-                  setShowShareModal(false);
-                  setSharePatient(null);
-                }}
-              >
-                Edit / Cancel
-              </button>
-            </div>
-          </div>
+      {/* Custom Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          zIndex: 9999,
+          background: toast.type === 'success' ? '#10b981' : toast.type === 'danger' ? '#ef4444' : '#14b8a6',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          fontWeight: 600,
+          fontSize: '0.95rem',
+          border: '1px solid rgba(255,255,255,0.1)',
+          animation: 'fade-in 0.3s ease-out',
+          pointerEvents: 'none'
+        }}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span>{toast.message}</span>
         </div>
       )}
     </div>

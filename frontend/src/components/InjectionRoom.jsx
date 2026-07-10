@@ -8,13 +8,10 @@ const InjectionRoom = ({ patients }) => {
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('Pending'); // 'Pending', 'Administered', 'All'
   const [searchQuery, setSearchQuery] = useState('');
-  const [newPatientId, setNewPatientId] = useState('');
-  const [newInjectionName, setNewInjectionName] = useState('');
-  const [newDosage, setNewDosage] = useState('');
-  const [formError, setFormError] = useState('');
 
-  const fetchInjections = async () => {
-    setLoading(true);
+
+  const fetchInjections = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const response = await fetch(`${API_BASE}/api/injections`);
       if (response.ok) {
@@ -24,12 +21,17 @@ const InjectionRoom = ({ patients }) => {
     } catch (err) {
       console.error("Failed to fetch injections:", err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInjections();
+    fetchInjections(true);
+    const interval = setInterval(() => {
+      fetchInjections(false);
+    }, 2000); // Poll database every 2 seconds for real-time updates!
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleAdminister = async (id) => {
@@ -51,44 +53,7 @@ const InjectionRoom = ({ patients }) => {
     }
   };
 
-  const handleCreateInjection = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    if (!newPatientId || !newInjectionName || !newDosage) {
-      setFormError('All fields are required.');
-      return;
-    }
 
-    const patientExists = patients.find(p => String(p.id).toUpperCase() === newPatientId.toUpperCase());
-    if (!patientExists) {
-      setFormError(`Patient with ID ${newPatientId} does not exist.`);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/api/injections`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: newPatientId,
-          injectionName: newInjectionName,
-          dosage: newDosage,
-          status: 'Pending',
-          dateGiven: ''
-        })
-      });
-
-      if (response.ok) {
-        setNewPatientId('');
-        setNewInjectionName('');
-        setNewDosage('');
-        fetchInjections();
-      }
-    } catch (err) {
-      console.error("Failed to create injection entry:", err);
-      setFormError('Connection error. Could not add injection.');
-    }
-  };
 
   const filteredInjections = injections.filter(inj => {
     const patient = patients.find(p => String(p.id).toUpperCase() === String(inj.patientId).toUpperCase());
@@ -129,8 +94,8 @@ const InjectionRoom = ({ patients }) => {
         </div>
       </div>
 
-      <div className="grid-2">
-        <div className="card">
+      <div style={{ width: '100%' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', margin: 0 }}>
               <Syringe size={20} style={{ color: 'var(--primary)' }} />
@@ -209,16 +174,18 @@ const InjectionRoom = ({ patients }) => {
                         </td>
                         <td>
                           {inj.status === 'Pending' ? (
-                            <button 
-                              className="btn btn-primary"
-                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                              onClick={() => handleAdminister(inj.id)}
-                            >
-                              ✓ Administer Injection
-                            </button>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(21, 115, 136, 0.05)', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(21, 115, 136, 0.15)' }}>
+                              <input 
+                                type="checkbox" 
+                                onChange={() => handleAdminister(inj.id)}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--success)' }} 
+                              />
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>Mark Given</span>
+                            </label>
                           ) : (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              Given at: {inj.dateGiven}
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
+                              <span>Checked / Given ✅</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>({inj.dateGiven})</span>
                             </div>
                           )}
                         </td>
@@ -229,73 +196,6 @@ const InjectionRoom = ({ patients }) => {
               </table>
             </div>
           )}
-        </div>
-
-        <div className="card">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
-            <Activity size={20} style={{ color: 'var(--primary)' }} />
-            New Injection Entry
-          </h3>
-
-          {formError && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              color: 'var(--danger)',
-              padding: '0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <AlertCircle size={16} />
-              <span>{formError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleCreateInjection}>
-            <div className="form-group">
-              <label className="form-label">Patient ID</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="e.g. VH001" 
-                value={newPatientId} 
-                onChange={(e) => setNewPatientId(e.target.value.toUpperCase())}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Injection Name</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="e.g. Ceftriaxone 1g, Tramadol" 
-                value={newInjectionName} 
-                onChange={(e) => setNewInjectionName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Dosage / Frequency</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="e.g. IM Stat, IV slowly" 
-                value={newDosage} 
-                onChange={(e) => setNewDosage(e.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>
-              Add to Injection Queue
-            </button>
-          </form>
         </div>
       </div>
     </div>

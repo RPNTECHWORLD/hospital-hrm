@@ -22,7 +22,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
   // Find all patients not currently in a bed but registered/active
   // For demonstration, we can list all active patients to admit.
-  const eligiblePatients = patients.filter(p => !beds.some(b => b.patientId === p.id) && p.status !== 'Completed');
+  const eligiblePatients = patients.filter(p => !beds.some(b => b.patientId === p.id) && p.status !== 'Completed' && p.status !== 'Inactive');
 
   const handleSelectBed = (bed) => {
     setSelectedBed(bed);

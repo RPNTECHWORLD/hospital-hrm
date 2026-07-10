@@ -13,6 +13,18 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
   // Previous prescriptions panel
   const [showPrevRx, setShowPrevRx] = useState(false);
   const [selectedHistIdx, setSelectedHistIdx] = useState(0);
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // Injection states
+  const [requiresInjection, setRequiresInjection] = useState(false);
+  const [injectionName, setInjectionName] = useState('Inj. Ceftriaxone');
+  const [injectionDosage, setInjectionDosage] = useState('1.5g IV');
+
+  React.useEffect(() => {
+    setRequiresInjection(false);
+    setInjectionName('Inj. Ceftriaxone');
+    setInjectionDosage('1.5g IV');
+  }, [activePatient]);
 
   const pendingPrescriptions = patients.filter(p => p.status === 'At Pharmacy');
   const completedIssues = patients.filter(p => ['Reviewing', 'Completed'].includes(p.status)).length;
@@ -39,7 +51,12 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
       ? 'Full Duration' 
       : `Partial Duration (${partialDays} Days)`;
 
-    onIssueMedication(activePatient.id, issuedString);
+    const injectionData = requiresInjection ? {
+      name: injectionName,
+      dosage: injectionDosage
+    } : null;
+
+    onIssueMedication(activePatient.id, issuedString, injectionData);
     setActivePatient(null);
   };
 
@@ -288,8 +305,9 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                           <div style={{ textAlign: 'center' }}>
                             <img 
                               src={activePatient.prescriptionImg} 
-                              style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px' }} 
+                              style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'zoom-in' }} 
                               alt="Prescription Drawing" 
+                              onClick={() => setPreviewImage(activePatient.prescriptionImg)}
                             />
                           </div>
                         ) : (
@@ -415,7 +433,16 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
 
                             {/* Rx Symbol + medicines */}
                             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b91c1c', marginBottom: '0.5rem' }}>℞</div>
-                            {prevRx.length === 0 ? (
+                            {hist.prescriptionImg ? (
+                              <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                                <img 
+                                  src={hist.prescriptionImg} 
+                                  style={{ maxWidth: '100%', maxHeight: '3.5in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'zoom-in' }} 
+                                  alt="Previous Prescription Drawing" 
+                                  onClick={() => setPreviewImage(hist.prescriptionImg)}
+                                />
+                              </div>
+                            ) : prevRx.length === 0 ? (
                               <div style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
                                 No structured prescription — handwritten sheet used.
                               </div>
@@ -500,6 +527,46 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                   </div>
                 )}
 
+                 {/* Injection Prescription Section */}
+                <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(21, 115, 136, 0.05)', borderRadius: '8px', border: '1px solid rgba(21, 115, 136, 0.15)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={requiresInjection}
+                      onChange={(e) => setRequiresInjection(e.target.checked)}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                    />
+                    <span>Prescribe Injection for Patient</span>
+                  </label>
+                  
+                  {requiresInjection && (
+                    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Injection Name</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="e.g. Inj. Ceftriaxone" 
+                          value={injectionName} 
+                          onChange={(e) => setInjectionName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Dosage / Frequency</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="e.g. 1.5g IV Stat" 
+                          value={injectionDosage} 
+                          onChange={(e) => setInjectionDosage(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                   <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
                     <CheckSquare size={16} /> Issue Medicines & Direct to Doctor
@@ -513,6 +580,59 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
           )}
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '2rem',
+            cursor: 'zoom-out'
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', background: '#fff', borderRadius: '12px', padding: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute',
+                top: '-15px',
+                right: '-15px',
+                background: '#dc2626',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                zIndex: 10
+              }}
+            >
+              ✕
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Prescription Preview" 
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block', borderRadius: '8px' }} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

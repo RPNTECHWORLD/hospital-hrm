@@ -378,7 +378,7 @@ const AdminDashboard = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.slice().reverse().map(patient => {
+                  {patients.slice().reverse().filter(patient => patient.status !== 'Inactive').map(patient => {
                     const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
                     return (
                       <tr key={patient.id}>

@@ -18,6 +18,7 @@ const ReceptionistDashboard = ({
   const [alternatePhone, setAlternatePhone] = useState('');
   const [address, setAddress] = useState('');
   const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Vitals States
   const [height, setHeight] = useState('');
@@ -138,7 +139,8 @@ const ReceptionistDashboard = ({
   const filteredPatients = searchQuery.trim()
     ? uniquePatients.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.contact.includes(searchQuery)
+        p.contact.includes(searchQuery) ||
+        p.id.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
 
@@ -410,11 +412,11 @@ const ReceptionistDashboard = ({
               </h3>
 
               <div className="form-group">
-                <label className="form-label">Search Patient Name or Mobile Number</label>
+                <label className="form-label">Search Patient Name, Mobile Number or ID</label>
                 <input 
                   type="text"
                   className="form-input"
-                  placeholder="Enter name or phone..."
+                  placeholder="Enter name, phone or ID (e.g. VH001)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -693,6 +695,18 @@ const ReceptionistDashboard = ({
                       </div>
                     )}
                     
+                    {visit.prescriptionImg && (
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Handwritten Prescription (Click to enlarge):</div>
+                        <img 
+                          src={visit.prescriptionImg} 
+                          alt="Handwritten Prescription" 
+                          style={{ maxWidth: '100%', maxHeight: '300px', display: 'block', marginTop: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'zoom-in' }} 
+                          onClick={() => setPreviewImage(visit.prescriptionImg)}
+                        />
+                      </div>
+                    )}
+                    
                     <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
                       <span>Payment: {visit.paymentStatus}</span>
                       <span>Medication Issued: {visit.issuedMedication || 'None'}</span>
@@ -759,6 +773,59 @@ const ReceptionistDashboard = ({
             >
               Done & Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '2rem',
+            cursor: 'zoom-out'
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', background: '#fff', borderRadius: '12px', padding: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute',
+                top: '-15px',
+                right: '-15px',
+                background: '#dc2626',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                zIndex: 10
+              }}
+            >
+              ✕
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Prescription Preview" 
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block', borderRadius: '8px' }} 
+            />
           </div>
         </div>
       )}
