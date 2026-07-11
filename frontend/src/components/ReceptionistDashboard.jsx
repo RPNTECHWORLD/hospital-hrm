@@ -15,6 +15,8 @@ const ReceptionistDashboard = ({
   const [gender, setGender] = useState('Male');
   const [contact, setContact] = useState('');
   const [fatherOrHusbandName, setFatherOrHusbandName] = useState('');
+  const [motherName, setMotherName] = useState('');
+  const [guardianName, setGuardianName] = useState('');
   const [alternatePhone, setAlternatePhone] = useState('');
   const [address, setAddress] = useState('');
   const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
@@ -55,12 +57,22 @@ const ReceptionistDashboard = ({
     e.preventDefault();
     if (!name || !age || !contact || !assignedDoctorId) return;
 
+    let motherOrGuardianValue = '';
+    if (motherName.trim() && guardianName.trim()) {
+      motherOrGuardianValue = `Mother: ${motherName.trim()} | Guardian: ${guardianName.trim()}`;
+    } else if (motherName.trim()) {
+      motherOrGuardianValue = `Mother: ${motherName.trim()}`;
+    } else if (guardianName.trim()) {
+      motherOrGuardianValue = `Guardian: ${guardianName.trim()}`;
+    }
+
     const registered = await onRegisterPatient({
       name,
       age: parseInt(age),
       gender,
       contact,
       fatherOrHusbandName,
+      motherOrGuardianName: motherOrGuardianValue,
       alternatePhone,
       address,
       assignedDoctorId: parseInt(assignedDoctorId),
@@ -82,6 +94,8 @@ const ReceptionistDashboard = ({
       setGender('Male');
       setContact('');
       setFatherOrHusbandName('');
+      setMotherName('');
+      setGuardianName('');
       setAlternatePhone('');
       setAddress('');
       setHeight('');
@@ -230,14 +244,38 @@ const ReceptionistDashboard = ({
                   />
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Father's / Husband's Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Father's or Husband's Name"
+                      value={fatherOrHusbandName}
+                      onChange={(e) => setFatherOrHusbandName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Mother's Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Mother's Name (Optional)"
+                      value={motherName}
+                      onChange={(e) => setMotherName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label className="form-label">Father's / Husband's Name</label>
+                  <label className="form-label">Guardian's Name</label>
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="Father's or Husband's Name"
-                    value={fatherOrHusbandName}
-                    onChange={(e) => setFatherOrHusbandName(e.target.value)}
+                    placeholder="Guardian's Name (Optional)"
+                    value={guardianName}
+                    onChange={(e) => setGuardianName(e.target.value)}
                   />
                 </div>
 
@@ -268,28 +306,32 @@ const ReceptionistDashboard = ({
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    className="form-input" 
-                    placeholder="Contact Number"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Contact Number</label>
+                    <input 
+                      type="tel" 
+                      className="form-input" 
+                      placeholder="Contact Number"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Alternate Phone Number</label>
+                    <input 
+                      type="tel" 
+                      className="form-input" 
+                      placeholder="Alternate Mobile (Optional)"
+                      value={alternatePhone}
+                      onChange={(e) => setAlternatePhone(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Alternate Phone Number</label>
-                  <input 
-                    type="tel" 
-                    className="form-input" 
-                    placeholder="Alternate Mobile Number (Optional)"
-                    value={alternatePhone}
-                    onChange={(e) => setAlternatePhone(e.target.value)}
-                  />
-                </div>
+
 
                 <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                   <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -438,6 +480,22 @@ const ReceptionistDashboard = ({
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem', lineHeight: '1.4' }}>
                           <div>{p.age} Yrs • {p.gender} • {p.contact}</div>
                           {p.fatherOrHusbandName && <div>Father/Husband: {p.fatherOrHusbandName}</div>}
+                          {p.motherOrGuardianName && (
+                            <div>
+                              {p.motherOrGuardianName.includes(' | Guardian: ') ? (
+                                <>
+                                  <div>Mother: {p.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
+                                  <div>Guardian: {p.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
+                                </>
+                              ) : p.motherOrGuardianName.startsWith('Mother: ') ? (
+                                <div>Mother: {p.motherOrGuardianName.replace('Mother: ', '')}</div>
+                              ) : p.motherOrGuardianName.startsWith('Guardian: ') ? (
+                                <div>Guardian: {p.motherOrGuardianName.replace('Guardian: ', '')}</div>
+                              ) : (
+                                <div>Mother/Guardian: {p.motherOrGuardianName}</div>
+                              )}
+                            </div>
+                          )}
                           {p.alternatePhone && <div>Alt Contact: {p.alternatePhone}</div>}
                         </div>
                         
@@ -579,6 +637,22 @@ const ReceptionistDashboard = ({
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
                             {patient.age} Yrs • {patient.gender} • {patient.contact}
                             {patient.fatherOrHusbandName && <div>F/H: {patient.fatherOrHusbandName}</div>}
+                            {patient.motherOrGuardianName && (
+                              <div>
+                                {patient.motherOrGuardianName.includes(' | Guardian: ') ? (
+                                  <>
+                                    <div>Mother: {patient.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
+                                    <div>Guardian: {patient.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
+                                  </>
+                                ) : patient.motherOrGuardianName.startsWith('Mother: ') ? (
+                                  <div>Mother: {patient.motherOrGuardianName.replace('Mother: ', '')}</div>
+                                ) : patient.motherOrGuardianName.startsWith('Guardian: ') ? (
+                                  <div>Guardian: {patient.motherOrGuardianName.replace('Guardian: ', '')}</div>
+                                ) : (
+                                  <div>Mother/Guardian: {patient.motherOrGuardianName}</div>
+                                )}
+                              </div>
+                            )}
                             {patient.alternatePhone && <div>Alt: {patient.alternatePhone}</div>}
                           </div>
                         </td>

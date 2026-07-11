@@ -31,8 +31,12 @@ try {
   console.log("No .env.local file loaded:", e.message);
 }
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
+
+if (connectionString.includes('sslmode=')) {
+  connectionString = connectionString.replace(/[\?&]sslmode=[^&]+/gi, '');
+}
+
 const ssl = connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech')
   ? { rejectUnauthorized: false }
   : false;
@@ -84,8 +88,10 @@ const tablesToMigrate = [
         prescription TEXT,
         issuedMedication TEXT,
         paymentStatus TEXT NOT NULL,
-        wardBedId INTEGER,
+        wardBedId TEXT,
+        bedAdmissionPending INTEGER DEFAULT 0,
         fatherOrHusbandName TEXT,
+        motherOrGuardianName TEXT,
         alternatePhone TEXT,
         tokenNumber INTEGER,
         registrationDate TEXT,
@@ -249,7 +255,7 @@ const tablesToMigrate = [
 
 const runMigration = async () => {
   console.log("Starting PostgreSQL migration...");
-  
+
   if (!fs.existsSync(sqliteDbPath)) {
     console.error(`SQLite database not found at ${sqliteDbPath}. Nothing to migrate.`);
     process.exit(1);
@@ -277,7 +283,7 @@ const runMigration = async () => {
     } finally {
       try {
         await initClient.end();
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -311,7 +317,7 @@ const runMigration = async () => {
     // 5. Migrate Data Table-by-Table
     for (const table of tablesToMigrate) {
       console.log(`Migrating table: ${table.name}...`);
-      
+
       // Read from SQLite
       const rows = await sqliteAll(`SELECT * FROM ${table.name}`);
       if (rows.length === 0) {
@@ -343,7 +349,7 @@ const runMigration = async () => {
       }
 
       console.log(`Found ${rowsToInsert.length} records in SQLite for ${table.name}. Transferring...`);
-      
+
       // Build dynamic INSERT query
       const columns = Object.keys(rowsToInsert[0]);
       const columnsCsv = columns.map(c => `"${c.toLowerCase()}"`).join(', ');

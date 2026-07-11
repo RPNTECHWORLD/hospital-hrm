@@ -30,8 +30,12 @@ try {
   console.log("No .env.local file loaded:", e.message);
 }
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
+
+if (connectionString.includes('sslmode=')) {
+  connectionString = connectionString.replace(/[\?&]sslmode=[^&]+/gi, '');
+}
+
 const pool = new pg.Pool({
   connectionString,
   ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech')
@@ -47,7 +51,7 @@ const convertPlaceholders = (sql) => {
 
 export const dbRun = async (query, params = []) => {
   let sql = convertPlaceholders(query);
-  
+
   if (sql.toUpperCase().includes('INSERT OR IGNORE')) {
     sql = sql.replace(/INSERT OR IGNORE/gi, 'INSERT');
     if (sql.toLowerCase().includes('staff')) {
@@ -63,23 +67,70 @@ export const dbRun = async (query, params = []) => {
   }
 
   const result = await pool.query(sql, params);
-  
+
   if (isInsert && result.rows && result.rows.length > 0) {
     return { lastID: result.rows[0].id };
   }
   return { lastID: null, rowsAffected: result.rowCount };
 };
 
+const camelCaseMap = {
+  assigneddoctorid: 'assignedDoctorId',
+  patientid: 'patientId',
+  visitid: 'visitId',
+  doctorname: 'doctorName',
+  prescriptionimg: 'prescriptionImg',
+  issuedmedication: 'issuedMedication',
+  paymentstatus: 'paymentStatus',
+  wardbedid: 'wardBedId',
+  fatherorhusbandname: 'fatherOrHusbandName',
+  motherorguardianname: 'motherOrGuardianName',
+  bedadmissionpending: 'bedAdmissionPending',
+  alternatephone: 'alternatePhone',
+  tokennumber: 'tokenNumber',
+  registrationdate: 'registrationDate',
+  pasthistory: 'pastHistory',
+  staffid: 'staffId',
+  markedby: 'markedBy',
+  placename: 'placeName',
+  iscleaned: 'isCleaned',
+  isplantswatered: 'isPlantsWatered',
+  wastetype: 'wasteType',
+  agencyname: 'agencyName',
+  billamount: 'billAmount',
+  billattachment: 'billAttachment',
+  testname: 'testName',
+  dateordered: 'dateOrdered',
+  reportnotes: 'reportNotes',
+  vaccinename: 'vaccineName',
+  dategiven: 'dateGiven',
+  nextduedate: 'nextDueDate',
+  injectionname: 'injectionName'
+};
+
+const camelizeObject = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(camelizeObject);
+  
+  const newObj = {};
+  for (const key of Object.keys(obj)) {
+    const mappedKey = camelCaseMap[key.toLowerCase()] || key;
+    const val = obj[key];
+    newObj[mappedKey] = camelizeObject(val);
+  }
+  return newObj;
+};
+
 export const dbAll = async (query, params = []) => {
   const sql = convertPlaceholders(query);
   const result = await pool.query(sql, params);
-  return result.rows;
+  return camelizeObject(result.rows);
 };
 
 export const dbGet = async (query, params = []) => {
   const sql = convertPlaceholders(query);
   const result = await pool.query(sql, params);
-  return result.rows[0] || null;
+  return camelizeObject(result.rows[0]) || null;
 };
 
 // Initialize Database Tables
@@ -121,8 +172,10 @@ export const initDB = async () => {
       prescription TEXT, -- JSON string of prescription array
       issuedMedication TEXT,
       paymentStatus TEXT NOT NULL,
-      wardBedId INTEGER,
+      wardBedId TEXT,
       fatherOrHusbandName TEXT,
+      motherOrGuardianName TEXT,
+      bedAdmissionPending INTEGER DEFAULT 0,
       alternatePhone TEXT,
       tokenNumber INTEGER,
       registrationDate TEXT,
@@ -141,6 +194,15 @@ export const initDB = async () => {
       bmi TEXT
     )
   `);
+
+  // Migrate existing patients table if missing motherOrGuardianName or bedAdmissionPending
+  await dbRun(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motherOrGuardianName TEXT`);
+  await dbRun(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS bedAdmissionPending INTEGER DEFAULT 0`);
+  try {
+    await dbRun(`ALTER TABLE patients ALTER COLUMN wardbedid TYPE TEXT`);
+  } catch (e) {
+    console.log("Migration warning for wardbedid column type:", e.message);
+  }
 
   // Create Patient History
   await dbRun(`
@@ -377,6 +439,16 @@ export const deleteAllPatients = async () => {
 };
 
 export const getPatients = async () => {
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+  await dbRun(
+    `UPDATE patients 
+     SET status = 'Inactive', tokenNumber = NULL, registrationDate = NULL 
+     WHERE (registrationDate != ? OR registrationDate IS NULL) 
+       AND status != 'Inactive'
+       AND (wardBedId IS NULL OR wardBedId = '')`,
+    [todayStr]
+  );
+
   const patients = await dbAll(`SELECT * FROM patients`);
   const result = [];
   for (const pat of patients) {
@@ -407,7 +479,9 @@ export const getPatients = async () => {
       issuedMedication: pat.issuedMedication,
       paymentStatus: pat.paymentStatus,
       wardBedId: pat.wardBedId,
+      bedAdmissionPending: pat.bedAdmissionPending || 0,
       fatherOrHusbandName: pat.fatherOrHusbandName || '',
+      motherOrGuardianName: pat.motherOrGuardianName || '',
       alternatePhone: pat.alternatePhone || '',
       tokenNumber: pat.tokenNumber || null,
       registrationDate: pat.registrationDate || '',
@@ -461,7 +535,9 @@ export const getPatientById = async (id) => {
     issuedMedication: pat.issuedMedication,
     paymentStatus: pat.paymentStatus,
     wardBedId: pat.wardBedId,
+    bedAdmissionPending: pat.bedAdmissionPending || 0,
     fatherOrHusbandName: pat.fatherOrHusbandName || '',
+    motherOrGuardianName: pat.motherOrGuardianName || '',
     alternatePhone: pat.alternatePhone || '',
     tokenNumber: pat.tokenNumber || null,
     registrationDate: pat.registrationDate || '',
@@ -502,8 +578,8 @@ const getNextPatientId = async () => {
 export const addPatient = async (pat) => {
   const id = pat.id || (await getNextPatientId());
   await dbRun(
-    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, fatherOrHusbandName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       pat.name,
@@ -518,7 +594,9 @@ export const addPatient = async (pat) => {
       pat.issuedMedication || null,
       pat.paymentStatus || 'Unpaid',
       pat.wardBedId || null,
+      pat.bedAdmissionPending || 0,
       pat.fatherOrHusbandName || '',
+      pat.motherOrGuardianName || '',
       pat.alternatePhone || '',
       pat.tokenNumber || null,
       pat.registrationDate || '',
@@ -537,7 +615,7 @@ export const addPatient = async (pat) => {
       pat.bmi || ''
     ]
   );
-  
+
   return {
     id,
     name: pat.name,
@@ -552,7 +630,9 @@ export const addPatient = async (pat) => {
     issuedMedication: pat.issuedMedication || null,
     paymentStatus: pat.paymentStatus || 'Unpaid',
     wardBedId: pat.wardBedId || null,
+    bedAdmissionPending: pat.bedAdmissionPending || 0,
     fatherOrHusbandName: pat.fatherOrHusbandName || '',
+    motherOrGuardianName: pat.motherOrGuardianName || '',
     alternatePhone: pat.alternatePhone || '',
     tokenNumber: pat.tokenNumber || null,
     registrationDate: pat.registrationDate || '',
@@ -581,10 +661,10 @@ export const updatePatient = async (id, data) => {
   const params = [];
 
   const keys = [
-    'name', 'age', 'gender', 'contact', 'address', 
-    'assignedDoctorId', 'status', 'diagnosis', 
-    'prescription', 'issuedMedication', 'paymentStatus', 'wardBedId',
-    'fatherOrHusbandName', 'alternatePhone', 'tokenNumber', 'registrationDate',
+    'name', 'age', 'gender', 'contact', 'address',
+    'assignedDoctorId', 'status', 'diagnosis',
+    'prescription', 'issuedMedication', 'paymentStatus', 'wardBedId', 'bedAdmissionPending',
+    'fatherOrHusbandName', 'motherOrGuardianName', 'alternatePhone', 'tokenNumber', 'registrationDate',
     'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
     'complaints', 'pastHistory', 'examination', 'investigation', 'bmi'
   ];
@@ -656,7 +736,9 @@ export const updatePatient = async (id, data) => {
     issuedMedication: updated.issuedMedication,
     paymentStatus: updated.paymentStatus,
     wardBedId: updated.wardBedId,
+    bedAdmissionPending: updated.bedAdmissionPending || 0,
     fatherOrHusbandName: updated.fatherOrHusbandName || '',
+    motherOrGuardianName: updated.motherOrGuardianName || '',
     alternatePhone: updated.alternatePhone || '',
     tokenNumber: updated.tokenNumber || null,
     registrationDate: updated.registrationDate || '',

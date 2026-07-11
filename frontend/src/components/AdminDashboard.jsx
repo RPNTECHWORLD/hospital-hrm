@@ -13,6 +13,8 @@ const AdminDashboard = ({
   onDeleteAllPatients
 }) => {
   const [activeTab, setActiveTab] = useState('doctors');
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientStatusFilter, setPatientStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
   
   // Form State
   const [name, setName] = useState('');
@@ -333,8 +335,29 @@ const AdminDashboard = ({
 
             {activeTab === 'patients' && (
               <>
-                {patients.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '300px' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Search patient by name or ID..."
+                      value={patientSearch}
+                      onChange={(e) => setPatientSearch(e.target.value)}
+                      style={{ maxWidth: '280px', margin: 0 }}
+                    />
+                    <select
+                      className="form-input"
+                      value={patientStatusFilter}
+                      onChange={(e) => setPatientStatusFilter(e.target.value)}
+                      style={{ maxWidth: '180px', margin: 0 }}
+                    >
+                      <option value="all">All Patients</option>
+                      <option value="active">Active Only</option>
+                      <option value="inactive">Deleted / Inactive Only</option>
+                    </select>
+                  </div>
+                  
+                  {patients.length > 0 && (
                     <button 
                       type="button" 
                       className="btn"
@@ -364,8 +387,9 @@ const AdminDashboard = ({
                     >
                       <Trash2 size={14} /> Delete All Patients
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
+
                 <table className="custom-table">
                 <thead>
                   <tr>
@@ -378,49 +402,72 @@ const AdminDashboard = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.slice().reverse().filter(patient => patient.status !== 'Inactive').map(patient => {
-                    const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
-                    return (
-                      <tr key={patient.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--primary)' }}>#{patient.id}</td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{patient.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {patient.age} Yrs • {patient.gender}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '0.9rem' }}>{assignedDoc ? assignedDoc.name : 'Unassigned'}</td>
-                        <td>
-                          <span className={`badge ${
-                            patient.status === 'Completed' ? 'badge-success' : 'badge-pending'
-                          }`}>
-                            {patient.status}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${
-                            patient.paymentStatus === 'Paid' ? 'badge-success' : 'badge-danger'
-                          }`} style={{ fontWeight: 600 }}>
-                            {patient.paymentStatus || 'Unpaid'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button 
-                            className="btn-logout" 
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
-                                onDeletePatient(patient.id);
-                              }
-                            }}
-                            title="Delete Patient"
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {patients
+                    .slice()
+                    .reverse()
+                    .filter(patient => {
+                      const matchesSearch = 
+                        patient.name.toLowerCase().includes(patientSearch.toLowerCase()) || 
+                        String(patient.id).toLowerCase().includes(patientSearch.toLowerCase());
+                      
+                      const matchesStatus = 
+                        patientStatusFilter === 'all' ||
+                        (patientStatusFilter === 'active' && patient.status !== 'Inactive') ||
+                        (patientStatusFilter === 'inactive' && patient.status === 'Inactive');
+                      
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map(patient => {
+                      const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
+                      const isDeleted = patient.status === 'Inactive';
+                      return (
+                        <tr key={patient.id} style={isDeleted ? { opacity: 0.65, background: 'rgba(239, 68, 68, 0.02)' } : {}}>
+                          <td style={{ fontWeight: 700, color: isDeleted ? 'var(--text-muted)' : 'var(--primary)' }}>#{patient.id}</td>
+                          <td>
+                            <div style={{ fontWeight: 600, textDecoration: isDeleted ? 'line-through' : 'none' }}>{patient.name}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {patient.age} Yrs • {patient.gender}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.9rem', color: isDeleted ? 'var(--text-muted)' : 'inherit' }}>
+                            {assignedDoc ? assignedDoc.name : 'Unassigned'}
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              isDeleted ? 'badge-danger' : 
+                              patient.status === 'Completed' ? 'badge-success' : 'badge-pending'
+                            }`}>
+                              {isDeleted ? 'Deleted/Inactive' : patient.status}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              patient.paymentStatus === 'Paid' ? 'badge-success' : 'badge-danger'
+                            }`} style={{ fontWeight: 600 }}>
+                              {patient.paymentStatus || 'Unpaid'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {!isDeleted ? (
+                              <button 
+                                className="btn-logout" 
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
+                                    onDeletePatient(patient.id);
+                                  }
+                                }}
+                                title="Delete Patient"
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Inactive</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </>

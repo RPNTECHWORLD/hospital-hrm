@@ -5,6 +5,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import PharmacyDashboard from './components/PharmacyDashboard';
 import WardDashboard from './components/WardDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import AdminPatientRecords from './components/AdminPatientRecords';
 import TvQueueDisplay from './components/TvQueueDisplay';
 import './App.css';
 import InjectionRoom from './components/InjectionRoom';
@@ -272,7 +273,7 @@ function App() {
   const handleRegisterPatient = async (newPatientData) => {
     try {
       const docId = parseInt(newPatientData.assignedDoctorId);
-      const todayStr = new Date().toLocaleDateString();
+      const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
       
       // Filter patients assigned to this doctor registered today
       const activeForDocToday = patients.filter(p => 
@@ -339,7 +340,7 @@ function App() {
       }
 
       const docIdInt = parseInt(doctorId);
-      const todayStr = new Date().toLocaleDateString();
+      const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
       
       // Filter patients assigned to this doctor registered today
       const activeForDocToday = patients.filter(p => 
@@ -412,7 +413,9 @@ function App() {
         status: 'At Pharmacy',
         diagnosis: data.diagnosis,
         prescription: data.prescription,
-        prescriptionImg: data.prescriptionImg
+        prescriptionImg: data.prescriptionImg,
+        wardBedId: data.wardBedId !== undefined ? data.wardBedId : null,
+        bedAdmissionPending: data.bedAdmissionPending !== undefined ? data.bedAdmissionPending : 0
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
@@ -422,9 +425,12 @@ function App() {
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        return true;
       }
+      return false;
     } catch (err) {
       console.error("Error submitting prescription:", err);
+      return false;
     }
   };
 
@@ -510,7 +516,7 @@ function App() {
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wardBedId: bedId })
+        body: JSON.stringify({ wardBedId: bedId, bedAdmissionPending: 0 })
       });
       if (response.ok) {
         const updatedPatient = await response.json();
@@ -526,7 +532,7 @@ function App() {
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wardBedId: null })
+        body: JSON.stringify({ wardBedId: null, bedAdmissionPending: 0 })
       });
       if (response.ok) {
         const updatedPatient = await response.json();
@@ -586,6 +592,15 @@ function App() {
             onDeleteDoctor={handleDeleteDoctor}
             onAddStaff={handleAddStaff}
             onDeleteStaff={handleDeleteStaff}
+            onDeletePatient={handleDeletePatient}
+            onDeleteAllPatients={handleDeleteAllPatients}
+          />
+        );
+      case 'patients':
+        return (
+          <AdminPatientRecords 
+            patients={patients}
+            doctors={doctorsList}
             onDeletePatient={handleDeletePatient}
             onDeleteAllPatients={handleDeleteAllPatients}
           />
@@ -704,6 +719,13 @@ function App() {
                 <span>Admin Console</span>
               </div>
               <div 
+                className={`nav-item ${adminActiveView === 'patients' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('patients'); setIsSidebarOpen(false); }}
+              >
+                <FileText size={18} />
+                <span>Patient Records</span>
+              </div>
+              <div 
                 className={`nav-item ${adminActiveView === 'receptionist' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('receptionist'); setIsSidebarOpen(false); }}
               >
@@ -727,9 +749,25 @@ function App() {
               <div 
                 className={`nav-item ${adminActiveView === 'ward' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('ward'); setIsSidebarOpen(false); }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
               >
-                <Bed size={18} />
-                <span>Ward & Beds Module</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Bed size={18} />
+                  <span>Ward & Beds Module</span>
+                </div>
+                {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
+                  <span style={{ 
+                    background: 'var(--warning)', 
+                    color: '#000', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 800, 
+                    borderRadius: '10px', 
+                    padding: '0.1rem 0.5rem',
+                    lineHeight: '1.2' 
+                  }}>
+                    {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
+                  </span>
+                )}
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'injection' ? 'active' : ''}`}
@@ -781,9 +819,24 @@ function App() {
             </div>
           )}
           {user.role === 'ward' && (
-            <div className="nav-item active">
-              <Bed size={18} />
-              <span>Ward & Beds Module</span>
+            <div className="nav-item active" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Bed size={18} />
+                <span>Ward & Beds Module</span>
+              </div>
+              {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
+                <span style={{ 
+                  background: 'var(--warning)', 
+                  color: '#000', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 800, 
+                  borderRadius: '10px', 
+                  padding: '0.1rem 0.5rem',
+                  lineHeight: '1.2' 
+                }}>
+                  {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
+                </span>
+              )}
             </div>
           )}
           {user.role === 'injection' && (
