@@ -122,6 +122,35 @@ function App() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Global Ward Admit Modal
+  const [wardAdmitPatient, setWardAdmitPatient] = useState(null); // patient to admit
+  const [wardAdmitBedId, setWardAdmitBedId] = useState('');
+
+  const BEDS_CONFIG = [
+    { id: '101A', room: '101', name: 'Bed A' },
+    { id: '101B', room: '101', name: 'Bed B' },
+    { id: '102A', room: '102', name: 'Bed A' },
+    { id: '102B', room: '102', name: 'Bed B' },
+    { id: '103A', room: '103', name: 'Bed A' },
+    { id: '103B', room: '103', name: 'Bed B' },
+    { id: '104A', room: '104', name: 'Bed A' },
+    { id: '104B', room: '104', name: 'Bed B' },
+    { id: '105A', room: '105', name: 'Bed A' },
+    { id: '105B', room: '105', name: 'Bed B' }
+  ];
+
+  const handleOpenWardAdmit = (patient) => {
+    setWardAdmitPatient(patient);
+    setWardAdmitBedId('');
+  };
+
+  const handleConfirmWardAdmit = async () => {
+    if (!wardAdmitPatient || !wardAdmitBedId) return;
+    await handleAssignBed(wardAdmitPatient.id, wardAdmitBedId);
+    setWardAdmitPatient(null);
+    setWardAdmitBedId('');
+  };
+
   // Sync user state to sessionStorage
   useEffect(() => {
     if (user) {
@@ -603,6 +632,7 @@ function App() {
             doctors={doctorsList}
             onDeletePatient={handleDeletePatient}
             onDeleteAllPatients={handleDeleteAllPatients}
+            onAdmitToWard={handleOpenWardAdmit}
           />
         );
       case 'receptionist':
@@ -615,6 +645,7 @@ function App() {
             onReRegisterPatient={handleReRegisterPatient}
             isAdmin={user?.role === 'admin'}
             onDeletePatient={handleDeletePatient}
+            onAdmitToWard={handleOpenWardAdmit}
           />
         );
       case 'doctor':
@@ -627,6 +658,7 @@ function App() {
             onStartConsultation={handleStartConsultation}
             onPrintPrescription={handlePrintPrescription}
             onEmailPrescription={handleEmailPrescription}
+            onAdmitToWard={handleOpenWardAdmit}
           />
         );
       case 'pharmacy':
@@ -898,6 +930,161 @@ function App() {
 
         {renderDashboard()}
       </main>
+
+      {/* ===== GLOBAL WARD ADMIT MODAL ===== */}
+      {wardAdmitPatient && (() => {
+        const occupiedBedIds = new Set(
+          patients
+            .filter(p => p.wardBedId && p.id !== wardAdmitPatient.id && p.status !== 'Inactive')
+            .map(p => p.wardBedId)
+        );
+        return (
+          <div
+            onClick={() => setWardAdmitPatient(null)}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(10, 20, 35, 0.72)',
+              backdropFilter: 'blur(10px)',
+              zIndex: 99999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '1.5rem',
+              animation: 'fadeIn 0.2s ease'
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                color: '#111',
+                borderRadius: '18px',
+                width: '100%',
+                maxWidth: '560px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '0 30px 60px rgba(0,0,0,0.25)',
+                display: 'flex', flexDirection: 'column'
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid #e5e7eb',
+                background: 'linear-gradient(135deg, #0f766e 0%, #0e7490 100%)',
+                borderRadius: '18px 18px 0 0',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    🛏️ Admit to Ward Room
+                  </h3>
+                  <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.82rem', marginTop: '0.2rem' }}>
+                    Patient: <strong style={{ color: '#fff' }}>{wardAdmitPatient.name}</strong> • {wardAdmitPatient.age} Yrs • #{wardAdmitPatient.id}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWardAdmitPatient(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)', border: 'none',
+                    borderRadius: '50%', width: '34px', height: '34px',
+                    color: '#fff', cursor: 'pointer', fontSize: '1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 'bold'
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '1.5rem' }}>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem', marginTop: 0 }}>
+                  Select an available bed below to admit this patient directly.
+                </p>
+
+                {/* Bed Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                  {BEDS_CONFIG.map(bed => {
+                    const isOccupied = occupiedBedIds.has(bed.id);
+                    const isSelected = wardAdmitBedId === bed.id;
+                    return (
+                      <button
+                        key={bed.id}
+                        disabled={isOccupied}
+                        onClick={() => !isOccupied && setWardAdmitBedId(bed.id)}
+                        style={{
+                          padding: '1rem',
+                          borderRadius: '12px',
+                          border: isSelected
+                            ? '2.5px solid #0f766e'
+                            : isOccupied ? '1.5px solid #fca5a5' : '1.5px solid #e2e8f0',
+                          background: isSelected
+                            ? 'linear-gradient(135deg, rgba(15,118,110,0.12), rgba(14,116,144,0.12))'
+                            : isOccupied ? '#fef2f2' : '#f8fafc',
+                          cursor: isOccupied ? 'not-allowed' : 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s',
+                          opacity: isOccupied ? 0.65 : 1,
+                          position: 'relative'
+                        }}
+                      >
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room {bed.room}</div>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', color: isOccupied ? '#ef4444' : isSelected ? '#0f766e' : '#1e293b', marginTop: '0.15rem' }}>
+                          🛏 {bed.name}
+                        </div>
+                        <div style={{
+                          marginTop: '0.4rem',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: isOccupied ? '#ef4444' : '#10b981',
+                          display: 'flex', alignItems: 'center', gap: '0.3rem'
+                        }}>
+                          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOccupied ? '#ef4444' : '#10b981', display: 'inline-block' }} />
+                          {isOccupied ? 'Occupied' : 'Available'}
+                        </div>
+                        {isSelected && (
+                          <div style={{
+                            position: 'absolute', top: '8px', right: '10px',
+                            background: '#0f766e', color: '#fff',
+                            borderRadius: '50%', width: '20px', height: '20px',
+                            fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800
+                          }}>✓</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Confirm Button */}
+                <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={handleConfirmWardAdmit}
+                    disabled={!wardAdmitBedId}
+                    style={{
+                      flex: 1, padding: '0.85rem',
+                      background: wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : '#e2e8f0',
+                      color: wardAdmitBedId ? '#fff' : '#94a3b8',
+                      border: 'none', borderRadius: '10px',
+                      fontWeight: 800, fontSize: '0.95rem',
+                      cursor: wardAdmitBedId ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s',
+                      boxShadow: wardAdmitBedId ? '0 4px 15px rgba(15,118,110,0.3)' : 'none'
+                    }}
+                  >
+                    ✅ Confirm Ward Admission
+                  </button>
+                  <button
+                    onClick={() => setWardAdmitPatient(null)}
+                    style={{
+                      padding: '0.85rem 1.25rem',
+                      background: 'transparent', border: '1.5px solid #e2e8f0',
+                      borderRadius: '10px', color: '#64748b',
+                      fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer'
+                    }}
+                  >Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

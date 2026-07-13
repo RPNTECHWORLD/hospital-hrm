@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed } from 'lucide-react';
+
+// Helper: extract city from address string "street | city | pincode"
+const extractCity = (address) => {
+  if (!address) return '';
+  const parts = address.split(' | ');
+  return parts.length >= 2 ? parts[1].trim() : parts[0].trim();
+};
+
+// Helper: extract pincode from address string "street | city | pincode"
+const extractPincode = (address) => {
+  if (!address) return '';
+  const parts = address.split(' | ');
+  return parts.length >= 3 ? parts[2].trim() : '';
+};
 
 const AdminPatientRecords = ({
   patients = [],
-  doctors = []
+  doctors = [],
+  onAdmitToWard
 }) => {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -11,6 +26,8 @@ const AdminPatientRecords = ({
   const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'unpaid'
   const [aboveAge, setAboveAge] = useState('');
   const [belowAge, setBelowAge] = useState('');
+  const [cityFilter, setCityFilter] = useState('all'); // city/town filter
+  const [pincodeFilter, setPincodeFilter] = useState('all'); // pincode filter
 
   // Selected Patient for Details Overlay Modal
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -23,7 +40,33 @@ const AdminPatientRecords = ({
     setPaymentFilter('all');
     setAboveAge('');
     setBelowAge('');
+    setCityFilter('all');
+    setPincodeFilter('all');
   };
+
+  // Unique cities from patient addresses
+  const uniqueCities = Array.from(
+    new Set(
+      patients
+        .map(p => extractCity(p.address))
+        .filter(c => c && c.length > 0)
+    )
+  ).sort();
+
+  // Unique pincodes from patient addresses
+  const uniquePincodes = Array.from(
+    new Set(
+      patients
+        .map(p => extractPincode(p.address))
+        .filter(pin => pin && pin.length > 0)
+    )
+  ).sort();
+
+  // City-wise patient counts (for stats panel)
+  const cityStats = uniqueCities.map(city => ({
+    city,
+    count: patients.filter(p => extractCity(p.address).toLowerCase() === city.toLowerCase()).length
+  })).sort((a, b) => b.count - a.count);
 
   // Stats Calculations
   const totalCount = patients.length;
@@ -61,7 +104,17 @@ const AdminPatientRecords = ({
       // 5. Below Age Filter (Maximum Age)
       const matchesBelowAge = belowAge === '' || p.age <= parseInt(belowAge);
 
-      return matchesSearch && matchesStatus && matchesPayment && matchesAboveAge && matchesBelowAge;
+      // 6. City / Town Filter
+      const matchesCity =
+        cityFilter === 'all' ||
+        extractCity(p.address).toLowerCase() === cityFilter.toLowerCase();
+
+      // 7. Pincode Filter
+      const matchesPincode =
+        pincodeFilter === 'all' ||
+        extractPincode(p.address) === pincodeFilter;
+
+      return matchesSearch && matchesStatus && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
     });
 
   return (
@@ -169,6 +222,42 @@ const AdminPatientRecords = ({
             </select>
           </div>
 
+          {/* City / Town Filter */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <MapPin size={12} style={{ color: 'var(--primary)' }} /> City / Town Filter
+            </label>
+            <select
+              className="form-input"
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              style={{ fontSize: '0.9rem' }}
+            >
+              <option value="all">All Cities / Towns</option>
+              {uniqueCities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pincode Filter */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <MapPin size={12} style={{ color: '#f59e0b' }} /> Pincode Filter
+            </label>
+            <select
+              className="form-input"
+              value={pincodeFilter}
+              onChange={(e) => setPincodeFilter(e.target.value)}
+              style={{ fontSize: '0.9rem' }}
+            >
+              <option value="all">All Pincodes</option>
+              {uniquePincodes.map(pin => (
+                <option key={pin} value={pin}>{pin}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Custom Age Ranges */}
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Age Boundaries</label>
@@ -229,9 +318,13 @@ const AdminPatientRecords = ({
                   <th>Patient Info</th>
                   <th>Mother / Guardian</th>
                   <th>Contact Details</th>
+                  <th style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
+                  </th>
                   <th>Assigned Doctor</th>
                   <th>Queue Status</th>
                   <th>Payment</th>
+                  <th style={{ textAlign: 'center' }}>Ward</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,6 +369,31 @@ const AdminPatientRecords = ({
                           </div>
                         )}
                       </td>
+                      <td>
+                        {extractCity(p.address) ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'rgba(21, 115, 136, 0.08)',
+                            color: 'var(--primary)',
+                            borderRadius: '12px',
+                            padding: '0.2rem 0.6rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            border: '1px solid rgba(21, 115, 136, 0.18)',
+                            cursor: 'pointer'
+                          }}
+                          onClick={(e) => { e.stopPropagation(); setCityFilter(extractCity(p.address)); }}
+                          title={`Filter by ${extractCity(p.address)}`}
+                          >
+                            <MapPin size={10} />
+                            {extractCity(p.address)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>--</span>
+                        )}
+                      </td>
                       <td style={{ fontSize: '0.9rem' }}>
                         {assignedDoc ? assignedDoc.name : 'Unassigned'}
                       </td>
@@ -293,6 +411,35 @@ const AdminPatientRecords = ({
                         }`} style={{ fontWeight: 600 }}>
                           {p.paymentStatus || 'Unpaid'}
                         </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        {!isDeleted && !p.wardBedId && onAdmitToWard ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
+                            title="Admit to Ward Room"
+                            style={{
+                              background: 'rgba(15,118,110,0.08)',
+                              border: '1px solid rgba(15,118,110,0.25)',
+                              borderRadius: '6px',
+                              color: '#0f766e',
+                              padding: '0.3rem 0.55rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.72rem',
+                              fontWeight: 700
+                            }}
+                          >
+                            <Bed size={13} /> Admit
+                          </button>
+                        ) : p.wardBedId ? (
+                          <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>
+                            🛏 Room {p.wardBedId?.slice(0,3)}-{p.wardBedId?.slice(3)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>--</span>
+                        )}
                       </td>
                     </tr>
                   );

@@ -14,7 +14,10 @@ const AdminDashboard = ({
 }) => {
   const [activeTab, setActiveTab] = useState('doctors');
   const [patientSearch, setPatientSearch] = useState('');
-  const [patientStatusFilter, setPatientStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
+  const [patientStatusFilter, setPatientStatusFilter] = useState('all');
+  const [streetFilter, setStreetFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [pincodeFilter, setPincodeFilter] = useState('');
   
   // Form State
   const [name, setName] = useState('');
@@ -355,6 +358,31 @@ const AdminDashboard = ({
                       <option value="active">Active Only</option>
                       <option value="inactive">Deleted / Inactive Only</option>
                     </select>
+                    {/* Address Filters */}
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Filter by Street / Area"
+                      value={streetFilter}
+                      onChange={(e) => setStreetFilter(e.target.value)}
+                      style={{ maxWidth: '180px', margin: 0 }}
+                    />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="City / Town"
+                      value={cityFilter}
+                      onChange={(e) => setCityFilter(e.target.value)}
+                      style={{ maxWidth: '140px', margin: 0 }}
+                    />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Pincode"
+                      value={pincodeFilter}
+                      onChange={(e) => setPincodeFilter(e.target.value)}
+                      style={{ maxWidth: '100px', margin: 0 }}
+                    />
                   </div>
                   
                   {patients.length > 0 && (
@@ -389,13 +417,13 @@ const AdminDashboard = ({
                     </button>
                   )}
                 </div>
-
-                <table className="custom-table">
+            <table className="custom-table">
                 <thead>
                   <tr>
                     <th>Patient ID</th>
                     <th>Patient</th>
                     <th>Doctor</th>
+                    <th>Address</th>
                     <th>Status</th>
                     <th>Payment</th>
                     <th style={{ textAlign: 'right' }}>Action</th>
@@ -414,8 +442,18 @@ const AdminDashboard = ({
                         patientStatusFilter === 'all' ||
                         (patientStatusFilter === 'active' && patient.status !== 'Inactive') ||
                         (patientStatusFilter === 'inactive' && patient.status === 'Inactive');
+
+                      // Address part filtering — address stored as "Street | City | Pincode"
+                      const addr = (patient.address || '').toLowerCase();
+                      const addrParts = addr.split(' | ');
+                      const addrStreet = addrParts[0] || '';
+                      const addrCity = addrParts[1] || '';
+                      const addrPin = addrParts[2] || '';
+                      const matchesStreet = !streetFilter || addrStreet.includes(streetFilter.toLowerCase()) || addr.includes(streetFilter.toLowerCase());
+                      const matchesCity = !cityFilter || addrCity.includes(cityFilter.toLowerCase()) || addr.includes(cityFilter.toLowerCase());
+                      const matchesPincode = !pincodeFilter || addrPin.includes(pincodeFilter.toLowerCase()) || addr.includes(pincodeFilter.toLowerCase());
                       
-                      return matchesSearch && matchesStatus;
+                      return matchesSearch && matchesStatus && matchesStreet && matchesCity && matchesPincode;
                     })
                     .map(patient => {
                       const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
@@ -432,6 +470,20 @@ const AdminDashboard = ({
                           <td style={{ fontSize: '0.9rem', color: isDeleted ? 'var(--text-muted)' : 'inherit' }}>
                             {assignedDoc ? assignedDoc.name : 'Unassigned'}
                           </td>
+                          <td style={{ fontSize: '0.8rem', color: isDeleted ? 'var(--text-muted)' : 'var(--text-secondary)', maxWidth: '160px' }}>
+                             {(() => {
+                               const rawAddr = patient.address || '';
+                               if (!rawAddr) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>;
+                               const parts = rawAddr.split(' | ');
+                               return (
+                                 <div style={{ lineHeight: '1.5' }}>
+                                   {parts[0] && <div>{parts[0]}</div>}
+                                   {parts[1] && <div style={{ color: 'var(--primary)', fontWeight: 600 }}>{parts[1]}</div>}
+                                   {parts[2] && <div style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{parts[2]}</div>}
+                                 </div>
+                               );
+                             })()}
+                           </td>
                           <td>
                             <span className={`badge ${
                               isDeleted ? 'badge-danger' : 

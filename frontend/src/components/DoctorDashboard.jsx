@@ -4,7 +4,7 @@ import DrawingCanvas from './DrawingCanvas';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription }) => {
+const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [expandHistory, setExpandHistory] = useState(false);
@@ -245,7 +245,19 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                         {p.status === 'Consulting' && <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontWeight: 600 }}>• Consulting</span>}
                       </div>
                     </div>
-                    <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {onAdmitToWard && !p.wardBedId && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
+                          onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
+                          title="Admit to Ward Room"
+                        >
+                          <Bed size={12} /> Ward
+                        </button>
+                      )}
+                      <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -275,7 +287,19 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                         Status: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>Returned ({p.issuedMedication})</span>
                       </div>
                     </div>
-                    <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {onAdmitToWard && !p.wardBedId && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
+                          onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
+                          title="Admit to Ward Room"
+                        >
+                          <Bed size={12} /> Ward
+                        </button>
+                      )}
+                      <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -722,6 +746,28 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                     <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
                       <Send size={16} /> Send to Pharmacy
                     </button>
+                    {onAdmitToWard && !activePatient.wardBedId && (
+                      <button
+                        type="button"
+                        onClick={() => onAdmitToWard(activePatient)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.6rem 1.25rem',
+                          background: 'rgba(15,118,110,0.1)',
+                          border: '1.5px solid rgba(15,118,110,0.35)',
+                          borderRadius: '8px',
+                          color: '#0f766e',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <Bed size={15} /> Admit to Ward
+                      </button>
+                    )}
                     <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)}>
                       Cancel
                     </button>
@@ -801,6 +847,30 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                     <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
                       <CheckCircle2 size={16} /> Complete Consultation Review
                     </button>
+                    {onAdmitToWard && !activePatient.wardBedId && (
+                      <button
+                        type="button"
+                        onClick={() => onAdmitToWard(activePatient)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.6rem 1.25rem',
+                          background: 'rgba(15,118,110,0.1)',
+                          border: '1.5px solid rgba(15,118,110,0.35)',
+                          borderRadius: '8px',
+                          color: '#0f766e',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s'
+                        }}
+                        title="Admit this patient to a ward bed"
+                      >
+                        <Bed size={15} /> Admit to Ward
+                      </button>
+                    )}
                     <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)}>
                       Cancel
                     </button>

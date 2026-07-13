@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2 } from 'lucide-react';
+import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed } from 'lucide-react';
 
 const ReceptionistDashboard = ({ 
   patients, 
@@ -8,7 +8,8 @@ const ReceptionistDashboard = ({
   onUpdatePaymentStatus, 
   onReRegisterPatient,
   isAdmin = false,
-  onDeletePatient
+  onDeletePatient,
+  onAdmitToWard
 }) => {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -18,7 +19,9 @@ const ReceptionistDashboard = ({
   const [motherName, setMotherName] = useState('');
   const [guardianName, setGuardianName] = useState('');
   const [alternatePhone, setAlternatePhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [pincode, setPincode] = useState('');
   const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
   const [previewImage, setPreviewImage] = useState(null);
 
@@ -74,7 +77,7 @@ const ReceptionistDashboard = ({
       fatherOrHusbandName,
       motherOrGuardianName: motherOrGuardianValue,
       alternatePhone,
-      address,
+      address: [street.trim(), city.trim(), pincode.trim()].filter(Boolean).join(' | '),
       assignedDoctorId: parseInt(assignedDoctorId),
       height,
       weight,
@@ -97,7 +100,9 @@ const ReceptionistDashboard = ({
       setMotherName('');
       setGuardianName('');
       setAlternatePhone('');
-      setAddress('');
+      setStreet('');
+      setCity('');
+      setPincode('');
       setHeight('');
       setWeight('');
       setBp('');
@@ -331,7 +336,39 @@ const ReceptionistDashboard = ({
                   </div>
                 </div>
 
-
+                {/* Address Fields */}
+                <div style={{ margin: '0.25rem 0 0' }}>
+                  <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Address</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Street / Area"
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="City / Town"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Pincode"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                   <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -699,18 +736,30 @@ const ReceptionistDashboard = ({
                           </select>
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <button 
-                            className="btn-logout" 
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
-                                onDeletePatient(patient.id);
-                              }
-                            }}
-                            title="Delete Patient"
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {onAdmitToWard && !patient.wardBedId && patient.status !== 'Completed' && (
+                              <button
+                                className="btn-logout"
+                                onClick={() => onAdmitToWard(patient)}
+                                title="Admit to Ward Room"
+                                style={{ cursor: 'pointer', color: '#0f766e', background: 'rgba(15,118,110,0.08)', borderRadius: '6px', padding: '0.3rem 0.5rem', border: '1px solid rgba(15,118,110,0.2)' }}
+                              >
+                                <Bed size={16} />
+                              </button>
+                            )}
+                            <button 
+                              className="btn-logout" 
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
+                                  onDeletePatient(patient.id);
+                                }
+                              }}
+                              title="Delete Patient"
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
