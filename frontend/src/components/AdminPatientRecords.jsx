@@ -72,7 +72,7 @@ const AdminPatientRecords = ({
   const totalCount = patients.length;
   const activeCount = patients.filter(p => p.status !== 'Inactive').length;
   const deletedCount = patients.filter(p => p.status === 'Inactive').length;
-  const paidCount = patients.filter(p => p.paymentStatus === 'Paid').length;
+  const paidCount = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
 
   // Filtered Patients
   const filteredPatients = patients
@@ -95,8 +95,8 @@ const AdminPatientRecords = ({
       // 3. Payment Filter
       const matchesPayment =
         paymentFilter === 'all' ||
-        (paymentFilter === 'paid' && p.paymentStatus === 'Paid') ||
-        (paymentFilter === 'unpaid' && p.paymentStatus !== 'Paid');
+        (paymentFilter === 'paid' && p.paymentStatus && p.paymentStatus.startsWith('Paid')) ||
+        (paymentFilter === 'unpaid' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid')));
 
       // 4. Above Age Filter (Minimum Age)
       const matchesAboveAge = aboveAge === '' || p.age >= parseInt(aboveAge);
@@ -407,7 +407,7 @@ const AdminPatientRecords = ({
                       </td>
                       <td>
                         <span className={`badge ${
-                          p.paymentStatus === 'Paid' ? 'badge-success' : 'badge-danger'
+                          p.paymentStatus && p.paymentStatus.startsWith('Paid') ? 'badge-success' : 'badge-danger'
                         }`} style={{ fontWeight: 600 }}>
                           {p.paymentStatus || 'Unpaid'}
                         </span>

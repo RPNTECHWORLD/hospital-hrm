@@ -413,13 +413,15 @@ function App() {
     }
   };
 
-  const handleUpdatePaymentStatus = async (patientId, newStatus) => {
+  const handleUpdatePaymentStatus = async (patientId, newStatus, paidAmount = 0, feeBreakdown = '') => {
     try {
       const patient = patients.find(p => p.id === patientId);
       if (!patient) return;
       const updatedData = {
         paymentStatus: newStatus,
-        status: newStatus === 'Paid' && patient.status === 'Completed' ? 'Completed' : patient.status
+        status: (newStatus && newStatus.startsWith('Paid')) && patient.status === 'Completed' ? 'Completed' : patient.status,
+        paidAmount: parseFloat(paidAmount) || 0,
+        feeBreakdown: feeBreakdown
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',

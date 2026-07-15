@@ -63,8 +63,8 @@ const AdminDashboard = ({
 
   // Patient and Payment Stats
   const totalPatientsCount = patients.length;
-  const paidPatientsCount = patients.filter(p => p.paymentStatus === 'Paid').length;
-  const unpaidPatientsCount = patients.filter(p => p.paymentStatus === 'Unpaid' || !p.paymentStatus).length;
+  const paidPatientsCount = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
+  const unpaidPatientsCount = patients.filter(p => !p.paymentStatus || !p.paymentStatus.startsWith('Paid')).length;
 
   return (
     <div className="fade-in">
@@ -494,7 +494,7 @@ const AdminDashboard = ({
                           </td>
                           <td>
                             <span className={`badge ${
-                              patient.paymentStatus === 'Paid' ? 'badge-success' : 'badge-danger'
+                              patient.paymentStatus && patient.paymentStatus.startsWith('Paid') ? 'badge-success' : 'badge-danger'
                             }`} style={{ fontWeight: 600 }}>
                               {patient.paymentStatus || 'Unpaid'}
                             </span>

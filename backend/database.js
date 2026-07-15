@@ -102,10 +102,22 @@ const camelCaseMap = {
   testname: 'testName',
   dateordered: 'dateOrdered',
   reportnotes: 'reportNotes',
+  reportimg: 'reportImg',
   vaccinename: 'vaccineName',
   dategiven: 'dateGiven',
   nextduedate: 'nextDueDate',
-  injectionname: 'injectionName'
+  injectionname: 'injectionName',
+  paidamount: 'paidAmount',
+  feebreakdown: 'feeBreakdown',
+  ischild: 'isChild',
+  childga: 'childGa',
+  childbirthdate: 'childBirthDate',
+  childbirthweight: 'childBirthWeight',
+  childplaceofbirth: 'childPlaceOfBirth',
+  childdeliverytype: 'childDeliveryType',
+  childnicuhistory: 'childNicuHistory',
+  specialinvestigation: 'specialInvestigation',
+  specialinvestigationnotes: 'specialInvestigationNotes'
 };
 
 const camelizeObject = (obj) => {
@@ -203,6 +215,29 @@ export const initDB = async () => {
   } catch (e) {
     console.log("Migration warning for wardbedid column type:", e.message);
   }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN paidamount NUMERIC DEFAULT 0`);
+  } catch (e) {
+    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
+      console.log("Migration warning for paidamount column:", e.message);
+    }
+  }
+  try {
+    await dbRun(`ALTER TABLE patients ADD COLUMN feebreakdown TEXT`);
+  } catch (e) {
+    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
+      console.log("Migration warning for feebreakdown column:", e.message);
+    }
+  }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN ischild INTEGER DEFAULT 0`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childga TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthdate TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthweight TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childplaceofbirth TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childdeliverytype TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childnicuhistory TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigation INTEGER DEFAULT 0`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigationnotes TEXT`); } catch (e) {}
 
   // Create Patient History
   await dbRun(`
@@ -228,9 +263,17 @@ export const initDB = async () => {
       staffId INTEGER NOT NULL,
       date TEXT NOT NULL,
       status TEXT NOT NULL,
-      markedBy TEXT
+      markedBy TEXT,
+      shift TEXT DEFAULT 'Day'
     )
   `);
+  try {
+    await dbRun(`ALTER TABLE staff_attendance ADD COLUMN shift TEXT DEFAULT 'Day'`);
+  } catch (e) {
+    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
+      console.log("Migration warning for shift column in staff_attendance:", e.message);
+    }
+  }
 
   // Create Directory Ledger
   await dbRun(`
@@ -289,9 +332,15 @@ export const initDB = async () => {
       testName TEXT NOT NULL,
       dateOrdered TEXT NOT NULL,
       status TEXT NOT NULL,
-      reportNotes TEXT
+      reportNotes TEXT,
+      reportImg TEXT
     )
   `);
+  try {
+    await dbRun(`ALTER TABLE lab_logs ADD COLUMN IF NOT EXISTS reportImg TEXT`);
+  } catch (e) {
+    console.log("Migration warning for reportImg column in lab_logs:", e.message);
+  }
 
   // Create Vaccinations Log
   await dbRun(`
@@ -498,6 +547,17 @@ export const getPatients = async () => {
       examination: pat.examination || '',
       investigation: pat.investigation || '',
       bmi: pat.bmi || '',
+      paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
+      feeBreakdown: pat.feeBreakdown || '',
+      isChild: pat.isChild || 0,
+      childGa: pat.childGa || '',
+      childBirthDate: pat.childBirthDate || '',
+      childBirthWeight: pat.childBirthWeight || '',
+      childPlaceOfBirth: pat.childPlaceOfBirth || '',
+      childDeliveryType: pat.childDeliveryType || '',
+      childNicuHistory: pat.childNicuHistory || '',
+      specialInvestigation: pat.specialInvestigation || 0,
+      specialInvestigationNotes: pat.specialInvestigationNotes || '',
       history: history
     });
   }
@@ -554,6 +614,17 @@ export const getPatientById = async (id) => {
     examination: pat.examination || '',
     investigation: pat.investigation || '',
     bmi: pat.bmi || '',
+    paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
+    feeBreakdown: pat.feeBreakdown || '',
+    isChild: pat.isChild || 0,
+    childGa: pat.childGa || '',
+    childBirthDate: pat.childBirthDate || '',
+    childBirthWeight: pat.childBirthWeight || '',
+    childPlaceOfBirth: pat.childPlaceOfBirth || '',
+    childDeliveryType: pat.childDeliveryType || '',
+    childNicuHistory: pat.childNicuHistory || '',
+    specialInvestigation: pat.specialInvestigation || 0,
+    specialInvestigationNotes: pat.specialInvestigationNotes || '',
     history: history
   };
 };
@@ -578,8 +649,8 @@ const getNextPatientId = async () => {
 export const addPatient = async (pat) => {
   const id = pat.id || (await getNextPatientId());
   await dbRun(
-    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       pat.name,
@@ -612,7 +683,16 @@ export const addPatient = async (pat) => {
       pat.pastHistory || '',
       pat.examination || '',
       pat.investigation || '',
-      pat.bmi || ''
+      pat.bmi || '',
+      pat.isChild || 0,
+      pat.childGa || '',
+      pat.childBirthDate || '',
+      pat.childBirthWeight || '',
+      pat.childPlaceOfBirth || '',
+      pat.childDeliveryType || '',
+      pat.childNicuHistory || '',
+      pat.specialInvestigation || 0,
+      pat.specialInvestigationNotes || ''
     ]
   );
 
@@ -649,6 +729,17 @@ export const addPatient = async (pat) => {
     examination: pat.examination || '',
     investigation: pat.investigation || '',
     bmi: pat.bmi || '',
+    paidAmount: 0,
+    feeBreakdown: '',
+    isChild: pat.isChild || 0,
+    childGa: pat.childGa || '',
+    childBirthDate: pat.childBirthDate || '',
+    childBirthWeight: pat.childBirthWeight || '',
+    childPlaceOfBirth: pat.childPlaceOfBirth || '',
+    childDeliveryType: pat.childDeliveryType || '',
+    childNicuHistory: pat.childNicuHistory || '',
+    specialInvestigation: pat.specialInvestigation || 0,
+    specialInvestigationNotes: pat.specialInvestigationNotes || '',
     history: []
   };
 };
@@ -666,7 +757,9 @@ export const updatePatient = async (id, data) => {
     'prescription', 'issuedMedication', 'paymentStatus', 'wardBedId', 'bedAdmissionPending',
     'fatherOrHusbandName', 'motherOrGuardianName', 'alternatePhone', 'tokenNumber', 'registrationDate',
     'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
-    'complaints', 'pastHistory', 'examination', 'investigation', 'bmi'
+    'complaints', 'pastHistory', 'examination', 'investigation', 'bmi', 'paidAmount', 'feeBreakdown',
+    'isChild', 'childGa', 'childBirthDate', 'childBirthWeight', 'childPlaceOfBirth', 'childDeliveryType', 'childNicuHistory',
+    'specialInvestigation', 'specialInvestigationNotes'
   ];
 
   for (const k of keys) {
@@ -755,6 +848,15 @@ export const updatePatient = async (id, data) => {
     examination: updated.examination || '',
     investigation: updated.investigation || '',
     bmi: updated.bmi || '',
+    paidAmount: updated.paidAmount ? parseFloat(updated.paidAmount) : 0,
+    feeBreakdown: updated.feeBreakdown || '',
+    isChild: updated.isChild || 0,
+    childGa: updated.childGa || '',
+    childBirthDate: updated.childBirthDate || '',
+    childBirthWeight: updated.childBirthWeight || '',
+    childPlaceOfBirth: updated.childPlaceOfBirth || '',
+    childDeliveryType: updated.childDeliveryType || '',
+    childNicuHistory: updated.childNicuHistory || '',
     history: history
   };
 };
@@ -762,8 +864,8 @@ export const updatePatient = async (id, data) => {
 // Staff Attendance
 export const getAttendance = () => dbAll(`SELECT * FROM staff_attendance`);
 export const addAttendance = (att) => dbRun(
-  `INSERT INTO staff_attendance (staffId, date, status, markedBy) VALUES (?, ?, ?, ?)`,
-  [att.staffId, att.date, att.status, att.markedBy]
+  `INSERT INTO staff_attendance (staffId, date, status, markedBy, shift) VALUES (?, ?, ?, ?, ?)`,
+  [att.staffId, att.date, att.status, att.markedBy, att.shift || 'Day']
 );
 
 // Directory Ledger
@@ -811,14 +913,14 @@ export const addPharmacyLedger = async (ledger) => {
 export const getLabLogs = () => dbAll(`SELECT * FROM lab_logs`);
 export const addLabLog = async (log) => {
   const result = await dbRun(
-    `INSERT INTO lab_logs (patientId, testName, dateOrdered, status, reportNotes) VALUES (?, ?, ?, ?, ?)`,
-    [log.patientId, log.testName, log.dateOrdered, log.status || 'Ordered', log.reportNotes || '']
+    `INSERT INTO lab_logs (patientId, testName, dateOrdered, status, reportNotes, reportImg) VALUES (?, ?, ?, ?, ?, ?)`,
+    [log.patientId, log.testName, log.dateOrdered, log.status || 'Ordered', log.reportNotes || '', log.reportImg || null]
   );
   return { id: result.lastID, ...log };
 };
-export const updateLabLogStatus = (id, status, reportNotes) => dbRun(
-  `UPDATE lab_logs SET status = ?, reportNotes = ? WHERE id = ?`,
-  [status, reportNotes, id]
+export const updateLabLogStatus = (id, status, reportNotes, reportImg) => dbRun(
+  `UPDATE lab_logs SET status = ?, reportNotes = ?, reportImg = ? WHERE id = ?`,
+  [status, reportNotes, reportImg || null, id]
 );
 
 // Vaccinations

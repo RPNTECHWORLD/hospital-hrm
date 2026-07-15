@@ -19,7 +19,14 @@ const UtilityLogs = () => {
   const [staffList, setStaffList] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [attendanceMap, setAttendanceMap] = useState({}); // { staffId: status }
+  const [attendanceMap, setAttendanceMap] = useState({}); // { staffId: boolean }
+  const [attendanceShift, setAttendanceShift] = useState('Day'); // 'Day' or 'Night'
+
+  // Attendance Log Filters
+  const [filterAttDate, setFilterAttDate] = useState('');
+  const [filterAttStaff, setFilterAttStaff] = useState('');
+  const [filterAttShift, setFilterAttShift] = useState('All'); // 'All', 'Day', 'Night'
+  const [filterAttStatus, setFilterAttStatus] = useState('All'); // 'All', 'Present', 'Absent'
 
   // Bio-Waste States
   const [wasteLogs, setWasteLogs] = useState([]);
@@ -42,10 +49,10 @@ const UtilityLogs = () => {
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         setStaffList(staffData);
-        // Initialize attendance map
+        // Initialize attendance map based on shift
         const initialMap = {};
         staffData.forEach(s => {
-          initialMap[s.id] = 'Present';
+          initialMap[s.id] = (attendanceShift === 'Day');
         });
         setAttendanceMap(initialMap);
       }
@@ -68,6 +75,14 @@ const UtilityLogs = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const initialMap = {};
+    staffList.forEach(s => {
+      initialMap[s.id] = (attendanceShift === 'Day');
+    });
+    setAttendanceMap(initialMap);
+  }, [attendanceShift, staffList]);
 
   // Housekeeping handlers
   const handleAddHousekeeping = async (e) => {
@@ -110,8 +125,9 @@ const UtilityLogs = () => {
           body: JSON.stringify({
             staffId: parseInt(staffId),
             date: attendanceDate,
-            status: attendanceMap[staffId],
-            markedBy: 'Doctor/Admin'
+            status: attendanceMap[staffId] ? 'Present' : 'Absent',
+            markedBy: 'Doctor/Admin',
+            shift: attendanceShift
           })
         });
       }
@@ -270,100 +286,211 @@ const UtilityLogs = () => {
         </div>
       )}
 
-      {activeTab === 'attendance' && (
-        <div className="grid-2">
-          <div className="card">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
-              <Calendar size={20} style={{ color: 'var(--primary)' }} />
-              Active Staff Attendance Register
-            </h3>
+      {activeTab === 'attendance' && (() => {
+        const filteredAttendanceLogs = attendanceLogs.filter(log => {
+          const staffMember = staffList.find(s => s.id === log.staffId);
+          const staffName = staffMember ? staffMember.name.toLowerCase() : '';
+          
+          const matchDate = !filterAttDate || log.date === filterAttDate;
+          const matchStaff = !filterAttStaff || 
+                             staffName.includes(filterAttStaff.toLowerCase()) || 
+                             String(log.staffId).includes(filterAttStaff);
+          const matchShift = filterAttShift === 'All' || log.shift === filterAttShift;
+          const matchStatus = filterAttStatus === 'All' || log.status === filterAttStatus;
 
-            <form onSubmit={handleMarkAttendance}>
-              <div className="form-group">
-                <label className="form-label">Select Attendance Date</label>
-                <input type="date" className="form-input" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} />
-              </div>
+          return matchDate && matchStaff && matchShift && matchStatus;
+        });
 
-              <div className="table-container" style={{ margin: '1rem 0' }}>
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Staff Name</th>
-                      <th>Module Role</th>
-                      <th>Status Checklist</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffList.map(s => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 600 }}>{s.name}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{s.role}</td>
-                        <td>
-                          <select 
-                            className="form-input" 
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', width: 'fit-content' }}
-                            value={attendanceMap[s.id] || 'Present'}
-                            onChange={(e) => setAttendanceMap({
-                              ...attendanceMap,
-                              [s.id]: e.target.value
-                            })}
-                          >
-                            <option value="Present">Present</option>
-                            <option value="Absent">Absent</option>
-                            <option value="Leave">Leave</option>
-                          </select>
-                        </td>
+        return (
+          <div className="grid-2">
+            <div className="card">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
+                <Calendar size={20} style={{ color: 'var(--primary)' }} />
+                Active Staff Attendance Register
+              </h3>
+
+              <form onSubmit={handleMarkAttendance}>
+                <div className="form-group">
+                  <label className="form-label">Select Attendance Date</label>
+                  <input type="date" className="form-input" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label className="form-label">Select Shift</label>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={`btn ${attendanceShift === 'Day' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
+                      onClick={() => setAttendanceShift('Day')}
+                    >
+                      ☀️ Day Shift
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${attendanceShift === 'Night' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
+                      onClick={() => setAttendanceShift('Night')}
+                    >
+                      🌙 Night Shift
+                    </button>
+                  </div>
+                </div>
+
+                <div className="table-container" style={{ margin: '1rem 0' }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Staff Name</th>
+                        <th>Module Role</th>
+                        <th>Status Checklist</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {staffList.map(s => (
+                        <tr key={s.id} style={{ 
+                          background: attendanceMap[s.id] ? 'rgba(16, 185, 129, 0.04)' : 'transparent',
+                          transition: 'background 0.2s'
+                        }}>
+                          <td style={{ fontWeight: 600 }}>{s.name}</td>
+                          <td style={{ textTransform: 'capitalize' }}>{s.role}</td>
+                          <td>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, color: attendanceMap[s.id] ? 'var(--success)' : 'var(--text-secondary)' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={!!attendanceMap[s.id]} 
+                                onChange={(e) => setAttendanceMap({
+                                  ...attendanceMap,
+                                  [s.id]: e.target.checked
+                                })}
+                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                              />
+                              {attendanceMap[s.id] ? 'Present' : 'Absent'}
+                            </label>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                  ✓ Save Attendance Log
+                </button>
+              </form>
+            </div>
+
+            <div className="card">
+              <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem' }}>Historical Attendance Logs</h3>
+              
+              {/* Log Filters */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '0.75rem', 
+                marginBottom: '1.5rem',
+                padding: '0.75rem',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px'
+              }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Filter Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    value={filterAttDate} 
+                    onChange={(e) => setFilterAttDate(e.target.value)} 
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Staff Name / ID</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Search..."
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    value={filterAttStaff} 
+                    onChange={(e) => setFilterAttStaff(e.target.value)} 
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Shift</label>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    value={filterAttShift}
+                    onChange={(e) => setFilterAttShift(e.target.value)}
+                  >
+                    <option value="All">All Shifts</option>
+                    <option value="Day">Day Shift</option>
+                    <option value="Night">Night Shift</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>Status</label>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    value={filterAttStatus}
+                    onChange={(e) => setFilterAttStatus(e.target.value)}
+                  >
+                    <option value="All">All Status</option>
+                    <option value="Present">Present</option>
+                    <option value="Absent">Absent</option>
+                  </select>
+                </div>
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-                ✓ Save Attendance Log
-              </button>
-            </form>
-          </div>
-
-          <div className="card">
-            <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Historical Attendance Logs</h3>
-            
-            {attendanceLogs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
-                No attendance logs found.
-              </div>
-            ) : (
-              <div className="table-container" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Staff ID</th>
-                      <th>Attendance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceLogs.slice().reverse().map((log, index) => (
-                      <tr key={index}>
-                        <td>{log.date}</td>
-                        <td>Staff #{log.staffId}</td>
-                        <td>
-                          <span className={`badge ${
-                            log.status === 'Present' ? 'badge-success' : 
-                            log.status === 'Absent' ? 'badge-danger' : 'badge-pending'
-                          }`}>
-                            {log.status}
-                          </span>
-                        </td>
+              {filteredAttendanceLogs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
+                  No matching attendance logs found.
+                </div>
+              ) : (
+                <div className="table-container" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Staff Name</th>
+                        <th>Shift</th>
+                        <th>Attendance</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {filteredAttendanceLogs.slice().reverse().map((log, index) => {
+                        const s = staffList.find(st => st.id === log.staffId);
+                        return (
+                          <tr key={index}>
+                            <td>{log.date}</td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{s ? s.name : `Staff #${log.staffId}`}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{s ? s.role : ''}</div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                {log.shift === 'Night' ? '🌙 Night' : '☀️ Day'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge ${
+                                log.status === 'Present' ? 'badge-success' : 'badge-danger'
+                              }`}>
+                                {log.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {activeTab === 'waste' && (
         <div className="grid-2">

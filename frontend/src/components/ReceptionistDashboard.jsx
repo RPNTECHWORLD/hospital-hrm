@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed } from 'lucide-react';
+import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope } from 'lucide-react';
 
 const ReceptionistDashboard = ({ 
   patients, 
@@ -24,6 +24,122 @@ const ReceptionistDashboard = ({
   const [pincode, setPincode] = useState('');
   const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Payment Collection Modal States
+  const [paymentModalPatient, setPaymentModalPatient] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('Paid - Cash'); // 'Paid - Cash', 'Paid - UPI', 'Unpaid'
+  const [feeDoctor, setFeeDoctor] = useState(100);
+  const [feeDoctorChecked, setFeeDoctorChecked] = useState(true);
+  const [feeProcedure, setFeeProcedure] = useState(200);
+  const [feeProcedureChecked, setFeeProcedureChecked] = useState(true);
+  const [feeLab, setFeeLab] = useState(150);
+  const [feeLabChecked, setFeeLabChecked] = useState(true);
+  const [feeWard, setFeeWard] = useState(500);
+  const [feeWardChecked, setFeeWardChecked] = useState(true);
+  const [feeO2, setFeeO2] = useState(100);
+  const [feeO2Checked, setFeeO2Checked] = useState(true);
+  const [feeGrbs, setFeeGrbs] = useState(50);
+  const [feeGrbsChecked, setFeeGrbsChecked] = useState(true);
+  const [feeDressing, setFeeDressing] = useState(100);
+  const [feeDressingChecked, setFeeDressingChecked] = useState(true);
+  const [feeNebuliser, setFeeNebuliser] = useState(100);
+  const [feeNebuliserChecked, setFeeNebuliserChecked] = useState(true);
+  const [feeEcg, setFeeEcg] = useState(150);
+  const [feeEcgChecked, setFeeEcgChecked] = useState(true);
+  const [feeNurse, setFeeNurse] = useState(50);
+  const [feeNurseChecked, setFeeNurseChecked] = useState(true);
+  const [customPaidAmount, setCustomPaidAmount] = useState('');
+
+  const openPaymentModal = (patient) => {
+    setPaymentModalPatient(patient);
+    setPaymentMethod(patient.paymentStatus && patient.paymentStatus.startsWith('Paid') ? patient.paymentStatus : 'Paid - Cash');
+    
+    let breakdown = {
+      doctor: { checked: true, amount: 100 },
+      procedure: { checked: true, amount: 200 },
+      lab: { checked: true, amount: 150 },
+      ward: { checked: true, amount: 500 },
+      o2: { checked: true, amount: 100 },
+      grbs: { checked: true, amount: 50 },
+      dressing: { checked: true, amount: 100 },
+      nebuliser: { checked: true, amount: 100 },
+      ecg: { checked: true, amount: 150 },
+      nurse: { checked: true, amount: 50 }
+    };
+
+    if (patient.feeBreakdown) {
+      try {
+        const parsed = JSON.parse(patient.feeBreakdown);
+        breakdown = { ...breakdown, ...parsed };
+      } catch (e) {
+        console.error("Failed to parse fee breakdown", e);
+      }
+    }
+
+    setFeeDoctorChecked(breakdown.doctor.checked);
+    setFeeDoctor(breakdown.doctor.amount);
+    setFeeProcedureChecked(breakdown.procedure.checked);
+    setFeeProcedure(breakdown.procedure.amount);
+    setFeeLabChecked(breakdown.lab.checked);
+    setFeeLab(breakdown.lab.amount);
+    setFeeWardChecked(breakdown.ward.checked);
+    setFeeWard(breakdown.ward.amount);
+    setFeeO2Checked(breakdown.o2 ? breakdown.o2.checked : true);
+    setFeeO2(breakdown.o2 ? breakdown.o2.amount : 100);
+    setFeeGrbsChecked(breakdown.grbs ? breakdown.grbs.checked : true);
+    setFeeGrbs(breakdown.grbs ? breakdown.grbs.amount : 50);
+    setFeeDressingChecked(breakdown.dressing ? breakdown.dressing.checked : true);
+    setFeeDressing(breakdown.dressing ? breakdown.dressing.amount : 100);
+    setFeeNebuliserChecked(breakdown.nebuliser ? breakdown.nebuliser.checked : true);
+    setFeeNebuliser(breakdown.nebuliser ? breakdown.nebuliser.amount : 100);
+    setFeeEcgChecked(breakdown.ecg ? breakdown.ecg.checked : true);
+    setFeeEcg(breakdown.ecg ? breakdown.ecg.amount : 150);
+    setFeeNurseChecked(breakdown.nurse ? breakdown.nurse.checked : true);
+    setFeeNurse(breakdown.nurse ? breakdown.nurse.amount : 50);
+    
+    setCustomPaidAmount(patient.paidAmount !== undefined && patient.paidAmount > 0 ? String(patient.paidAmount) : '');
+  };
+
+  const calculatedTotal = (feeDoctorChecked ? parseFloat(feeDoctor || 0) : 0) +
+                          (feeProcedureChecked ? parseFloat(feeProcedure || 0) : 0) +
+                          (feeLabChecked ? parseFloat(feeLab || 0) : 0) +
+                          (feeWardChecked ? parseFloat(feeWard || 0) : 0) +
+                          (feeO2Checked ? parseFloat(feeO2 || 0) : 0) +
+                          (feeGrbsChecked ? parseFloat(feeGrbs || 0) : 0) +
+                          (feeDressingChecked ? parseFloat(feeDressing || 0) : 0) +
+                          (feeNebuliserChecked ? parseFloat(feeNebuliser || 0) : 0) +
+                          (feeEcgChecked ? parseFloat(feeEcg || 0) : 0) +
+                          (feeNurseChecked ? parseFloat(feeNurse || 0) : 0);
+
+  // Automatically update the paid amount field when checkboxes change, unless they manually override
+  React.useEffect(() => {
+    if (paymentModalPatient) {
+      setCustomPaidAmount(String(calculatedTotal));
+    }
+  }, [feeDoctorChecked, feeDoctor, feeProcedureChecked, feeProcedure, feeLabChecked, feeLab, feeWardChecked, feeWard, feeO2Checked, feeO2, feeGrbsChecked, feeGrbs, feeDressingChecked, feeDressing, feeNebuliserChecked, feeNebuliser, feeEcgChecked, feeEcg, feeNurseChecked, feeNurse]);
+
+  const handleConfirmPayment = () => {
+    const finalAmount = customPaidAmount !== '' ? parseFloat(customPaidAmount) : calculatedTotal;
+    const breakdown = {
+      doctor: { checked: feeDoctorChecked, amount: parseFloat(feeDoctor || 0) },
+      procedure: { checked: feeProcedureChecked, amount: parseFloat(feeProcedure || 0) },
+      lab: { checked: feeLabChecked, amount: parseFloat(feeLab || 0) },
+      ward: { checked: feeWardChecked, amount: parseFloat(feeWard || 0) },
+      o2: { checked: feeO2Checked, amount: parseFloat(feeO2 || 0) },
+      grbs: { checked: feeGrbsChecked, amount: parseFloat(feeGrbs || 0) },
+      dressing: { checked: feeDressingChecked, amount: parseFloat(feeDressing || 0) },
+      nebuliser: { checked: feeNebuliserChecked, amount: parseFloat(feeNebuliser || 0) },
+      ecg: { checked: feeEcgChecked, amount: parseFloat(feeEcg || 0) },
+      nurse: { checked: feeNurseChecked, amount: parseFloat(feeNurse || 0) }
+    };
+    onUpdatePaymentStatus(
+      paymentModalPatient.id, 
+      paymentMethod, 
+      finalAmount, 
+      JSON.stringify(breakdown)
+    );
+    setPaymentModalPatient(null);
+  };
 
   // Vitals States
   const [height, setHeight] = useState('');
@@ -50,15 +166,37 @@ const ReceptionistDashboard = ({
   }, [height, weight]);
 
   // Search & Re-queue States
-  const [receptionistTab, setReceptionistTab] = useState('new'); // 'new' or 'returning'
+  const [receptionistTab, setReceptionistTab] = useState('new'); // 'new', 'returning' or 'child'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
   const [reRegisterDoctorId, setReRegisterDoctorId] = useState(doctors[0]?.id || '');
   const [successPatient, setSuccessPatient] = useState(null);
 
+  // Child Register specific states
+  const [childGa, setChildGa] = useState('');
+  const [childBirthDate, setChildBirthDate] = useState('');
+  const [childBirthWeight, setChildBirthWeight] = useState('');
+  const [childPlaceOfBirth, setChildPlaceOfBirth] = useState('');
+  const [childDeliveryType, setChildDeliveryType] = useState('NVD');
+  const [childNicuHistory, setChildNicuHistory] = useState('No');
+
+  // Special Investigation
+  const [specialInvestigation, setSpecialInvestigation] = useState(false);
+  const [specialInvestigationNotes, setSpecialInvestigationNotes] = useState('');
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name || !age || !contact || !assignedDoctorId) return;
+    if (!name || (receptionistTab !== 'child' && !age) || !contact || !assignedDoctorId) return;
+
+    let calculatedAge = parseInt(age);
+    if (isNaN(calculatedAge)) {
+      if (childBirthDate) {
+        const diffMs = Date.now() - new Date(childBirthDate).getTime();
+        const ageDate = new Date(diffMs); 
+        calculatedAge = Math.abs(ageDate.getUTCFullYear() - 1970);
+      } else {
+        calculatedAge = 0;
+      }
+    }
 
     let motherOrGuardianValue = '';
     if (motherName.trim() && guardianName.trim()) {
@@ -71,7 +209,7 @@ const ReceptionistDashboard = ({
 
     const registered = await onRegisterPatient({
       name,
-      age: parseInt(age),
+      age: calculatedAge,
       gender,
       contact,
       fatherOrHusbandName,
@@ -86,7 +224,16 @@ const ReceptionistDashboard = ({
       spo2,
       grbs,
       temp,
-      bmi
+      bmi,
+      isChild: receptionistTab === 'child' ? 1 : 0,
+      childGa: receptionistTab === 'child' ? childGa : '',
+      childBirthDate: receptionistTab === 'child' ? childBirthDate : '',
+      childBirthWeight: receptionistTab === 'child' ? childBirthWeight : '',
+      childPlaceOfBirth: receptionistTab === 'child' ? childPlaceOfBirth : '',
+      childDeliveryType: receptionistTab === 'child' ? childDeliveryType : '',
+      childNicuHistory: receptionistTab === 'child' ? childNicuHistory : '',
+      specialInvestigation: specialInvestigation ? 1 : 0,
+      specialInvestigationNotes: specialInvestigation ? specialInvestigationNotes : ''
     });
 
     if (registered) {
@@ -111,6 +258,15 @@ const ReceptionistDashboard = ({
       setGrbs('');
       setTemp('');
       setBmi('');
+      // Child Fields Reset
+      setChildGa('');
+      setChildBirthDate('');
+      setChildBirthWeight('');
+      setChildPlaceOfBirth('');
+      setChildDeliveryType('NVD');
+      setChildNicuHistory('No');
+      setSpecialInvestigation(false);
+      setSpecialInvestigationNotes('');
     }
   };
 
@@ -142,7 +298,7 @@ const ReceptionistDashboard = ({
   const totalPatients = patients.length;
   const activeQueue = patients.filter(p => ['Registered', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
   const completedConsultations = patients.filter(p => p.status === 'Completed').length;
-  const paidConsultations = patients.filter(p => p.paymentStatus === 'Paid').length;
+  const paidConsultations = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
 
   // Filter existing patients for re-queuing (unique by name/contact combination to avoid duplicates)
   const uniquePatients = [];
@@ -210,30 +366,47 @@ const ReceptionistDashboard = ({
       <div className="grid-2">
         {/* Register Patient Form */}
         <div className="card">
-          <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
             <button 
               type="button"
               className={`btn ${receptionistTab === 'new' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.85rem' }}
+              style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
               onClick={() => setReceptionistTab('new')}
             >
-              <UserPlus size={16} /> New Patient
+              <UserPlus size={15} /> New Patient
+            </button>
+            <button 
+              type="button"
+              className={`btn ${receptionistTab === 'child' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+              onClick={() => setReceptionistTab('child')}
+            >
+              <Baby size={15} /> Child Register
             </button>
             <button 
               type="button"
               className={`btn ${receptionistTab === 'returning' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.85rem' }}
+              style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
               onClick={() => setReceptionistTab('returning')}
             >
-              <Search size={16} /> Returning Patient
+              <Search size={15} /> Returning Patient
             </button>
           </div>
 
-          {receptionistTab === 'new' ? (
+          {receptionistTab === 'new' || receptionistTab === 'child' ? (
             <>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
-                <UserPlus size={20} style={{ color: 'var(--primary)' }} />
-                New Patient Registration
+                {receptionistTab === 'child' ? (
+                  <>
+                    <Baby size={20} style={{ color: 'var(--primary)' }} />
+                    Pediatric Child Registration
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={20} style={{ color: 'var(--primary)' }} />
+                    New Patient Registration
+                  </>
+                )}
               </h3>
 
               <form onSubmit={handleSubmit}>
@@ -370,6 +543,84 @@ const ReceptionistDashboard = ({
                   </div>
                 </div>
 
+                {/* Pediatric Details Section (only visible when Child Register tab is active) */}
+                {receptionistTab === 'child' && (
+                  <div style={{ margin: '1.25rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                    <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Baby size={16} /> Child Birth Details
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">GA (Gestational Age)</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="e.g. 38 weeks"
+                          value={childGa}
+                          onChange={(e) => setChildGa(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Birth Date</label>
+                        <input 
+                          type="date" 
+                          className="form-input" 
+                          value={childBirthDate}
+                          onChange={(e) => setChildBirthDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">Birth Weight</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="e.g. 3.2 kg"
+                          value={childBirthWeight}
+                          onChange={(e) => setChildBirthWeight(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Place of Birth</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="Hospital name / Home"
+                          value={childPlaceOfBirth}
+                          onChange={(e) => setChildPlaceOfBirth(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">Delivery Type</label>
+                        <select 
+                          className="form-input"
+                          value={childDeliveryType}
+                          onChange={(e) => setChildDeliveryType(e.target.value)}
+                        >
+                          <option value="NVD">Normal Vaginal Delivery (NVD)</option>
+                          <option value="LSCS">Lower Segment Cesarean Section (LSCS)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">History of NICU Admission</label>
+                        <select 
+                          className="form-input"
+                          value={childNicuHistory}
+                          onChange={(e) => setChildNicuHistory(e.target.value)}
+                        >
+                          <option value="No">No History</option>
+                          <option value="Yes">Yes (Admitted to NICU)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                   <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Patient Vitals / Triage
@@ -461,6 +712,78 @@ const ReceptionistDashboard = ({
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Special Investigation Toggle */}
+                <div style={{ 
+                  margin: '0 0 1rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: specialInvestigation ? '1.5px solid rgba(234, 88, 12, 0.5)' : '1.5px solid var(--border)',
+                  background: specialInvestigation ? 'rgba(234, 88, 12, 0.06)' : 'var(--bg-dark)',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: specialInvestigation ? '#ea580c' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: specialInvestigation ? 'rgba(234, 88, 12, 0.15)' : 'rgba(100, 116, 139, 0.12)',
+                          color: specialInvestigation ? '#ea580c' : 'var(--text-secondary)',
+                          borderRadius: '6px',
+                          padding: '0.3rem',
+                          marginRight: '2px',
+                          border: specialInvestigation ? '1px solid rgba(234, 88, 12, 0.3)' : '1px solid var(--border)',
+                          transition: 'all 0.2s ease'
+                        }}>
+                          <Microscope size={15} strokeWidth={2.5} />
+                        </span>
+                        Special Investigation Required
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Flag this patient for special attention / investigation</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSpecialInvestigation(!specialInvestigation)}
+                      style={{
+                        width: '48px',
+                        height: '26px',
+                        borderRadius: '13px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: specialInvestigation ? '#ea580c' : 'rgba(150,150,150,0.3)',
+                        position: 'relative',
+                        transition: 'background 0.25s ease',
+                        flexShrink: 0
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute',
+                        top: '3px',
+                        left: specialInvestigation ? '25px' : '3px',
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        transition: 'left 0.25s ease',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+                      }} />
+                    </button>
+                  </div>
+                  {specialInvestigation && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Brief reason / notes for special investigation (optional)"
+                        value={specialInvestigationNotes}
+                        onChange={(e) => setSpecialInvestigationNotes(e.target.value)}
+                        style={{ fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -717,23 +1040,31 @@ const ReceptionistDashboard = ({
                           </span>
                         </td>
                         <td>
-                          <select 
-                            className="form-input" 
-                            style={{ 
-                              padding: '0.25rem 0.5rem', 
-                              fontSize: '0.85rem', 
-                              width: 'fit-content',
-                              background: patient.paymentStatus === 'Paid' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                              color: patient.paymentStatus === 'Paid' ? 'var(--success)' : 'var(--danger)',
-                              borderColor: patient.paymentStatus === 'Paid' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-                              fontWeight: 600
-                            }}
-                            value={patient.paymentStatus}
-                            onChange={(e) => onUpdatePaymentStatus(patient.id, e.target.value)}
-                          >
-                            <option value="Unpaid" style={{ background: 'var(--bg-dark)', color: 'var(--text-primary)' }}>Unpaid</option>
-                            <option value="Paid" style={{ background: 'var(--bg-dark)', color: 'var(--text-primary)' }}>Paid</option>
-                          </select>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span 
+                              style={{ 
+                                cursor: 'pointer',
+                                padding: '0.25rem 0.5rem', 
+                                fontSize: '0.85rem', 
+                                borderRadius: '4px',
+                                width: 'fit-content',
+                                background: (patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                color: (patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'var(--success)' : 'var(--danger)',
+                                border: '1px solid ' + ((patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'),
+                                fontWeight: 700,
+                                textAlign: 'center'
+                              }}
+                              onClick={() => openPaymentModal(patient)}
+                              title="Click to Collect Payment / Enter Fees Checklist"
+                            >
+                              {patient.paymentStatus || 'Unpaid'}
+                            </span>
+                            {(patient.paidAmount !== undefined && patient.paidAmount > 0) && (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontWeight: 600 }}>
+                                Amount: ₹{patient.paidAmount}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -896,6 +1227,292 @@ const ReceptionistDashboard = ({
             >
               Done & Close
             </button>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Payment Checklist & Override Modal */}
+      {paymentModalPatient && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 99999,
+          padding: '1.5rem'
+        }} onClick={() => setPaymentModalPatient(null)}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '16px',
+            padding: '1.25rem 1.5rem',
+            width: '100%',
+            maxWidth: '540px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3), 0 10px 10px -5px rgba(0,0,0,0.15)',
+            color: 'var(--text-primary)',
+            textAlign: 'left'
+          }} onClick={e => e.stopPropagation()}>
+            {/* Popover Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>
+                💳 Billing Checklist: #{paymentModalPatient.id}
+              </span>
+              <button 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer', padding: 0 }}
+                onClick={() => setPaymentModalPatient(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '0.75rem', background: 'var(--bg-dark)', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.82rem', border: '1px solid var(--border)' }}>
+              <strong>Patient Name:</strong> {paymentModalPatient.name}
+            </div>
+
+            {/* Payment Method Status */}
+            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>Payment Method Status</label>
+              <select 
+                className="form-input" 
+                value={paymentMethod} 
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                style={{ marginTop: '0.25rem' }}
+              >
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid - Cash">Paid - Cash</option>
+                <option value="Paid - UPI">Paid - UPI</option>
+              </select>
+            </div>
+
+            {/* Checklist of Fees - 2 Column Grid */}
+            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>Fee Breakdown Checklist</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 0.75rem' }}>
+                {/* Doctor Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeDoctorChecked} onChange={(e) => setFeeDoctorChecked(e.target.checked)} />
+                    Doctor Fees
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeDoctor}
+                      onChange={(e) => setFeeDoctor(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Procedure Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeProcedureChecked} onChange={(e) => setFeeProcedureChecked(e.target.checked)} />
+                    Procedure Fees
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeProcedure}
+                      onChange={(e) => setFeeProcedure(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Lab Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeLabChecked} onChange={(e) => setFeeLabChecked(e.target.checked)} />
+                    Lab Invest.
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeLab}
+                      onChange={(e) => setFeeLab(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Ward Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeWardChecked} onChange={(e) => setFeeWardChecked(e.target.checked)} />
+                    Ward Room
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeWard}
+                      onChange={(e) => setFeeWard(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* O2 Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeO2Checked} onChange={(e) => setFeeO2Checked(e.target.checked)} />
+                    O2 Therapy
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeO2}
+                      onChange={(e) => setFeeO2(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* GRBS Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeGrbsChecked} onChange={(e) => setFeeGrbsChecked(e.target.checked)} />
+                    GRBS (Sugar)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeGrbs}
+                      onChange={(e) => setFeeGrbs(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Dressing Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeDressingChecked} onChange={(e) => setFeeDressingChecked(e.target.checked)} />
+                    Dressing
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeDressing}
+                      onChange={(e) => setFeeDressing(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Nebuliser Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeNebuliserChecked} onChange={(e) => setFeeNebuliserChecked(e.target.checked)} />
+                    Nebuliser
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeNebuliser}
+                      onChange={(e) => setFeeNebuliser(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* ECG Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeEcgChecked} onChange={(e) => setFeeEcgChecked(e.target.checked)} />
+                    ECG Test
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeEcg}
+                      onChange={(e) => setFeeEcg(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Nurse Fees */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
+                    <input type="checkbox" checked={feeNurseChecked} onChange={(e) => setFeeNurseChecked(e.target.checked)} />
+                    Nurse Care
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      value={feeNurse}
+                      onChange={(e) => setFeeNurse(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Paid Amount Field (Enter by their self) */}
+            <div className="form-group" style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
+                <span>Total Paid Amount (INR)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Auto: ₹{calculatedTotal}</span>
+              </div>
+              <input 
+                type="number" 
+                className="form-input" 
+                value={customPaidAmount}
+                onChange={(e) => setCustomPaidAmount(e.target.value)}
+                placeholder={calculatedTotal}
+                style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.25rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+              />
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}
+                onClick={() => setPaymentModalPatient(null)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem', background: 'var(--primary)', border: 'none', fontWeight: 700 }}
+                onClick={handleConfirmPayment}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

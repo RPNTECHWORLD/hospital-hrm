@@ -107,7 +107,16 @@ const tablesToMigrate = [
         pastHistory TEXT,
         examination TEXT,
         investigation TEXT,
-        bmi TEXT
+        bmi TEXT,
+        paidAmount NUMERIC DEFAULT 0,
+        feeBreakdown TEXT,
+        isChild INTEGER DEFAULT 0,
+        childGa TEXT,
+        childBirthDate TEXT,
+        childBirthWeight TEXT,
+        childPlaceOfBirth TEXT,
+        childDeliveryType TEXT,
+        childNicuHistory TEXT
       )
     `
   },
@@ -141,7 +150,8 @@ const tablesToMigrate = [
         staffId INTEGER NOT NULL,
         date TEXT NOT NULL,
         status TEXT NOT NULL,
-        markedBy TEXT
+        markedBy TEXT,
+        shift TEXT DEFAULT 'Day'
       )
     `
   },
@@ -217,7 +227,8 @@ const tablesToMigrate = [
         testName TEXT NOT NULL,
         dateOrdered TEXT NOT NULL,
         status TEXT NOT NULL,
-        reportNotes TEXT
+        reportNotes TEXT,
+        reportImg TEXT
       )
     `
   },
