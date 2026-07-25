@@ -12,6 +12,7 @@ import InjectionRoom from './components/InjectionRoom';
 import LabDashboard from './components/LabDashboard';
 import DirectoryLedger from './components/DirectoryLedger';
 import UtilityLogs from './components/UtilityLogs';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import { 
@@ -31,7 +32,8 @@ import {
   Syringe,
   FlaskConical,
   BookOpen,
-  ClipboardList
+  ClipboardList,
+  BarChart
 } from 'lucide-react';
 
 // Setup default Doctors
@@ -597,7 +599,7 @@ function App() {
     );
   }
 
-  const activeView = user.role === 'admin' ? adminActiveView : user.role;
+  const activeView = adminActiveView === 'analytics' ? 'analytics' : (user.role === 'admin' ? adminActiveView : user.role);
 
   // Dashboard Renderer based on current active view
   const renderDashboard = () => {
@@ -696,6 +698,15 @@ function App() {
       case 'utility':
         return (
           <UtilityLogs />
+        );
+      case 'analytics':
+        return (
+          <AnalyticsDashboard 
+            patients={patients}
+            user={user}
+            doctorsList={doctorsList}
+            staffList={staffList}
+          />
         );
       default:
         return (
@@ -831,59 +842,101 @@ function App() {
                 <ClipboardList size={18} />
                 <span>Checklists & Logs</span>
               </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'analytics' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('analytics'); setIsSidebarOpen(false); }}
+              >
+                <BarChart size={18} />
+                <span>Analytics Dashboard</span>
+              </div>
             </>
           )}
 
-          {user.role === 'receptionist' && (
-            <div className="nav-item active">
-              <Users size={18} />
-              <span>Receptionist Module</span>
-            </div>
-          )}
-          {user.role === 'doctor' && (
-            <div className="nav-item active">
-              <Activity size={18} />
-              <span>Doctor Consultations</span>
-            </div>
-          )}
-          {user.role === 'pharmacy' && (
-            <div className="nav-item active">
-              <Pill size={18} />
-              <span>Pharmacy Module</span>
-            </div>
-          )}
-          {user.role === 'ward' && (
-            <div className="nav-item active" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Bed size={18} />
-                <span>Ward & Beds Module</span>
-              </div>
-              {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
-                <span style={{ 
-                  background: 'var(--warning)', 
-                  color: '#000', 
-                  fontSize: '0.75rem', 
-                  fontWeight: 800, 
-                  borderRadius: '10px', 
-                  padding: '0.1rem 0.5rem',
-                  lineHeight: '1.2' 
-                }}>
-                  {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
-                </span>
+          {user.role !== 'admin' && (
+            <>
+              {user.role === 'receptionist' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                >
+                  <Users size={18} />
+                  <span>Receptionist Module</span>
+                </div>
               )}
-            </div>
-          )}
-          {user.role === 'injection' && (
-            <div className="nav-item active" style={{ borderLeft: '3px solid #f59e0b' }}>
-              <Syringe size={18} style={{ color: '#f59e0b' }} />
-              <span>Injection Desk</span>
-            </div>
-          )}
-          {user.role === 'lab' && (
-            <div className="nav-item active" style={{ borderLeft: '3px solid #10b981' }}>
-              <FlaskConical size={18} style={{ color: '#10b981' }} />
-              <span>Laboratory Module</span>
-            </div>
+              {user.role === 'doctor' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                >
+                  <Activity size={18} />
+                  <span>Doctor Consultations</span>
+                </div>
+              )}
+              {user.role === 'pharmacy' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                >
+                  <Pill size={18} />
+                  <span>Pharmacy Module</span>
+                </div>
+              )}
+              {user.role === 'ward' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Bed size={18} />
+                    <span>Ward & Beds Module</span>
+                  </div>
+                  {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
+                    <span style={{ 
+                      background: 'var(--warning)', 
+                      color: '#000', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 800, 
+                      borderRadius: '10px', 
+                      padding: '0.1rem 0.5rem',
+                      lineHeight: '1.2' 
+                    }}>
+                      {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
+                    </span>
+                  )}
+                </div>
+              )}
+              {user.role === 'injection' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                  style={{ borderLeft: '3px solid #f59e0b' }}
+                >
+                  <Syringe size={18} style={{ color: '#f59e0b' }} />
+                  <span>Injection Desk</span>
+                </div>
+              )}
+              {user.role === 'lab' && (
+                <div 
+                  className={`nav-item ${adminActiveView !== 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView(user.role); setIsSidebarOpen(false); }}
+                  style={{ borderLeft: '3px solid #10b981' }}
+                >
+                  <FlaskConical size={18} style={{ color: '#10b981' }} />
+                  <span>Laboratory Module</span>
+                </div>
+              )}
+              
+              {user.role === 'doctor' && (
+                <div 
+                  className={`nav-item ${adminActiveView === 'analytics' ? 'active' : ''}`}
+                  onClick={() => { setAdminActiveView('analytics'); setIsSidebarOpen(false); }}
+                >
+                  <BarChart size={18} />
+                  <span>Analytics Dashboard</span>
+                </div>
+              )}
+            </>
           )}
           
           <div 

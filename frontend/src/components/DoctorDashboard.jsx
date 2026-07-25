@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -151,6 +152,14 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
   const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
 
+  const patientStats = [
+    { name: 'Pending', count: consultationQueue.length },
+    { name: 'Review', count: reviewQueue.length },
+    { name: 'Completed', count: myPatients.filter(p => ['Completed', 'Prescribed', 'Dispensed'].includes(p.status)).length }
+  ];
+
+
+
   const handleSelectPatient = (patient) => {
     setActivePatient(patient);
     setDiagnosis(patient.diagnosis || '');
@@ -262,6 +271,20 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             <Clipboard size={20} style={{ color: 'var(--primary)' }} />
             {doctorName}'s Consultations
           </h3>
+
+          <div style={{ marginBottom: '2rem', height: '180px', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
+              Today's Patient Flow
+            </h4>
+            <ResponsiveContainer width="100%" height="80%">
+              <BarChart data={patientStats} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} width={80} />
+                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#3b82f6', fontWeight: 600 }} />
+                <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
