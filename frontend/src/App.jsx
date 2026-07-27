@@ -5,6 +5,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import PharmacyDashboard from './components/PharmacyDashboard';
 import WardDashboard from './components/WardDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import AdminAnalytics from './components/AdminAnalytics';
 import AdminPatientRecords from './components/AdminPatientRecords';
 import TvQueueDisplay from './components/TvQueueDisplay';
 import './App.css';
@@ -31,7 +32,15 @@ import {
   Syringe,
   FlaskConical,
   BookOpen,
-  ClipboardList
+  ClipboardList,
+  BarChart2,
+  Search,
+  Sun,
+  Moon,
+  Bell,
+  Sparkles,
+  Layers,
+  Check
 } from 'lucide-react';
 
 // Setup default Doctors
@@ -121,6 +130,45 @@ function App() {
   const [doctorsList, setDoctorsList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // UI / UX States: Theme, Density, Quick Search, Notifications
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('hms_theme') || 'light');
+  const [isCompact, setIsCompact] = useState(() => localStorage.getItem('hms_density') === 'compact');
+  const [showQuickSearch, setShowQuickSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Sync Theme & Density DOM attributes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    localStorage.setItem('hms_theme', themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (isCompact) {
+      document.documentElement.setAttribute('data-density', 'compact');
+      localStorage.setItem('hms_density', 'compact');
+    } else {
+      document.documentElement.removeAttribute('data-density');
+      localStorage.setItem('hms_density', 'normal');
+    }
+  }, [isCompact]);
+
+  // Global Ctrl + K Keyboard Shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowQuickSearch(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        setShowQuickSearch(false);
+        setShowNotifications(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Global Ward Admit Modal
   const [wardAdmitPatient, setWardAdmitPatient] = useState(null); // patient to admit
@@ -613,6 +661,14 @@ function App() {
     }
 
     switch (activeView) {
+      case 'analytics':
+        return (
+          <AdminAnalytics
+            patients={patients}
+            doctors={doctorsList}
+            staffList={staffList}
+          />
+        );
       case 'admin':
         return (
           <AdminDashboard 
@@ -751,6 +807,13 @@ function App() {
               >
                 <Shield size={18} />
                 <span>Admin Console</span>
+              </div>
+              <div 
+                className={`nav-item ${adminActiveView === 'analytics' ? 'active' : ''}`}
+                onClick={() => { setAdminActiveView('analytics'); setIsSidebarOpen(false); }}
+              >
+                <BarChart2 size={18} />
+                <span>Analytics</span>
               </div>
               <div 
                 className={`nav-item ${adminActiveView === 'patients' ? 'active' : ''}`}
@@ -916,7 +979,9 @@ function App() {
         <header className="dashboard-header">
           <div>
             <h2 className="header-title">
+              {activeView === 'analytics' && 'Analytics Dashboard'}
               {activeView === 'admin' && 'System Admin Console'}
+              {activeView === 'patients' && 'Patient Records'}
               {activeView === 'receptionist' && 'Receptionist Dashboard'}
               {activeView === 'doctor' && 'Doctor Consultation Terminal'}
               {activeView === 'pharmacy' && 'Pharmacy Dispatch Desk'}
@@ -927,6 +992,59 @@ function App() {
               {activeView === 'utility' && 'Housekeeping, Attendance & Waste Logs'}
             </h2>
             <p className="header-subtitle">Welcome back, {user.name} • Hospital Management Workspace</p>
+          </div>
+
+          {/* Header Action Controls */}
+          <div className="header-actions">
+            {/* Quick Search Button */}
+            <button className="header-btn" onClick={() => setShowQuickSearch(true)} title="Quick Search Patients (Ctrl + K)">
+              <Search size={15} />
+              <span className="hide-mobile">Search</span>
+              <span style={{ fontSize: '0.68rem', opacity: 0.7, background: 'rgba(0,0,0,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', marginLeft: '0.2rem' }}>Ctrl+K</span>
+            </button>
+
+
+            {/* Theme Toggle */}
+            <button className="header-btn" onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')} title="Toggle Light/Dark Theme">
+              {themeMode === 'dark' ? <Sun size={15} style={{ color: '#f59e0b' }} /> : <Moon size={15} />}
+            </button>
+
+            {/* Notification Center */}
+            <div style={{ position: 'relative' }}>
+              <button className="header-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications Center">
+                <Bell size={15} />
+                {patients.filter(p => ['Registered', 'Consulting', 'At Pharmacy'].includes(p.status)).length > 0 && (
+                  <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }} />
+                )}
+              </button>
+
+              {showNotifications && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '120%', width: '320px', background: 'var(--bg-card)',
+                  border: '1px solid var(--border)', borderRadius: '14px', boxShadow: 'var(--shadow-lg)',
+                  padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>Live Notifications</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>● Active</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <Activity size={14} style={{ color: '#6366f1' }} />
+                      <div><strong>{patients.filter(p => p.status === 'Registered').length} Patients</strong> waiting in Queue</div>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <Pill size={14} style={{ color: '#f59e0b' }} />
+                      <div><strong>{patients.filter(p => p.status === 'At Pharmacy').length} Prescriptions</strong> pending dispatch</div>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <Bed size={14} style={{ color: '#ef4444' }} />
+                      <div><strong>{patients.filter(p => p.bedAdmissionPending === 1).length} Bed Admission</strong> requests</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1087,6 +1205,101 @@ function App() {
           </div>
         );
       })()}
+
+      {/* ===== GLOBAL QUICK SEARCH MODAL (Ctrl + K) ===== */}
+      {showQuickSearch && (
+        <div className="quick-search-backdrop" onClick={() => setShowQuickSearch(false)}>
+          <div className="quick-search-card" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)' }}>
+              <Search size={18} style={{ color: 'var(--primary)', marginRight: '0.75rem' }} />
+              <input
+                type="text"
+                className="quick-search-input"
+                placeholder="Search patient by Name, ID, Phone, Token No... (Esc to close)"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button
+                onClick={() => setShowQuickSearch(false)}
+                style={{ background: 'transparent', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem 0.5rem' }}
+              >✕</button>
+            </div>
+
+            {/* Results */}
+            <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.75rem' }}>
+              {!searchQuery.trim() ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                  <Sparkles size={24} style={{ color: 'var(--primary)', marginBottom: '0.5rem' }} />
+                  <div>Type any patient name, ID number, or phone number to find records instantly.</div>
+                </div>
+              ) : (() => {
+                const q = searchQuery.toLowerCase().trim();
+                const qClean = q.replace(/^vh|^#/i, '').trim(); // Remove 'VH' or '#' prefix for matching numeric ID
+
+                const matched = patients.filter(p => {
+                  const nameMatch = p.name.toLowerCase().includes(q);
+                  const rawId = String(p.id).toLowerCase();
+                  const vhId = `vh${rawId.padStart(3, '0')}`.toLowerCase(); // Format: vh019, vh001
+                  const vhShortId = `vh${rawId}`.toLowerCase(); // Format: vh19
+                  const hashId = `#${rawId}`.toLowerCase();
+
+                  const idMatch = 
+                    rawId.includes(q) || 
+                    rawId.includes(qClean) ||
+                    vhId.includes(q) || 
+                    vhShortId.includes(q) ||
+                    hashId.includes(q);
+
+                  const phoneMatch = p.contact && String(p.contact).includes(q);
+                  const tokenMatch = p.tokenNumber && String(p.tokenNumber).includes(q);
+
+                  return nameMatch || idMatch || phoneMatch || tokenMatch;
+                });
+
+                if (matched.length === 0) {
+                  return (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      No patients found matching "<strong>{searchQuery}</strong>".
+                    </div>
+                  );
+                }
+
+                return matched.map(p => (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: '0.85rem 1rem',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      justify: 'space-between',
+                      alignItems: 'center',
+                      background: 'var(--bg-card)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        {p.name} <span style={{ color: 'var(--primary)', fontSize: '0.82rem', marginLeft: '0.4rem', fontWeight: 800 }}>#VH{String(p.id).padStart(3, '0')}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                        {p.age} Yrs • {p.gender} {p.contact ? `• ${p.contact}` : ''}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span className={`badge badge-${(p.status || 'registered').toLowerCase().replace(' ', '')}`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

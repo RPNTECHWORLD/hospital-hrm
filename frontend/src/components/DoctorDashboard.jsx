@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
 
@@ -44,6 +45,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
   const [orderTestName, setOrderTestName] = useState('');
   const [recommendAdmission, setRecommendAdmission] = useState(false);
   const [targetBedId, setTargetBedId] = useState('');
+  const [sharePatient, setSharePatient] = useState(null);
 
   useEffect(() => {
     if (activePatient) {
@@ -80,6 +82,25 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       setPatientLabLogs([]);
     }
   }, [activePatient]);
+  // Keyboard Shortcuts (Ctrl+S = Send Prescription, Ctrl+P = Print)
+  useEffect(() => {
+    const handleDoctorKeys = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        if (activePatient) {
+          e.preventDefault();
+          handlePrescriptionSubmit(e);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        if (sharePatient) {
+          e.preventDefault();
+          onPrintPrescription();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleDoctorKeys);
+    return () => window.removeEventListener('keydown', handleDoctorKeys);
+  }, [activePatient, sharePatient, diagnosis, medicines, canvasDataUrl]);
 
   const handleOrderLabTest = async () => {
     if (!orderTestName.trim()) {
@@ -138,14 +159,19 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
 
   // Prescription share overlay/modal state
   const [showShareModal, setShowShareModal] = useState(false);
-  const [sharePatient, setSharePatient] = useState(null);
 
-  // Filter patients assigned to this doctor
+
+  // Filter patients assigned to this doctor for Today
   const isDoc2 = doctorEmail.includes('2');
   const doctorId = isDoc2 ? 2 : 1;
   const doctorName = isDoc2 ? 'Dr. Sarah' : 'Dr. Vijayan';
 
-  const myPatients = patients.filter(p => p.assignedDoctorId === doctorId);
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+  const myPatients = patients.filter(p => 
+    p.assignedDoctorId === doctorId && 
+    p.status !== 'Inactive' && 
+    (p.registrationDate === todayStr || p.wardBedId)
+  );
   const consultationQueue = myPatients
     .filter(p => ['Registered', 'Consulting'].includes(p.status))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
@@ -204,7 +230,6 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       
       const finalDiagnosis = diagnosis || 'Handwritten Prescription Sheet';
       
-      // Trigger share prescription popup (preview mode)
       setSharePatient({
         ...activePatient,
         diagnosis: finalDiagnosis,
@@ -222,9 +247,11 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
         showToast('Please enter a diagnosis first!', 'danger');
         return;
       }
-      if (medicines.some(m => !m.name || !m.dosage)) return;
+      if (medicines.some(m => !m.name || !m.dosage)) {
+        showToast('Please complete medicine details!', 'danger');
+        return;
+      }
       
-      // Trigger share prescription popup (preview mode)
       setSharePatient({
         ...activePatient,
         diagnosis,
@@ -239,7 +266,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
       });
     }
 
-    setShowShareModal(true);
+    setIsHistoryPreview(false);
   };
 
   const handleReviewSubmit = (e) => {
@@ -476,6 +503,50 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                     border: '1px solid rgba(16, 185, 129, 0.3)'
                   }}>
                     Token #{activePatient.tokenNumber || '--'}
+                  </div>
+                </div>
+
+                {/* Quick Prescription Action Bar & Keyboard Info */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'rgba(99, 102, 241, 0.06)', border: '1px solid rgba(99, 102, 241, 0.2)',
+                  borderRadius: '10px', padding: '0.6rem 1rem', marginTop: '0.75rem', fontSize: '0.8rem',
+                  flexWrap: 'wrap', gap: '0.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    ⚡ <span>Doctor Quick Actions:</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', background: '#ffffff', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
+                      onClick={() => {
+                        setDiagnosis('Acute Viral Fever & Upper Respiratory Tract Infection');
+                        setMedicines([
+                          { name: 'Paracetamol 650mg', dosage: '1-1-1 after food', duration: 5 },
+                          { name: 'Amoxicillin 500mg', dosage: '1-0-1 after food', duration: 5 },
+                          { name: 'Cetirizine 10mg', dosage: '0-0-1 at bedtime', duration: 5 }
+                        ]);
+                      }}
+                    >
+                      + Fever Template
+                    </button>
+                    <button
+                      type="button"
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', background: '#ffffff', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
+                      onClick={() => {
+                        setDiagnosis('Acute Gastritis & Acid Reflux');
+                        setMedicines([
+                          { name: 'Pantoprazole 40mg', dosage: '1-0-0 before food', duration: 10 },
+                          { name: 'Antacid Gel 10ml', dosage: '1-1-1 after food', duration: 5 }
+                        ]);
+                      }}
+                    >
+                      + Gastritis Template
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center', marginLeft: '0.5rem' }}>
+                      Shortcuts: <code style={{ background: 'rgba(0,0,0,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>Ctrl+S</code> Send | <code style={{ background: 'rgba(0,0,0,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>Ctrl+K</code> Search
+                    </span>
                   </div>
                 </div>
                 
@@ -1190,31 +1261,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
         </div>
       )}
 
-      {/* Custom Toast Notification */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          zIndex: 9999,
-          background: toast.type === 'success' ? '#10b981' : toast.type === 'danger' ? '#ef4444' : '#14b8a6',
-          color: '#fff',
-          padding: '1rem 1.5rem',
-          borderRadius: '10px',
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          fontWeight: 600,
-          fontSize: '0.95rem',
-          border: '1px solid rgba(255,255,255,0.1)',
-          animation: 'fade-in 0.3s ease-out',
-          pointerEvents: 'none'
-        }}>
-          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-          <span>{toast.message}</span>
-        </div>
-      )}
+
 
       {/* All Clinical History Timeline Modal */}
       {showAllHistoryModal && (() => {
@@ -1516,22 +1563,22 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
           </div>
         );
       })()}
+
       {/* Share / Print Prescription Preview Modal Overlay */}
-      {sharePatient && (
+      {sharePatient && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(15, 23, 42, 0.45)',
+          background: 'rgba(15, 23, 42, 0.75)',
           backdropFilter: 'blur(8px)',
-          zIndex: 100005, // Rendered ON TOP of Clinical History Timeline's 99999!
+          zIndex: 999999,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '1.5rem',
-          animation: 'fade-in 0.2s ease-out'
+          padding: '1rem'
         }} onClick={() => {
           setSharePatient(null);
           setIsHistoryPreview(false);
@@ -1540,14 +1587,15 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             background: '#ffffff',
             color: 'var(--text-primary)',
             width: '100%',
-            maxWidth: '650px',
+            maxWidth: '680px',
             maxHeight: '90vh',
             borderRadius: '16px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            border: '1px solid var(--border)'
+            border: '1px solid var(--border)',
+            animation: 'fade-in 0.2s ease-out'
           }} onClick={(e) => e.stopPropagation()}>
             
             {/* Header */}
@@ -1589,7 +1637,7 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             </div>
 
             {/* Scrollable Content wrapper */}
-            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, background: '#f8fafc' }}>
+            <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(90vh - 130px)', background: '#f8fafc' }}>
               
               <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', fontSize: '0.9rem', marginTop: 0 }}>
                 {isHistoryPreview 
@@ -1673,28 +1721,56 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
 
                   {/* Vitals & Patient Info Table */}
                   <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', borderBottom: '1.5px solid #000', background: 'rgba(0,0,0,0.03)', fontWeight: 700 }}>
+                      <div style={{ width: '33%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        PATIENT ID: <span style={{ color: '#b91c1c' }}>#{sharePatient.id}</span>
+                      </div>
+                      <div style={{ width: '33%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        TOKEN NO: <span style={{ color: '#0284c7' }}>#{sharePatient.tokenNumber || '--'}</span>
+                      </div>
+                      <div style={{ width: '34%', padding: '0.4rem 0.5rem' }}>
+                        DATE: {new Date(sharePatient.registrationDate || Date.now()).toLocaleDateString()}
+                      </div>
+                    </div>
                     <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
-                      <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
                         <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{sharePatient.name}</span>
+                        {sharePatient.contact && <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.1rem' }}>Ph: {sharePatient.contact}</div>}
                       </div>
                       <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                          <strong>Age:</strong> {sharePatient.age}
+                        <div style={{ width: '25%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                          <strong>Age:</strong> {sharePatient.age} Yrs
                         </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <div style={{ width: '25%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
                           <strong>Sex:</strong> {sharePatient.gender}
                         </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <div style={{ width: '25%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
                           <strong>Ht:</strong> {sharePatient.height || '--'}
                         </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                        <div style={{ width: '25%', padding: '0.4rem 0.5rem' }}>
                           <strong>Wt:</strong> {sharePatient.weight || '--'}
-                        </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
-                          <strong>Date:</strong> {new Date(sharePatient.registrationDate || Date.now()).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
+                    {(sharePatient.fatherOrHusbandName || sharePatient.motherOrGuardianName || sharePatient.address) && (
+                      <div style={{ display: 'flex', borderBottom: '1.5px solid #000', background: 'rgba(0,0,0,0.01)', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+                        {sharePatient.fatherOrHusbandName && (
+                          <div style={{ padding: '0.35rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Father/Husband:</strong> {sharePatient.fatherOrHusbandName}
+                          </div>
+                        )}
+                        {sharePatient.motherOrGuardianName && (
+                          <div style={{ padding: '0.35rem 0.5rem', borderRight: '1.5px solid #000' }}>
+                            <strong>Mother/Guardian:</strong> {sharePatient.motherOrGuardianName}
+                          </div>
+                        )}
+                        {sharePatient.address && (
+                          <div style={{ padding: '0.35rem 0.5rem' }}>
+                            <strong>Address:</strong> {sharePatient.address}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
                       <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
                         <strong>BP:</strong> {sharePatient.bp || '--'}
@@ -1712,10 +1788,29 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
                         <strong>TEMP:</strong> {sharePatient.temp || '--'}°F
                       </div>
                     </div>
+                    {Number(sharePatient.isChild) === 1 && (
+                      <div style={{ borderTop: '1.5px solid #000', padding: '0.4rem 0.5rem', background: 'rgba(236, 72, 153, 0.05)', fontSize: '0.75rem' }}>
+                        <strong style={{ color: '#be185d' }}>🍼 Pediatric Birth Registry:</strong>
+                        <span style={{ marginLeft: '0.5rem' }}>
+                          {sharePatient.childGa && <span>GA: {sharePatient.childGa} • </span>}
+                          {sharePatient.childBirthDate && <span>Birth Date: {sharePatient.childBirthDate} • </span>}
+                          {sharePatient.childBirthWeight && <span>Birth Wt: {sharePatient.childBirthWeight} • </span>}
+                          {sharePatient.childDeliveryType && <span>Delivery: {sharePatient.childDeliveryType} • </span>}
+                          {sharePatient.childPlaceOfBirth && <span>Place: {sharePatient.childPlaceOfBirth} • </span>}
+                          {sharePatient.childNicuHistory && <span>NICU: {sharePatient.childNicuHistory}</span>}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
+                  {sharePatient.wardBedId && (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.5rem 0.75rem', borderRadius: '6px', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#166534' }}>
+                      <strong>🛏️ Inpatient Ward Bed Recommendation:</strong> Room {sharePatient.wardBedId.slice(0, 3)} - Bed {sharePatient.wardBedId.slice(3)}
+                    </div>
+                  )}
+
                   {/* Clean Rx Layout */}
-                  <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
+                  <div style={{ minHeight: '3.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                       <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
                         ℞
@@ -1839,7 +1934,8 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {showAllLabLogsModal && (
         <div style={{
@@ -1948,6 +2044,34 @@ const DoctorDashboard = ({ patients, doctorEmail, onSubmitPrescription, onSubmit
               style={{ width: '100%', height: 'auto', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px' }} 
             />
           </div>
+        </div>
+      )}
+
+      {/* Custom Toast Notification - Root Level (Shows at bottom) */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 100020,
+          background: toast.type === 'success' ? '#059669' : toast.type === 'danger' ? '#dc2626' : '#0284c7',
+          color: '#ffffff',
+          padding: '0.85rem 1.75rem',
+          borderRadius: '50px',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          fontWeight: 700,
+          fontSize: '0.95rem',
+          border: '1px solid rgba(255,255,255,0.2)',
+          animation: 'fade-in 0.3s ease-out',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap'
+        }}>
+          {toast.type === 'success' ? <CheckCircle2 size={22} /> : <AlertCircle size={22} />}
+          <span>{toast.message}</span>
         </div>
       )}
     </div>

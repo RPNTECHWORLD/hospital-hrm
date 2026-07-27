@@ -97,8 +97,13 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
         flexGrow: 1
       }}>
         {doctors.map(doctor => {
-          // Filter patients assigned to this doctor
-          const docPatients = patients.filter(p => p.assignedDoctorId === doctor.id);
+          // Filter patients assigned to this doctor for Today
+          const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+          const docPatients = patients.filter(p => 
+            p.assignedDoctorId === doctor.id && 
+            p.status !== 'Inactive' && 
+            p.registrationDate === todayStr
+          );
           
           // Now Consulting patient
           const nowConsulting = docPatients.find(p => p.status === 'Consulting');

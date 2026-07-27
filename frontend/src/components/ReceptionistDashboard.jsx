@@ -294,11 +294,18 @@ const ReceptionistDashboard = ({
     }
   };
 
-  // Stats
-  const totalPatients = patients.length;
-  const activeQueue = patients.filter(p => ['Registered', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
-  const completedConsultations = patients.filter(p => p.status === 'Completed').length;
-  const paidConsultations = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
+  // Filter patients for Today's Active Reception Queue & Payment Collection (24-hour daily reset)
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+  const todayPatients = patients.filter(p => 
+    p.status !== 'Inactive' && 
+    (p.registrationDate === todayStr || p.wardBedId)
+  );
+
+  // Stats for Today
+  const totalPatients = todayPatients.length;
+  const activeQueue = todayPatients.filter(p => ['Registered', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
+  const completedConsultations = todayPatients.filter(p => p.status === 'Completed' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid'))).length;
+  const paidConsultations = todayPatients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
 
   // Filter existing patients for re-queuing (unique by name/contact combination to avoid duplicates)
   const uniquePatients = [];
@@ -966,7 +973,7 @@ const ReceptionistDashboard = ({
             Patients List & Payment Collection
           </h3>
 
-          {patients.length === 0 ? (
+          {todayPatients.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
               No patients registered today.
             </div>
@@ -985,7 +992,7 @@ const ReceptionistDashboard = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.slice().reverse().filter(patient => patient.status !== 'Inactive').map(patient => {
+                  {todayPatients.slice().reverse().map(patient => {
                     const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
                     return (
                       <tr key={patient.id}>
