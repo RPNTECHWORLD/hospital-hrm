@@ -123,7 +123,7 @@ const camelCaseMap = {
 const camelizeObject = (obj) => {
   if (!obj || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(camelizeObject);
-  
+
   const newObj = {};
   for (const key of Object.keys(obj)) {
     const mappedKey = camelCaseMap[key.toLowerCase()] || key;
@@ -229,15 +229,15 @@ export const initDB = async () => {
       console.log("Migration warning for feebreakdown column:", e.message);
     }
   }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN ischild INTEGER DEFAULT 0`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childga TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthdate TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthweight TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childplaceofbirth TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childdeliverytype TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childnicuhistory TEXT`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigation INTEGER DEFAULT 0`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigationnotes TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN ischild INTEGER DEFAULT 0`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childga TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthdate TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthweight TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childplaceofbirth TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childdeliverytype TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN childnicuhistory TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigation INTEGER DEFAULT 0`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigationnotes TEXT`); } catch (e) { }
 
   // Create Patient History
   await dbRun(`
@@ -320,9 +320,11 @@ export const initDB = async () => {
       type TEXT NOT NULL,
       description TEXT NOT NULL,
       amount REAL NOT NULL,
-      agencyName TEXT
+      agencyName TEXT,
+      paymentMethod TEXT DEFAULT 'Cash'
     )
   `);
+  try { await dbRun(`ALTER TABLE pharmacy_ledger ADD COLUMN IF NOT EXISTS paymentMethod TEXT DEFAULT 'Cash'`); } catch (e) {}
 
   // Create Lab Logs
   await dbRun(`
@@ -417,7 +419,7 @@ export const initDB = async () => {
               pat.contact,
               pat.address || '',
               pat.assignedDoctorId,
-              pat.status || 'Registered',
+              pat.status || 'In Queue',
               pat.diagnosis || '',
               pat.prescription ? JSON.stringify(pat.prescription) : null,
               pat.issuedMedication || null,
@@ -454,28 +456,52 @@ export const initDB = async () => {
       console.error("Failed to migrate database:", err.message);
     }
   }
+
+  try { await dbRun(`SELECT setval('doctors_id_seq', COALESCE((SELECT MAX(id) FROM doctors), 1))`); } catch (e) {}
+  try { await dbRun(`SELECT setval('staff_id_seq', COALESCE((SELECT MAX(id) FROM staff), 1))`); } catch (e) {}
+  try {
+    await dbRun(`UPDATE patients SET status = 'In Queue' WHERE status = 'Registered'`);
+    await dbRun(`UPDATE patients SET status = 'Completed' WHERE status = 'Inactive' AND (diagnosis IS NOT NULL AND diagnosis != '')`);
+    await dbRun(`UPDATE patients SET status = 'In Queue' WHERE status = 'Inactive' AND (diagnosis IS NULL OR diagnosis = '')`);
+  } catch (e) {}
 };
 
 // Database APIs
 export const getDoctors = () => dbAll(`SELECT * FROM doctors`);
 export const addDoctor = async (doc) => {
-  const id = doc.id || Date.now();
-  await dbRun(
-    `INSERT INTO doctors (id, name, specialty, email, password) VALUES (?, ?, ?, ?, ?)`,
-    [id, doc.name, doc.specialty, doc.email, doc.password || 'password123']
-  );
-  return { id, name: doc.name, specialty: doc.specialty, email: doc.email };
+  if (doc.id) {
+    await dbRun(
+      `INSERT INTO doctors (id, name, specialty, email, password) VALUES (?, ?, ?, ?, ?)`,
+      [doc.id, doc.name, doc.specialty, doc.email, doc.password || 'password123']
+    );
+    return { id: doc.id, name: doc.name, specialty: doc.specialty, email: doc.email };
+  } else {
+    const res = await dbGet(
+      `INSERT INTO doctors (name, specialty, email, password) VALUES (?, ?, ?, ?) RETURNING id`,
+      [doc.name, doc.specialty, doc.email, doc.password || 'password123']
+    );
+    const newId = res ? res.id : Date.now();
+    return { id: newId, name: doc.name, specialty: doc.specialty, email: doc.email };
+  }
 };
 export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ?`, [id]);
 
 export const getStaff = () => dbAll(`SELECT * FROM staff`);
 export const addStaff = async (st) => {
-  const id = st.id || Date.now();
-  await dbRun(
-    `INSERT INTO staff (id, name, email, role, password) VALUES (?, ?, ?, ?, ?)`,
-    [id, st.name, st.email, st.role, st.password || 'password123']
-  );
-  return { id, name: st.name, email: st.email, role: st.role };
+  if (st.id) {
+    await dbRun(
+      `INSERT INTO staff (id, name, email, role, password) VALUES (?, ?, ?, ?, ?)`,
+      [st.id, st.name, st.email, st.role, st.password || 'password123']
+    );
+    return { id: st.id, name: st.name, email: st.email, role: st.role };
+  } else {
+    const res = await dbGet(
+      `INSERT INTO staff (name, email, role, password) VALUES (?, ?, ?, ?) RETURNING id`,
+      [st.name, st.email, st.role, st.password || 'password123']
+    );
+    const newId = res ? res.id : Date.now();
+    return { id: newId, name: st.name, email: st.email, role: st.role };
+  }
 };
 export const deleteStaff = (id) => dbRun(`DELETE FROM staff WHERE id = ?`, [id]);
 export const deletePatient = (id) => dbRun(
@@ -488,16 +514,6 @@ export const deleteAllPatients = async () => {
 };
 
 export const getPatients = async () => {
-  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-  await dbRun(
-    `UPDATE patients 
-     SET status = 'Inactive', tokenNumber = NULL, registrationDate = NULL 
-     WHERE (registrationDate != ? OR registrationDate IS NULL) 
-       AND status != 'Inactive'
-       AND (wardBedId IS NULL OR wardBedId = '')`,
-    [todayStr]
-  );
-
   const patients = await dbAll(`SELECT * FROM patients`);
   const result = [];
   for (const pat of patients) {
@@ -659,7 +675,7 @@ export const addPatient = async (pat) => {
       pat.contact,
       pat.address || '',
       pat.assignedDoctorId,
-      pat.status || 'Registered',
+      pat.status || 'In Queue',
       pat.diagnosis || '',
       pat.prescription ? JSON.stringify(pat.prescription) : null,
       pat.issuedMedication || null,
@@ -704,7 +720,7 @@ export const addPatient = async (pat) => {
     contact: pat.contact,
     address: pat.address || '',
     assignedDoctorId: pat.assignedDoctorId,
-    status: pat.status || 'Registered',
+    status: pat.status || 'In Queue',
     diagnosis: pat.diagnosis || '',
     prescription: pat.prescription || null,
     issuedMedication: pat.issuedMedication || null,
@@ -902,11 +918,12 @@ export const addMedicalWaste = async (waste) => {
 // Pharmacy Ledger
 export const getPharmacyLedger = () => dbAll(`SELECT * FROM pharmacy_ledger`);
 export const addPharmacyLedger = async (ledger) => {
+  const paymentMethod = ledger.paymentMethod || 'Cash';
   const result = await dbRun(
-    `INSERT INTO pharmacy_ledger (date, type, description, amount, agencyName) VALUES (?, ?, ?, ?, ?)`,
-    [ledger.date, ledger.type, ledger.description, ledger.amount, ledger.agencyName]
+    `INSERT INTO pharmacy_ledger (date, type, description, amount, agencyName, paymentMethod) VALUES (?, ?, ?, ?, ?, ?)`,
+    [ledger.date, ledger.type, ledger.description, ledger.amount, ledger.agencyName, paymentMethod]
   );
-  return { id: result.lastID, ...ledger };
+  return { id: result ? result.id : Date.now(), ...ledger, paymentMethod };
 };
 
 // Lab Logs

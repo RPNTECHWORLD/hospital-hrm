@@ -15,14 +15,14 @@ import DirectoryLedger from './components/DirectoryLedger';
 import UtilityLogs from './components/UtilityLogs';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-import { 
-  Stethoscope, 
-  LogOut, 
-  Users, 
-  DollarSign, 
-  Calendar, 
-  Pill, 
-  Bed, 
+import {
+  Stethoscope,
+  LogOut,
+  Users,
+  DollarSign,
+  Calendar,
+  Pill,
+  Bed,
   Activity,
   Shield,
   FileText,
@@ -67,7 +67,7 @@ const INITIAL_PATIENTS = [
     contact: '+91 98765 43210',
     address: '12, Gandhi Street, Chennai',
     assignedDoctorId: 1,
-    status: 'Registered',
+    status: 'In Queue',
     diagnosis: '',
     prescription: null,
     issuedMedication: null,
@@ -219,12 +219,12 @@ function App() {
           fetch(`${API_BASE}/api/doctors`),
           fetch(`${API_BASE}/api/staff`)
         ]);
-        
+
         if (patientsRes.ok && doctorsRes.ok && staffRes.ok) {
           const patientsData = await patientsRes.json();
           const doctorsData = await doctorsRes.json();
           const staffData = await staffRes.json();
-          
+
           setPatients(patientsData);
           setDoctorsList(doctorsData);
           setStaffList(staffData);
@@ -279,10 +279,16 @@ function App() {
       });
       if (response.ok) {
         const newDoc = await response.json();
-        setDoctorsList([...doctorsList, newDoc]);
+        setDoctorsList(prev => [...prev, newDoc]);
+        return true;
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error("Error adding doctor:", err.message);
+        return false;
       }
     } catch (err) {
       console.error("Error adding doctor:", err);
+      return false;
     }
   };
 
@@ -290,7 +296,7 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/api/doctors/${id}`, { method: 'DELETE' });
       if (response.ok) {
-        setDoctorsList(doctorsList.filter(d => d.id !== id));
+        setDoctorsList(prev => prev.filter(d => d.id !== id));
       }
     } catch (err) {
       console.error("Error deleting doctor:", err);
@@ -306,10 +312,16 @@ function App() {
       });
       if (response.ok) {
         const newStaff = await response.json();
-        setStaffList([...staffList, newStaff]);
+        setStaffList(prev => [...prev, newStaff]);
+        return true;
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error("Error adding staff:", err.message);
+        return false;
       }
     } catch (err) {
       console.error("Error adding staff:", err);
+      return false;
     }
   };
 
@@ -351,15 +363,15 @@ function App() {
     try {
       const docId = parseInt(newPatientData.assignedDoctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-      
+
       // Filter patients assigned to this doctor registered today
-      const activeForDocToday = patients.filter(p => 
-        p.assignedDoctorId === docId && 
+      const activeForDocToday = patients.filter(p =>
+        p.assignedDoctorId === docId &&
         p.registrationDate === todayStr
       );
-      
-      const nextToken = activeForDocToday.length > 0 
-        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1 
+
+      const nextToken = activeForDocToday.length > 0
+        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1
         : 1;
 
       const patientWithToken = {
@@ -390,7 +402,7 @@ function App() {
 
       const doctors = doctorsList;
       let updatedHistory = patient.history || [];
-      
+
       if (patient.diagnosis || (patient.prescription && patient.prescription.length > 0) || patient.prescriptionImg) {
         const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
         const archiveEntry = {
@@ -404,13 +416,13 @@ function App() {
           paymentStatus: patient.paymentStatus,
           status: patient.status
         };
-        
-        const isDuplicate = updatedHistory.some(h => 
-          h.diagnosis === archiveEntry.diagnosis && 
+
+        const isDuplicate = updatedHistory.some(h =>
+          h.diagnosis === archiveEntry.diagnosis &&
           JSON.stringify(h.prescription) === JSON.stringify(archiveEntry.prescription) &&
           h.prescriptionImg === archiveEntry.prescriptionImg
         );
-        
+
         if (!isDuplicate) {
           updatedHistory = [...updatedHistory, archiveEntry];
         }
@@ -418,21 +430,21 @@ function App() {
 
       const docIdInt = parseInt(doctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-      
+
       // Filter patients assigned to this doctor registered today
-      const activeForDocToday = patients.filter(p => 
-        p.assignedDoctorId === docIdInt && 
+      const activeForDocToday = patients.filter(p =>
+        p.assignedDoctorId === docIdInt &&
         p.registrationDate === todayStr
       );
-      
-      const nextToken = activeForDocToday.length > 0 
-        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1 
+
+      const nextToken = activeForDocToday.length > 0
+        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1
         : 1;
 
       const updatedPatientData = {
         ...patient,
         assignedDoctorId: docIdInt,
-        status: 'Registered',
+        status: 'In Queue',
         diagnosis: '',
         prescription: null,
         prescriptionImg: null,
@@ -554,7 +566,7 @@ function App() {
   const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
     try {
       const updatedData = {
-        status: 'Reviewing',
+        status: 'Completed',
         issuedMedication: issuedString
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
@@ -637,10 +649,10 @@ function App() {
 
   if (tvMode) {
     return (
-      <TvQueueDisplay 
-        patients={patients} 
-        doctors={doctorsList} 
-        onExit={() => setTvMode(false)} 
+      <TvQueueDisplay
+        patients={patients}
+        doctors={doctorsList}
+        onExit={() => setTvMode(false)}
       />
     );
   }
@@ -671,7 +683,7 @@ function App() {
         );
       case 'admin':
         return (
-          <AdminDashboard 
+          <AdminDashboard
             patients={patients}
             doctors={doctorsList}
             staffList={staffList}
@@ -685,7 +697,7 @@ function App() {
         );
       case 'patients':
         return (
-          <AdminPatientRecords 
+          <AdminPatientRecords
             patients={patients}
             doctors={doctorsList}
             onDeletePatient={handleDeletePatient}
@@ -695,9 +707,9 @@ function App() {
         );
       case 'receptionist':
         return (
-          <ReceptionistDashboard 
-            patients={patients} 
-            doctors={doctorsList} 
+          <ReceptionistDashboard
+            patients={patients}
+            doctors={doctorsList}
             onRegisterPatient={handleRegisterPatient}
             onUpdatePaymentStatus={handleUpdatePaymentStatus}
             onReRegisterPatient={handleReRegisterPatient}
@@ -708,9 +720,11 @@ function App() {
         );
       case 'doctor':
         return (
-          <DoctorDashboard 
-            patients={patients} 
+          <DoctorDashboard
+            patients={patients}
+            doctors={doctorsList}
             doctorEmail={user.email}
+            userRole={user.role}
             onSubmitPrescription={handleSubmitPrescription}
             onSubmitReview={handleSubmitReview}
             onStartConsultation={handleStartConsultation}
@@ -721,8 +735,8 @@ function App() {
         );
       case 'pharmacy':
         return (
-          <PharmacyDashboard 
-            patients={patients} 
+          <PharmacyDashboard
+            patients={patients}
             doctors={doctorsList}
             onIssueMedication={handleIssueMedication}
             onPrintPrescription={handlePrintPrescription}
@@ -731,7 +745,7 @@ function App() {
         );
       case 'ward':
         return (
-          <WardDashboard 
+          <WardDashboard
             patients={patients}
             onAssignBed={handleAssignBed}
             onDischargePatient={handleDischargePatient}
@@ -801,49 +815,49 @@ function App() {
         <div className="nav-links">
           {user.role === 'admin' && (
             <>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'admin' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('admin'); setIsSidebarOpen(false); }}
               >
                 <Shield size={18} />
                 <span>Admin Console</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'analytics' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('analytics'); setIsSidebarOpen(false); }}
               >
                 <BarChart2 size={18} />
                 <span>Analytics</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'patients' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('patients'); setIsSidebarOpen(false); }}
               >
                 <FileText size={18} />
                 <span>Patient Records</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'receptionist' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('receptionist'); setIsSidebarOpen(false); }}
               >
                 <Users size={18} />
                 <span>Receptionist Module</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'doctor' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('doctor'); setIsSidebarOpen(false); }}
               >
                 <Activity size={18} />
                 <span>Doctor Consultations</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'pharmacy' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('pharmacy'); setIsSidebarOpen(false); }}
               >
                 <Pill size={18} />
                 <span>Pharmacy Module</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'ward' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('ward'); setIsSidebarOpen(false); }}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
@@ -853,41 +867,41 @@ function App() {
                   <span>Ward & Beds Module</span>
                 </div>
                 {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
-                  <span style={{ 
-                    background: 'var(--warning)', 
-                    color: '#000', 
-                    fontSize: '0.75rem', 
-                    fontWeight: 800, 
-                    borderRadius: '10px', 
+                  <span style={{
+                    background: 'var(--warning)',
+                    color: '#000',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    borderRadius: '10px',
                     padding: '0.1rem 0.5rem',
-                    lineHeight: '1.2' 
+                    lineHeight: '1.2'
                   }}>
                     {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
                   </span>
                 )}
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'injection' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('injection'); setIsSidebarOpen(false); }}
               >
                 <Syringe size={18} />
                 <span>Injection Desk</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'lab' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('lab'); setIsSidebarOpen(false); }}
               >
                 <FlaskConical size={18} />
                 <span>Laboratory Module</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'directory' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('directory'); setIsSidebarOpen(false); }}
               >
                 <BookOpen size={18} />
                 <span>Directory & Ledgers</span>
               </div>
-              <div 
+              <div
                 className={`nav-item ${adminActiveView === 'utility' ? 'active' : ''}`}
                 onClick={() => { setAdminActiveView('utility'); setIsSidebarOpen(false); }}
               >
@@ -922,14 +936,14 @@ function App() {
                 <span>Ward & Beds Module</span>
               </div>
               {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length > 0 && (
-                <span style={{ 
-                  background: 'var(--warning)', 
-                  color: '#000', 
-                  fontSize: '0.75rem', 
-                  fontWeight: 800, 
-                  borderRadius: '10px', 
+                <span style={{
+                  background: 'var(--warning)',
+                  color: '#000',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  borderRadius: '10px',
                   padding: '0.1rem 0.5rem',
-                  lineHeight: '1.2' 
+                  lineHeight: '1.2'
                 }}>
                   {patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length}
                 </span>
@@ -948,8 +962,8 @@ function App() {
               <span>Laboratory Module</span>
             </div>
           )}
-          
-          <div 
+
+          <div
             className="nav-item"
             style={{ marginTop: 'auto', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1.25rem', opacity: 0.8 }}
             onClick={() => { setTvMode(true); setIsSidebarOpen(false); }}
@@ -1004,10 +1018,7 @@ function App() {
             </button>
 
 
-            {/* Theme Toggle */}
-            <button className="header-btn" onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')} title="Toggle Light/Dark Theme">
-              {themeMode === 'dark' ? <Sun size={15} style={{ color: '#f59e0b' }} /> : <Moon size={15} />}
-            </button>
+
 
             {/* Notification Center */}
             <div style={{ position: 'relative' }}>
@@ -1244,10 +1255,10 @@ function App() {
                   const vhShortId = `vh${rawId}`.toLowerCase(); // Format: vh19
                   const hashId = `#${rawId}`.toLowerCase();
 
-                  const idMatch = 
-                    rawId.includes(q) || 
+                  const idMatch =
+                    rawId.includes(q) ||
                     rawId.includes(qClean) ||
-                    vhId.includes(q) || 
+                    vhId.includes(q) ||
                     vhShortId.includes(q) ||
                     hashId.includes(q);
 
@@ -1290,7 +1301,7 @@ function App() {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span className={`badge badge-${(p.status || 'registered').toLowerCase().replace(' ', '')}`}>
-                        {p.status}
+                        {p.status === 'Registered' ? 'In Queue' : p.status}
                       </span>
                     </div>
                   </div>

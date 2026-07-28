@@ -978,7 +978,7 @@ const ReceptionistDashboard = ({
               No patients registered today.
             </div>
           ) : (
-            <div className="table-container" style={{ maxHeight: '550px', overflowY: 'auto', overflowX: 'auto' }}>
+            <div className="table-container">
               <table className="custom-table">
                 <thead>
                   <tr>
@@ -1040,11 +1040,37 @@ const ReceptionistDashboard = ({
                           {assignedDoc ? assignedDoc.name : 'Unassigned'}
                         </td>
                         <td>
-                          <span className={`badge ${
-                            patient.status === 'Paid' || patient.status === 'Completed' ? 'badge-success' : 'badge-pending'
-                          }`}>
-                            {patient.status}
-                          </span>
+                          {(() => {
+                            const s = (patient.status || '').toLowerCase().trim();
+                            let badgeClass = 'badge-pending';
+                            let badgeText = patient.status === 'Registered' ? 'In Queue' : patient.status;
+
+                            if (s === 'registered' || s === 'inactive' || s === 'in queue' || !patient.status) {
+                              badgeClass = 'badge-pending';
+                              badgeText = 'In Queue';
+                            } else if (s === 'consulting') {
+                              badgeClass = 'badge-consulting';
+                              badgeText = 'Consulting';
+                            } else if (s === 'at pharmacy' || s === 'pharmacy') {
+                              badgeClass = 'badge-pharmacy';
+                              badgeText = 'At Pharmacy';
+                            } else if (s === 'reviewing' || s === 'review') {
+                              badgeClass = 'badge-reviewing';
+                              badgeText = 'Reviewing';
+                            } else if (s === 'completed' || s === 'paid') {
+                              badgeClass = 'badge-completed';
+                              badgeText = 'Completed';
+                            } else if (s === 'admitted') {
+                              badgeClass = 'badge-admitted';
+                              badgeText = 'Admitted';
+                            }
+
+                            return (
+                              <span className={`badge ${badgeClass}`}>
+                                {badgeText}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>

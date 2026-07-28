@@ -168,7 +168,6 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                       style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
                       onClick={() => {
                         onPrintPrescription();
-                        alert(`Opening browser print dialogue...`);
                       }}
                     >
                       <Printer size={14} /> Print Prescription
@@ -294,52 +293,64 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                       </div>
                     </div>
 
-                    {/* Clean Rx Layout */}
-                    <div style={{ minHeight: '4.5in', borderTop: '1.5px solid #000', paddingTop: '0.5rem', textAlign: 'left', position: 'relative' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
-                          ℞
+                    {/* Rx Symbol & Diagnosis Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '2px solid #000', paddingBottom: '0.4rem', textAlign: 'left' }}>
+                      <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
+                        ℞
+                      </div>
+                      {activePatient.diagnosis && (
+                        <div style={{ fontSize: '0.85rem', color: '#334155' }}>
+                          <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{activePatient.diagnosis}</span>
                         </div>
-                        {activePatient.diagnosis && (
-                          <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                            <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{activePatient.diagnosis}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ marginTop: '0.5rem' }}>
-                        {activePatient.prescriptionImg ? (
-                          <div style={{ textAlign: 'center' }}>
-                            <img
-                              src={activePatient.prescriptionImg}
-                              style={{ maxWidth: '100%', maxHeight: '4.2in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'zoom-in' }}
-                              alt="Prescription Drawing"
-                              onClick={() => setPreviewImage(activePatient.prescriptionImg)}
-                            />
-                          </div>
-                        ) : (
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
-                                <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
-                                <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
-                                <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {activePatient.prescription?.map((m, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                  <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
-                                  <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
-                                  <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </div>
+
+                    {/* Clean Rx Drawing Area (Hidden Border) */}
+                    <div style={{
+                      minHeight: '6.0in',
+                      border: 'none',
+                      borderRadius: '2px',
+                      padding: '0.75rem 1rem',
+                      textAlign: 'left',
+                      position: 'relative',
+                      background: '#fff',
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justify: 'center',
+                      alignItems: 'center',
+                      flexGrow: 1
+                    }}>
+                      {activePatient.prescriptionImg ? (
+                        <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                          <img
+                            src={activePatient.prescriptionImg}
+                            style={{ maxWidth: '100%', maxHeight: '5.8in', objectFit: 'contain', border: 'none', background: 'transparent', cursor: 'zoom-in' }}
+                            alt="Prescription Drawing"
+                            onClick={() => setPreviewImage(activePatient.prescriptionImg)}
+                          />
+                        </div>
+                      ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                              <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
+                              <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
+                              <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activePatient.prescription?.map((m, i) => (
+                              <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
+                                <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
+                                <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
 
                   {/* Footer Section */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
@@ -352,6 +363,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                   </div>
                 </div>
               </div>
+            </div>
 
               {/* ===== Previous Prescriptions Toggle ===== */}
               {activePatient.history && activePatient.history.length > 0 && (

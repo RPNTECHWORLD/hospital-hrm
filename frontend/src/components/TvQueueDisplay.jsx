@@ -3,6 +3,10 @@ import { Monitor, LogOut } from 'lucide-react';
 
 const TvQueueDisplay = ({ patients, doctors, onExit }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const DOCTORS_PER_PAGE = 2;
+  const totalPages = Math.ceil(doctors.length / DOCTORS_PER_PAGE) || 1;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -10,6 +14,26 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Automatic Page Rotation for Doctors (2 per page)
+  useEffect(() => {
+    if (totalPages <= 1) return;
+    const pageTimer = setInterval(() => {
+      setCurrentPage((prev) => (prev + 1) % totalPages);
+    }, 3000);
+    return () => clearInterval(pageTimer);
+  }, [totalPages]);
+
+  useEffect(() => {
+    if (currentPage >= totalPages) {
+      setCurrentPage(0);
+    }
+  }, [doctors.length, totalPages, currentPage]);
+
+  const displayedDoctors = doctors.slice(
+    currentPage * DOCTORS_PER_PAGE,
+    (currentPage + 1) * DOCTORS_PER_PAGE
+  );
 
   return (
     <div style={{
@@ -57,8 +81,41 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
           </div>
         </div>
 
-        {/* Time and Exit */}
+        {/* Time, Page Indicator and Exit */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          {totalPages > 1 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(59, 130, 246, 0.12)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              padding: '0.5rem 1.25rem',
+              borderRadius: '20px',
+              color: '#60a5fa',
+              fontSize: '0.9rem',
+              fontWeight: 700
+            }}>
+              <span>PAGE {currentPage + 1} OF {totalPages}</span>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <span
+                    key={idx}
+                    onClick={() => setCurrentPage(idx)}
+                    style={{
+                      width: idx === currentPage ? '18px' : '8px',
+                      height: '8px',
+                      borderRadius: '4px',
+                      background: idx === currentPage ? '#3b82f6' : 'rgba(255,255,255,0.25)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f8fafc' }}>
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -68,7 +125,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
             </div>
           </div>
 
-          <button 
+          <button
             onClick={onExit}
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -90,27 +147,30 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
       </header>
 
       {/* Main Boards Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-        gap: '2.5rem',
-        flexGrow: 1
-      }}>
-        {doctors.map(doctor => {
+      <div 
+        key={currentPage}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: '2.5rem',
+          flexGrow: 1
+        }}
+      >
+        {displayedDoctors.map(doctor => {
           // Filter patients assigned to this doctor for Today
           const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-          const docPatients = patients.filter(p => 
-            p.assignedDoctorId === doctor.id && 
-            p.status !== 'Inactive' && 
+          const docPatients = patients.filter(p =>
+            p.assignedDoctorId === doctor.id &&
+            p.status !== 'Inactive' &&
             p.registrationDate === todayStr
           );
-          
+
           // Now Consulting patient
           const nowConsulting = docPatients.find(p => p.status === 'Consulting');
-          
-          // Up Next patients (status is Registered, sorted by Token Number)
+
+          // Up Next patients (status is In Queue, sorted by Token Number)
           const upNext = docPatients
-            .filter(p => p.status === 'Registered')
+            .filter(p => ['In Queue', 'Registered'].includes(p.status))
             .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
           return (
@@ -149,8 +209,8 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
 
                 {nowConsulting ? (
                   <div style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '2px solid #10b981',
+                    background: 'rgba(14, 165, 233, 0.15)',
+                    border: '2px solid #0284c7',
                     borderRadius: '20px',
                     padding: '2rem',
                     display: 'flex',
@@ -158,7 +218,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                     gap: '2rem'
                   }}>
                     <div style={{
-                      background: '#10b981',
+                      background: '#0284c7',
                       color: '#ffffff',
                       fontSize: '3rem',
                       fontWeight: 950,
@@ -166,7 +226,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                       borderRadius: '16px',
                       minWidth: '100px',
                       textAlign: 'center',
-                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                      boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)'
                     }}>
                       {String(nowConsulting.tokenNumber).padStart(2, '0')}
                     </div>
@@ -174,7 +234,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                       <h3 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
                         {nowConsulting.name}
                       </h3>
-                      <div style={{ fontSize: '1.1rem', color: '#a7f3d0', fontWeight: 500, marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 500, marginTop: '0.25rem' }}>
                         In Consultation Room
                       </div>
                     </div>
@@ -236,8 +296,8 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                     paddingRight: '0.5rem'
                   }}>
                     {upNext.map((patient, index) => (
-                      <div 
-                        key={patient.id} 
+                      <div
+                        key={patient.id}
                         style={{
                           background: index === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
                           border: index === 0 ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.05)',
@@ -274,7 +334,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                           color: index === 0 ? '#60a5fa' : '#64748b',
                           fontWeight: 600
                         }}>
-                          {index === 0 ? 'PREPARING' : 'WAITING'}
+                          {index === 0 ? 'NEXT' : 'WAITING'}
                         </div>
                       </div>
                     ))}

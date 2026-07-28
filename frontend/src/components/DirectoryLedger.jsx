@@ -23,6 +23,7 @@ const DirectoryLedger = () => {
   const [ledgerDesc, setLedgerDesc] = useState('');
   const [ledgerAmount, setLedgerAmount] = useState('');
   const [ledgerAgency, setLedgerAgency] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash', 'UPI / GPay', 'Card', 'Net Banking'
 
   const fetchContacts = async () => {
     setLoading(true);
@@ -119,7 +120,8 @@ const DirectoryLedger = () => {
           type: ledgerType,
           description: ledgerDesc,
           amount: parseFloat(ledgerAmount),
-          agencyName: ledgerAgency
+          agencyName: ledgerAgency,
+          paymentMethod: paymentMethod
         })
       });
 
@@ -127,6 +129,7 @@ const DirectoryLedger = () => {
         setLedgerDesc('');
         setLedgerAmount('');
         setLedgerAgency('');
+        setPaymentMethod('Cash');
         fetchExpenses();
       }
     } catch (err) {
@@ -321,6 +324,7 @@ const DirectoryLedger = () => {
                       <th>Type</th>
                       <th>Description</th>
                       <th>Agency / Recipient</th>
+                      <th>Payment Method</th>
                       <th>Amount</th>
                     </tr>
                   </thead>
@@ -333,6 +337,16 @@ const DirectoryLedger = () => {
                         </td>
                         <td style={{ fontWeight: 600 }}>{exp.description}</td>
                         <td>{exp.agencyName || '--'}</td>
+                        <td>
+                          <span className="badge" style={{
+                            fontSize: '0.75rem',
+                            background: exp.paymentMethod === 'UPI / GPay' ? 'rgba(59, 130, 246, 0.12)' : exp.paymentMethod === 'Card' ? 'rgba(168, 85, 247, 0.12)' : exp.paymentMethod === 'Net Banking' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                            color: exp.paymentMethod === 'UPI / GPay' ? '#2563eb' : exp.paymentMethod === 'Card' ? '#7e22ce' : exp.paymentMethod === 'Net Banking' ? '#b45309' : '#047857',
+                            border: '1px solid rgba(0,0,0,0.08)'
+                          }}>
+                            {exp.paymentMethod || 'Cash'}
+                          </span>
+                        </td>
                         <td style={{ fontWeight: 700, color: 'var(--danger)' }}>₹ {exp.amount.toFixed(2)}</td>
                       </tr>
                     ))}
@@ -364,6 +378,16 @@ const DirectoryLedger = () => {
               <div className="form-group">
                 <label className="form-label">Agency / Vendor Name (Optional)</label>
                 <input type="text" className="form-input" placeholder="e.g. Sri Krishna Agency" value={ledgerAgency} onChange={(e) => setLedgerAgency(e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Payment Method (Cash / UPI / Card)</label>
+                <select className="form-input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                  <option value="Cash">Cash</option>
+                  <option value="UPI / GPay">UPI / GPay</option>
+                  <option value="Card">Card / POS</option>
+                  <option value="Net Banking">Net Banking / NEFT</option>
+                </select>
               </div>
 
               <div className="form-group">

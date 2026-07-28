@@ -12,39 +12,48 @@ const AdminDashboard = ({
   onDeletePatient,
   onDeleteAllPatients
 }) => {
-  const [activeTab,           setActiveTab]           = useState('doctors');
-  const [patientSearch,       setPatientSearch]       = useState('');
+  const [activeTab, setActiveTab] = useState('doctors');
+  const [patientSearch, setPatientSearch] = useState('');
   const [patientStatusFilter, setPatientStatusFilter] = useState('all');
-  const [streetFilter,        setStreetFilter]        = useState('');
-  const [cityFilter,          setCityFilter]          = useState('');
-  const [pincodeFilter,       setPincodeFilter]       = useState('');
+  const [streetFilter, setStreetFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [pincodeFilter, setPincodeFilter] = useState('');
 
   // Form State
-  const [name,     setName]     = useState('');
-  const [email,    setEmail]    = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role,     setRole]     = useState('doctor');
-  const [specialty,setSpecialty]= useState('General Medicine');
+  const [role, setRole] = useState('doctor');
+  const [specialty, setSpecialty] = useState('General Medicine');
 
-  const handleAddUserSubmit = (e) => {
+  const handleAddUserSubmit = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) return;
-    if (role === 'doctor') { onAddDoctor({ name, email, password, specialty }); }
-    else { onAddStaff({ name, email, password, role }); }
-    setName(''); setEmail(''); setPassword(''); setRole('doctor'); setSpecialty('General Medicine');
-    alert('User added successfully!');
+    let res = false;
+    if (role === 'doctor') { 
+      res = await onAddDoctor({ name, email, password, specialty }); 
+    } else { 
+      res = await onAddStaff({ name, email, password, role }); 
+    }
+
+    if (res !== false) {
+      setName(''); setEmail(''); setPassword(''); setRole('doctor'); setSpecialty('General Medicine');
+      alert('User added successfully!');
+    } else {
+      alert('Failed to add user. Email may already exist or database error occurred.');
+    }
   };
 
   // Staff and Doctor Stats
-  const totalDoctors       = doctors.length;
-  const totalPharmacy      = staffList.filter(s => s.role === 'pharmacy').length;
+  const totalDoctors = doctors.length;
+  const totalPharmacy = staffList.filter(s => s.role === 'pharmacy').length;
   const totalReceptionists = staffList.filter(s => s.role === 'receptionist').length;
-  const totalWard          = staffList.filter(s => s.role === 'ward').length;
+  const totalWard = staffList.filter(s => s.role === 'ward').length;
 
   // Patient and Payment Stats
   const totalPatientsCount = patients.length;
-  const paidPatientsCount  = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
-  const unpaidPatientsCount= patients.filter(p => !p.paymentStatus || !p.paymentStatus.startsWith('Paid')).length;
+  const paidPatientsCount = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
+  const unpaidPatientsCount = patients.filter(p => !p.paymentStatus || !p.paymentStatus.startsWith('Paid')).length;
 
   return (
     <div className="fade-in">
@@ -243,25 +252,50 @@ const AdminDashboard = ({
                         const matchesStatus = patientStatusFilter === 'all' || (patientStatusFilter === 'active' && patient.status !== 'Inactive') || (patientStatusFilter === 'inactive' && patient.status === 'Inactive');
                         const addr = (patient.address || '').toLowerCase();
                         const addrParts = addr.split(' | ');
-                        const matchesStreet  = !streetFilter  || (addrParts[0] || '').includes(streetFilter.toLowerCase())  || addr.includes(streetFilter.toLowerCase());
-                        const matchesCity    = !cityFilter    || (addrParts[1] || '').includes(cityFilter.toLowerCase())    || addr.includes(cityFilter.toLowerCase());
+                        const matchesStreet = !streetFilter || (addrParts[0] || '').includes(streetFilter.toLowerCase()) || addr.includes(streetFilter.toLowerCase());
+                        const matchesCity = !cityFilter || (addrParts[1] || '').includes(cityFilter.toLowerCase()) || addr.includes(cityFilter.toLowerCase());
                         const matchesPincode = !pincodeFilter || (addrParts[2] || '').includes(pincodeFilter.toLowerCase()) || addr.includes(pincodeFilter.toLowerCase());
                         return matchesSearch && matchesStatus && matchesStreet && matchesCity && matchesPincode;
                       })
                       .map(patient => {
                         const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
-                        const isDeleted   = patient.status === 'Inactive';
+                        
+                        const getStatusBadge = (status) => {
+                          const s = (status || '').toLowerCase().trim();
+                          if (s === 'registered' || s === 'inactive' || s === 'in queue' || !status) {
+                            return { text: 'In Queue', className: 'badge-pending' };
+                          }
+                          if (s === 'consulting') {
+                            return { text: 'Consulting', className: 'badge-consulting' };
+                          }
+                          if (s === 'at pharmacy' || s === 'pharmacy') {
+                            return { text: 'At Pharmacy', className: 'badge-pharmacy' };
+                          }
+                          if (s === 'reviewing' || s === 'review') {
+                            return { text: 'Reviewing', className: 'badge-reviewing' };
+                          }
+                          if (s === 'completed' || s === 'paid') {
+                            return { text: 'Completed', className: 'badge-completed' };
+                          }
+                          if (s === 'admitted') {
+                            return { text: 'Admitted', className: 'badge-admitted' };
+                          }
+                          return { text: status, className: 'badge-pending' };
+                        };
+
+                        const badgeInfo = getStatusBadge(patient.status);
+
                         return (
-                          <tr key={patient.id} style={isDeleted ? { opacity: 0.65, background: 'rgba(239, 68, 68, 0.02)' } : {}}>
-                            <td style={{ fontWeight: 700, color: isDeleted ? 'var(--text-muted)' : 'var(--primary)' }}>#{patient.id}</td>
+                          <tr key={patient.id}>
+                            <td style={{ fontWeight: 700, color: 'var(--primary)' }}>#{patient.id}</td>
                             <td>
-                              <div style={{ fontWeight: 600, textDecoration: isDeleted ? 'line-through' : 'none' }}>{patient.name}</div>
+                              <div style={{ fontWeight: 600 }}>{patient.name}</div>
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{patient.age} Yrs • {patient.gender}</div>
                             </td>
-                            <td style={{ fontSize: '0.9rem', color: isDeleted ? 'var(--text-muted)' : 'inherit' }}>
+                            <td style={{ fontSize: '0.9rem' }}>
                               {assignedDoc ? assignedDoc.name : 'Unassigned'}
                             </td>
-                            <td style={{ fontSize: '0.8rem', color: isDeleted ? 'var(--text-muted)' : 'var(--text-secondary)', maxWidth: '160px' }}>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '160px' }}>
                               {(() => {
                                 const rawAddr = patient.address || '';
                                 if (!rawAddr) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>;
@@ -276,8 +310,8 @@ const AdminDashboard = ({
                               })()}
                             </td>
                             <td>
-                              <span className={`badge ${isDeleted ? 'badge-danger' : patient.status === 'Completed' ? 'badge-success' : 'badge-pending'}`}>
-                                {isDeleted ? 'Deleted/Inactive' : patient.status}
+                              <span className={`badge ${badgeInfo.className}`}>
+                                {badgeInfo.text}
                               </span>
                             </td>
                             <td>
@@ -286,15 +320,11 @@ const AdminDashboard = ({
                               </span>
                             </td>
                             <td style={{ textAlign: 'right' }}>
-                              {!isDeleted ? (
-                                <button className="btn-logout" style={{ cursor: 'pointer' }}
-                                  onClick={() => { if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) onDeletePatient(patient.id); }}
-                                  title="Delete Patient">
-                                  <Trash2 size={16} />
-                                </button>
-                              ) : (
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Inactive</span>
-                              )}
+                              <button className="btn-logout" style={{ cursor: 'pointer' }}
+                                onClick={() => { if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) onDeletePatient(patient.id); }}
+                                title="Delete Patient">
+                                <Trash2 size={16} />
+                              </button>
                             </td>
                           </tr>
                         );

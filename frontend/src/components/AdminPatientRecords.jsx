@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar } from 'lucide-react';
 
 // Helper: extract city from address string "street | city | pincode"
 const extractCity = (address) => {
@@ -13,6 +13,32 @@ const extractPincode = (address) => {
   if (!address) return '';
   const parts = address.split(' | ');
   return parts.length >= 3 ? parts[2].trim() : '';
+};
+
+// Helper: format date as pure DD/MM/YY (e.g. 09/08/24)
+const formatOnlyDate = (registrationDate, history) => {
+  const raw = registrationDate || (history && history[0] && history[0].date) || '';
+  if (!raw) {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const year = String(parsed.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  }
+
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
 };
 
 const AdminPatientRecords = ({
@@ -80,16 +106,16 @@ const AdminPatientRecords = ({
     .reverse()
     .filter(p => {
       // 1. Search Query (Name, ID, Contact, Mother/Guardian)
-      const matchesSearch = 
+      const matchesSearch =
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(p.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.motherOrGuardianName && p.motherOrGuardianName.toLowerCase().includes(searchQuery.toLowerCase()));
 
       // 2. Status Filter
-      const matchesStatus = 
+      const matchesStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'active' && p.status !== 'Inactive') ||
+        statusFilter === 'active' ||
         (statusFilter === 'inactive' && p.status === 'Inactive');
 
       // 3. Payment Filter
@@ -129,7 +155,7 @@ const AdminPatientRecords = ({
       </div>
 
       {/* Stats Summary Panel */}
-      <div className="stats-grid" style={{ marginBottom: '2rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
         <div className="stat-card">
           <div className="stat-icon primary">
             <Users size={24} />
@@ -151,16 +177,6 @@ const AdminPatientRecords = ({
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon danger">
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <div className="stat-value">{deletedCount}</div>
-            <div className="stat-label">Deleted / Inactive</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
           <div className="stat-icon warning" style={{ color: 'var(--success)', background: 'rgba(16, 185, 129, 0.15)' }}>
             <span style={{ fontSize: '24px', fontWeight: 900, display: 'inline-block', lineHeight: 1 }}>$</span>
           </div>
@@ -172,15 +188,15 @@ const AdminPatientRecords = ({
       </div>
 
       {/* Advanced Filter Card */}
-      <div className="card" style={{ marginBottom: '2rem' }}>
+      <div className="card" style={{ marginBottom: '1.5rem', width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Search size={18} style={{ color: 'var(--primary)' }} />
           Advanced Query & Filters
         </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem 1rem', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           {/* Search Input */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Search Query</label>
             <input
               type="text"
@@ -188,18 +204,18 @@ const AdminPatientRecords = ({
               placeholder="Name, ID, Phone, Mother/Guardian..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             />
           </div>
 
           {/* Payment Filter */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Payment Status</label>
             <select
               className="form-input"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="all">All Payments</option>
               <option value="paid">Paid Only</option>
@@ -208,13 +224,13 @@ const AdminPatientRecords = ({
           </div>
 
           {/* Active/Inactive Status */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Registration Status</label>
             <select
               className="form-input"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="all">All Statuses</option>
               <option value="active">Active Only</option>
@@ -223,7 +239,7 @@ const AdminPatientRecords = ({
           </div>
 
           {/* City / Town Filter */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <MapPin size={12} style={{ color: 'var(--primary)' }} /> City / Town Filter
             </label>
@@ -231,7 +247,7 @@ const AdminPatientRecords = ({
               className="form-input"
               value={cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="all">All Cities / Towns</option>
               {uniqueCities.map(city => (
@@ -241,7 +257,7 @@ const AdminPatientRecords = ({
           </div>
 
           {/* Pincode Filter */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <MapPin size={12} style={{ color: '#f59e0b' }} /> Pincode Filter
             </label>
@@ -249,7 +265,7 @@ const AdminPatientRecords = ({
               className="form-input"
               value={pincodeFilter}
               onChange={(e) => setPincodeFilter(e.target.value)}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="all">All Pincodes</option>
               {uniquePincodes.map(pin => (
@@ -259,25 +275,25 @@ const AdminPatientRecords = ({
           </div>
 
           {/* Custom Age Ranges */}
-          <div className="form-group" style={{ margin: 0 }}>
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Age Boundaries</label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', width: '100%' }}>
               <input
                 type="number"
                 className="form-input"
-                placeholder="Min Age (Above)"
+                placeholder="Min Age"
                 value={aboveAge}
                 onChange={(e) => setAboveAge(e.target.value)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem', flex: 1, margin: 0 }}
+                style={{ fontSize: '0.85rem', padding: '0.4rem 0.5rem', flex: 1, minWidth: 0, margin: 0 }}
               />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>to</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
               <input
                 type="number"
                 className="form-input"
-                placeholder="Max Age (Below)"
+                placeholder="Max Age"
                 value={belowAge}
                 onChange={(e) => setBelowAge(e.target.value)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem', flex: 1, margin: 0 }}
+                style={{ fontSize: '0.85rem', padding: '0.4rem 0.5rem', flex: 1, minWidth: 0, margin: 0 }}
               />
             </div>
           </div>
@@ -285,9 +301,9 @@ const AdminPatientRecords = ({
 
         {/* Reset Button */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-          <button 
-            type="button" 
-            className="btn btn-secondary" 
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={handleResetFilters}
             style={{ padding: '0.4rem 1.25rem', fontSize: '0.85rem' }}
           >
@@ -297,7 +313,7 @@ const AdminPatientRecords = ({
       </div>
 
       {/* Patient Directory Table */}
-      <div className="card">
+      <div className="card" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Patient Database Records</h3>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -305,46 +321,87 @@ const AdminPatientRecords = ({
           </span>
         </div>
 
-        <div className="table-container" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+        <div className="table-container" style={{
+          overflowX: 'auto',
+          overflowY: 'auto',
+          maxHeight: '520px',
+          borderRadius: '8px',
+          border: '1px solid var(--border)',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
+        }}>
           {filteredPatients.length === 0 ? (
             <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
               No matching patient records found with active filters.
             </p>
           ) : (
-            <table className="custom-table">
+            <table className="custom-table" style={{ minWidth: '1100px', width: '100%' }}>
               <thead>
                 <tr>
-                  <th>Patient ID</th>
-                  <th>Patient Info</th>
-                  <th>Mother / Guardian</th>
-                  <th>Contact Details</th>
-                  <th style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Patient ID</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Calendar size={13} style={{ color: 'var(--primary)' }} /> Admit Date
+                    </span>
+                  </th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Patient Info</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Mother / Guardian</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Contact Details</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
                   </th>
-                  <th>Assigned Doctor</th>
-                  <th>Queue Status</th>
-                  <th>Payment</th>
-                  <th style={{ textAlign: 'center' }}>Ward</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Assigned Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Queue Status</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Payment</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc', textAlign: 'center' }}>Ward</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPatients.map(p => {
                   const assignedDoc = doctors.find(d => d.id === p.assignedDoctorId);
-                  const isDeleted = p.status === 'Inactive';
+                  
+                  const getStatusBadge = (status) => {
+                    const s = (status || '').toLowerCase().trim();
+                    if (s === 'registered' || s === 'inactive' || s === 'in queue' || !status) {
+                      return { text: 'In Queue', className: 'badge-pending' };
+                    }
+                    if (s === 'consulting') {
+                      return { text: 'Consulting', className: 'badge-consulting' };
+                    }
+                    if (s === 'at pharmacy' || s === 'pharmacy') {
+                      return { text: 'At Pharmacy', className: 'badge-pharmacy' };
+                    }
+                    if (s === 'reviewing' || s === 'review') {
+                      return { text: 'Reviewing', className: 'badge-reviewing' };
+                    }
+                    if (s === 'completed' || s === 'paid') {
+                      return { text: 'Completed', className: 'badge-completed' };
+                    }
+                    if (s === 'admitted') {
+                      return { text: 'Admitted', className: 'badge-admitted' };
+                    }
+                    return { text: status, className: 'badge-pending' };
+                  };
+
+                  const badgeInfo = getStatusBadge(p.status);
+
                   return (
-                    <tr 
-                      key={p.id} 
+                    <tr
+                      key={p.id}
                       style={{
                         cursor: 'pointer',
-                        transition: 'background 0.25s ease',
-                        ...(isDeleted ? { opacity: 0.7, background: 'rgba(239, 68, 68, 0.01)' } : {})
+                        transition: 'background 0.25s ease'
                       }}
                       onClick={() => setSelectedPatient(p)}
                       title="Click to audit patient files & clinical logs"
                       className="hover-row"
                     >
-                      <td style={{ fontWeight: 700, color: isDeleted ? 'var(--text-muted)' : 'var(--primary)' }}>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)' }}>
                         #{p.id}
+                      </td>
+                      <td style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {formatOnlyDate(p.registrationDate, p.history)}
                       </td>
                       <td>
                         <div style={{ fontWeight: 600 }}>
@@ -384,8 +441,8 @@ const AdminPatientRecords = ({
                             border: '1px solid rgba(21, 115, 136, 0.18)',
                             cursor: 'pointer'
                           }}
-                          onClick={(e) => { e.stopPropagation(); setCityFilter(extractCity(p.address)); }}
-                          title={`Filter by ${extractCity(p.address)}`}
+                            onClick={(e) => { e.stopPropagation(); setCityFilter(extractCity(p.address)); }}
+                            title={`Filter by ${extractCity(p.address)}`}
                           >
                             <MapPin size={10} />
                             {extractCity(p.address)}
@@ -398,22 +455,18 @@ const AdminPatientRecords = ({
                         {assignedDoc ? assignedDoc.name : 'Unassigned'}
                       </td>
                       <td>
-                        <span className={`badge ${
-                          isDeleted ? 'badge-danger' : 
-                          p.status === 'Completed' ? 'badge-success' : 'badge-pending'
-                        }`}>
-                          {isDeleted ? 'Deleted/Inactive' : p.status}
+                        <span className={`badge ${badgeInfo.className}`}>
+                          {badgeInfo.text}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${
-                          p.paymentStatus && p.paymentStatus.startsWith('Paid') ? 'badge-success' : 'badge-danger'
-                        }`} style={{ fontWeight: 600 }}>
+                        <span className={`badge ${p.paymentStatus && p.paymentStatus.startsWith('Paid') ? 'badge-success' : 'badge-danger'
+                          }`} style={{ fontWeight: 600 }}>
                           {p.paymentStatus || 'Unpaid'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                        {!isDeleted && !p.wardBedId && onAdmitToWard ? (
+                        {!p.wardBedId && onAdmitToWard ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
                             title="Admit to Ward Room"
@@ -422,24 +475,22 @@ const AdminPatientRecords = ({
                               border: '1px solid rgba(15,118,110,0.25)',
                               borderRadius: '6px',
                               color: '#0f766e',
-                              padding: '0.3rem 0.55rem',
+                              padding: '0.3rem 0.6rem',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.72rem',
-                              fontWeight: 700
+                              gap: '0.3rem',
+                              fontSize: '0.78rem',
+                              fontWeight: 600
                             }}
                           >
-                            <Bed size={13} /> Admit
+                            <Bed size={13} /> Ward
                           </button>
                         ) : p.wardBedId ? (
-                          <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>
-                            🛏 Room {p.wardBedId?.slice(0,3)}-{p.wardBedId?.slice(3)}
+                          <span style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: 700 }}>
+                            Bed #{p.wardBedId}
                           </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>--</span>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -481,8 +532,8 @@ const AdminPatientRecords = ({
         }
 
         const totalVisits = historyItems.length;
-        const vitalsDate = selectedPatient.registrationDate || 
-          (selectedPatient.history && selectedPatient.history.length > 0 ? selectedPatient.history[selectedPatient.history.length - 1].date : null) || 
+        const vitalsDate = selectedPatient.registrationDate ||
+          (selectedPatient.history && selectedPatient.history.length > 0 ? selectedPatient.history[selectedPatient.history.length - 1].date : null) ||
           'N/A';
 
         return (
@@ -514,13 +565,13 @@ const AdminPatientRecords = ({
               overflow: 'hidden',
               border: '1px solid var(--border)'
             }} onClick={(e) => e.stopPropagation()}>
-              
+
               {/* Modal Header */}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                padding: '1.25rem 1.5rem', 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1.25rem 1.5rem',
                 borderBottom: '1px solid var(--border)',
                 background: '#f8fafc'
               }}>
@@ -532,8 +583,8 @@ const AdminPatientRecords = ({
                     Patient ID: #{selectedPatient.id} • Registered Date: {selectedPatient.registrationDate || '--'}
                   </div>
                 </div>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setSelectedPatient(null)}
                   style={{
                     background: 'rgba(0,0,0,0.05)',
@@ -556,15 +607,15 @@ const AdminPatientRecords = ({
 
               {/* Modal Content Area */}
               <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, background: '#fcfcfd' }}>
-                
+
                 {/* Info Grid splits */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                  
+
                   {/* Demographics card */}
-                  <div style={{ 
-                    background: '#ffffff', 
-                    border: '1px solid var(--border)', 
-                    borderRadius: '10px', 
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
                     padding: '1rem 1.25rem',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
                   }}>
@@ -626,10 +677,10 @@ const AdminPatientRecords = ({
                   </div>
 
                   {/* Vitals card */}
-                  <div style={{ 
-                    background: '#ffffff', 
-                    border: '1px solid var(--border)', 
-                    borderRadius: '10px', 
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
                     padding: '1rem 1.25rem',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
                   }}>
@@ -676,35 +727,35 @@ const AdminPatientRecords = ({
                       <History size={16} style={{ color: 'var(--primary)' }} />
                       Audited Checkup History logs
                     </h4>
-                    <span style={{ 
-                      background: 'rgba(21, 115, 136, 0.1)', 
-                      color: 'var(--primary)', 
-                      fontWeight: 800, 
-                      fontSize: '0.75rem', 
-                      padding: '0.2rem 0.65rem', 
-                      borderRadius: '12px' 
+                    <span style={{
+                      background: 'rgba(21, 115, 136, 0.1)',
+                      color: 'var(--primary)',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      padding: '0.2rem 0.65rem',
+                      borderRadius: '12px'
                     }}>
                       Total Visits: {totalVisits}
                     </span>
                   </div>
 
                   {totalVisits === 0 ? (
-                    <div style={{ 
-                      padding: '2.5rem', 
-                      textAlign: 'center', 
-                      background: '#ffffff', 
-                      borderRadius: '10px', 
+                    <div style={{
+                      padding: '2.5rem',
+                      textAlign: 'center',
+                      background: '#ffffff',
+                      borderRadius: '10px',
                       border: '1.5px dashed var(--border)',
-                      color: 'var(--text-muted)' 
+                      color: 'var(--text-muted)'
                     }}>
                       No visit history records logged for this patient.
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       {historyItems.map((visit, index) => (
-                        <div 
-                          key={index} 
-                          style={{ 
+                        <div
+                          key={index}
+                          style={{
                             background: visit.date.includes('Current') ? 'rgba(245, 158, 11, 0.04)' : '#ffffff',
                             border: '1px solid var(--border)',
                             borderLeft: visit.date.includes('Current') ? '4px solid var(--warning)' : '1px solid var(--border)',
@@ -717,11 +768,11 @@ const AdminPatientRecords = ({
                             <span>Date: {visit.date}</span>
                             <span>Doctor: {visit.doctorName}</span>
                           </div>
-                          
+
                           <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             Diagnosis: <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{visit.diagnosis || 'None'}</span>
                           </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                               <span>Status: {visit.status}</span>
                               <span>Payment: {visit.paymentStatus}</span>
@@ -730,13 +781,13 @@ const AdminPatientRecords = ({
                             <button
                               type="button"
                               className="btn btn-secondary"
-                              style={{ 
-                                padding: '0.25rem 0.65rem', 
-                                fontSize: '0.75rem', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.25rem', 
-                                height: 'auto', 
+                              style={{
+                                padding: '0.25rem 0.65rem',
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                height: 'auto',
                                 border: '1px solid var(--border)',
                                 color: 'var(--primary)',
                                 fontWeight: 700,
@@ -760,16 +811,16 @@ const AdminPatientRecords = ({
               </div>
 
               {/* Footer */}
-              <div style={{ 
-                padding: '1rem 1.5rem', 
-                borderTop: '1px solid var(--border)', 
+              <div style={{
+                padding: '1rem 1.5rem',
+                borderTop: '1px solid var(--border)',
                 background: '#f8fafc',
-                display: 'flex', 
-                justifyContent: 'flex-end' 
+                display: 'flex',
+                justifyContent: 'flex-end'
               }}>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => {
                     setSelectedPatient(null);
                     setActivePrescriptionPreview(null);
@@ -816,7 +867,7 @@ const AdminPatientRecords = ({
               overflow: 'hidden',
               border: '1px solid var(--border)'
             }} onClick={(e) => e.stopPropagation()}>
-              
+
               {/* Header */}
               <div style={{
                 display: 'flex',
@@ -863,16 +914,16 @@ const AdminPatientRecords = ({
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontStyle: 'italic' }}>
                       Handwritten Prescription Canvas:
                     </div>
-                    <img 
-                      src={visit.prescriptionImg} 
-                      alt="Handwritten prescription sheet" 
-                      style={{ 
-                        width: '100%', 
-                        maxHeight: '400px', 
+                    <img
+                      src={visit.prescriptionImg}
+                      alt="Handwritten prescription sheet"
+                      style={{
+                        width: '100%',
+                        maxHeight: '400px',
                         objectFit: 'contain',
                         border: 'none',
                         background: 'transparent'
-                      }} 
+                      }}
                     />
                   </div>
                 ) : visit.prescription && visit.prescription.length > 0 ? (
@@ -882,8 +933,8 @@ const AdminPatientRecords = ({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                       {visit.prescription.map((med, idx) => (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           style={{
                             padding: '0.65rem 0.85rem',
                             background: '#f8fafc',

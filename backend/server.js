@@ -1,15 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import { 
-  initDB, 
-  getDoctors, 
-  addDoctor, 
-  deleteDoctor, 
-  getStaff, 
-  addStaff, 
-  deleteStaff, 
-  getPatients, 
-  addPatient, 
+import {
+  initDB,
+  getDoctors,
+  addDoctor,
+  deleteDoctor,
+  getStaff,
+  addStaff,
+  deleteStaff,
+  getPatients,
+  addPatient,
   updatePatient,
   deletePatient,
   deleteAllPatients,
@@ -330,7 +330,7 @@ app.put('/api/lab/:id', async (req, res) => {
   try {
     const { status, reportNotes, reportImg } = req.body;
     await updateLabLogStatus(parseInt(req.params.id), status, reportNotes, reportImg);
-    
+
     if (status === 'Report Delivered') {
       const labLogs = await getLabLogs();
       const currentLog = labLogs.find(l => l.id === parseInt(req.params.id));
@@ -342,7 +342,7 @@ app.put('/api/lab/:id', async (req, res) => {
         }
       }
     }
-    
+
     res.json({ message: 'Lab status updated' });
   } catch (err) {
     res.status(500).json({ message: err.message });
