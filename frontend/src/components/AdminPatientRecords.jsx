@@ -360,31 +360,12 @@ const AdminPatientRecords = ({
               <tbody>
                 {filteredPatients.map(p => {
                   const assignedDoc = doctors.find(d => d.id === p.assignedDoctorId);
-                  
-                  const getStatusBadge = (status) => {
-                    const s = (status || '').toLowerCase().trim();
-                    if (s === 'registered' || s === 'inactive' || s === 'in queue' || !status) {
-                      return { text: 'In Queue', className: 'badge-pending' };
-                    }
-                    if (s === 'consulting') {
-                      return { text: 'Consulting', className: 'badge-consulting' };
-                    }
-                    if (s === 'at pharmacy' || s === 'pharmacy') {
-                      return { text: 'At Pharmacy', className: 'badge-pharmacy' };
-                    }
-                    if (s === 'reviewing' || s === 'review') {
-                      return { text: 'Reviewing', className: 'badge-reviewing' };
-                    }
-                    if (s === 'completed' || s === 'paid') {
-                      return { text: 'Completed', className: 'badge-completed' };
-                    }
-                    if (s === 'admitted') {
-                      return { text: 'Admitted', className: 'badge-admitted' };
-                    }
-                    return { text: status, className: 'badge-pending' };
-                  };
-
-                  const badgeInfo = getStatusBadge(p.status);
+                  const queueStatusText = (p.status === 'Registered' || p.status === 'Inactive' || p.status === 'In Queue' || !p.status)
+                    ? 'In Queue'
+                    : p.status;
+                  const statusBadgeClass = queueStatusText === 'Completed'
+                    ? 'badge-success'
+                    : (queueStatusText === 'In Queue' ? 'badge-pending' : 'badge-info');
 
                   return (
                     <tr
@@ -455,8 +436,8 @@ const AdminPatientRecords = ({
                         {assignedDoc ? assignedDoc.name : 'Unassigned'}
                       </td>
                       <td>
-                        <span className={`badge ${badgeInfo.className}`}>
-                          {badgeInfo.text}
+                        <span className={`badge ${statusBadgeClass}`}>
+                          {queueStatusText}
                         </span>
                       </td>
                       <td>

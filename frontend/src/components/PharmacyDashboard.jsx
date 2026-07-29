@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp } from 'lucide-react';
+import PrescriptionTemplate from './PrescriptionTemplate';
+import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -175,195 +177,13 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                   </div>
                 </div>
 
-                {/* Simulated Printed RX paper */}
-                <div className="prescription-paper" id="printable-rx" style={{
-                  background: '#fff',
-                  color: '#000',
-                  fontFamily: '"Outfit", "Inter", sans-serif',
-                  padding: '0.4in',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  maxWidth: '8.5in',
-                  margin: '0 auto',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  boxShadow: 'none'
-                }}>
-                  <div>
-                    {/* Letterhead Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-                      {/* Left side of header */}
-                      <div style={{ width: '55%', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {/* Logo icon */}
-                          <div style={{
-                            background: 'rgb(239, 68, 68)',
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontWeight: 800,
-                            fontSize: '1.25rem'
-                          }}>
-                            V
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#b91c1c', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                              VIJAYA'S HEALTH CARE
-                            </div>
-                            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.1rem' }}>
-                              YOUR HEALTH OUR MISSION
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#1e293b', lineHeight: '1.3' }}>
-                          <div><strong>Rtn Dr. N.ANBU</strong>, M.B.B.S., FIDM, FCCM</div>
-                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
-                          <div style={{ marginTop: '0.2rem' }}><strong>Dr. SINDHUJA ANBU</strong>, M.B.B.S., DNB (Pediatrics)</div>
-                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>குழந்தைகள் சிறப்பு மருத்துவர்</div>
-                          <div style={{ marginTop: '0.2rem' }}><strong>Dr. N.ARAVINDRAJ</strong> M.B.B.S.,</div>
-                          <div style={{ color: '#475569', fontSize: '0.65rem' }}>பொதுநலம் மற்றும் சர்க்கரை நோய் சிறப்பு மருத்துவர்</div>
-                        </div>
-                      </div>
-
-                      {/* Right side of header */}
-                      <div style={{ width: '40%', textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Latha, sans-serif' }}>
-                          விஜயலெட்சுமி
-                        </div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', marginTop: '0.15rem' }}>
-                          குழந்தைகள் நல மருத்துவமனை
-                        </div>
-                        <div style={{ fontSize: '0.65rem', color: '#334155', marginTop: '0.4rem', lineHeight: '1.4' }}>
-                          <div>RN Complex, Railway Road,</div>
-                          <div>Kollidam, Tamil Nadu, India.</div>
-                          <div>Ph: 04364 - 278558, Cell: 84890 61807</div>
-                          <div>E-mail: vijayahealthcare@gmail.com</div>
-                          <div>Web: www.vijayahealthcare.com</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Vitals & Patient Info Table */}
-                    <div style={{ border: '1.5px solid #000', marginBottom: '1rem', fontSize: '0.8rem', textAlign: 'left' }}>
-                      <div style={{ display: 'flex', borderBottom: '1.5px solid #000' }}>
-                        <div style={{ width: '50%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000', display: 'flex', alignItems: 'center' }}>
-                          <strong>NAME :</strong> <span style={{ marginLeft: '0.5rem', textTransform: 'uppercase', fontWeight: 700 }}>{activePatient.name}</span>
-                        </div>
-                        <div style={{ width: '50%', display: 'flex', flexWrap: 'wrap' }}>
-                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                            <strong>Age:</strong> {activePatient.age}
-                          </div>
-                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                            <strong>Sex:</strong> {activePatient.gender}
-                          </div>
-                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                            <strong>Ht:</strong> {activePatient.height || '--'}
-                          </div>
-                          <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                            <strong>Wt:</strong> {activePatient.weight || '--'}
-                          </div>
-                          <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
-                            <strong>Date:</strong> {new Date(activePatient.registrationDate || Date.now()).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', background: 'rgba(0,0,0,0.01)' }}>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                          <strong>BP:</strong> {activePatient.bp || '--'}
-                        </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                          <strong>HR:</strong> {activePatient.hr || '--'}
-                        </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                          <strong>SPO2:</strong> {activePatient.spo2 || '--'}%
-                        </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem', borderRight: '1.5px solid #000' }}>
-                          <strong>GRBS:</strong> {activePatient.grbs || '--'}
-                        </div>
-                        <div style={{ width: '20%', padding: '0.4rem 0.5rem' }}>
-                          <strong>TEMP:</strong> {activePatient.temp || '--'}°F
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Rx Symbol & Diagnosis Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '2px solid #000', paddingBottom: '0.4rem', textAlign: 'left' }}>
-                      <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b91c1c', fontFamily: '"Georgia", serif', lineHeight: 1 }}>
-                        ℞
-                      </div>
-                      {activePatient.diagnosis && (
-                        <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                          <strong>Diagnosis / Notes:</strong> <span style={{ color: '#b91c1c', fontWeight: 700, marginLeft: '0.25rem' }}>{activePatient.diagnosis}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Clean Rx Drawing Area (Hidden Border) */}
-                    <div style={{
-                      minHeight: '6.0in',
-                      border: 'none',
-                      borderRadius: '2px',
-                      padding: '0.75rem 1rem',
-                      textAlign: 'left',
-                      position: 'relative',
-                      background: '#fff',
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justify: 'center',
-                      alignItems: 'center',
-                      flexGrow: 1
-                    }}>
-                      {activePatient.prescriptionImg ? (
-                        <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                          <img
-                            src={activePatient.prescriptionImg}
-                            style={{ maxWidth: '100%', maxHeight: '5.8in', objectFit: 'contain', border: 'none', background: 'transparent', cursor: 'zoom-in' }}
-                            alt="Prescription Drawing"
-                            onClick={() => setPreviewImage(activePatient.prescriptionImg)}
-                          />
-                        </div>
-                      ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
-                              <th style={{ padding: '0.5rem 0', width: '50%' }}>Medicine</th>
-                              <th style={{ padding: '0.5rem 0', width: '30%' }}>Dosage</th>
-                              <th style={{ padding: '0.5rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {activePatient.prescription?.map((m, i) => (
-                              <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                <td style={{ padding: '0.6rem 0', fontWeight: 600 }}>{m.name}</td>
-                                <td style={{ padding: '0.6rem 0' }}>{m.dosage}</td>
-                                <td style={{ padding: '0.6rem 0', textAlign: 'right' }}>{m.duration} Days</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-
-                  {/* Footer Section */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
-                    <div style={{ textAlign: 'center', width: '2in' }}>
-                      <div style={{ borderBottom: '1px dashed #000', height: '15px' }}></div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
-                        Doctor's Signature
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* Official Prescription Paper (Adult vs Child Template) */}
+                {activePatient?.patientCategory === 'child' || (activePatient?.age && parseInt(activePatient.age) <= 12) ? (
+                  <ChildPrescriptionTemplate patient={activePatient} />
+                ) : (
+                  <PrescriptionTemplate patient={activePatient} />
+                )}
               </div>
-            </div>
 
               {/* ===== Previous Prescriptions Toggle ===== */}
               {activePatient.history && activePatient.history.length > 0 && (

@@ -950,7 +950,7 @@ h6 {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm;
+    margin: 0 !important;
   }
 
   html, body {
@@ -998,6 +998,10 @@ h6 {
     visibility: hidden !important;
   }
 
+  .no-print {
+    display: none !important;
+  }
+
   #printable-rx,
   #printable-rx * {
     visibility: visible !important;
@@ -1010,10 +1014,11 @@ h6 {
     right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 278mm !important;
-    min-height: 278mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
     box-sizing: border-box !important;
     border: none !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -1023,31 +1028,43 @@ h6 {
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
+    overflow: hidden !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  .prescription-paper {
+  .prescription-paper,
+  .child-rx-paper {
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
   }
 
-  /* Expand Rx area comfortably so it fills middle of A4 page freely */
-  #printable-rx div[style*="minHeight"],
-  #printable-rx div[style*="min-height"] {
-    min-height: 6.2in !important;
+  #printable-rx > div {
+    border-radius: 0 !important;
+  }
+
+  #printable-rx .rx-drawing-area {
+    min-height: 3.0in !important;
+    max-height: 6.0in !important;
     flex-grow: 1 !important;
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.3rem !important;
     border: none !important;
   }
 
-  #printable-rx img {
-    max-height: 5.8in !important;
+  #printable-rx .rx-drawing-area img {
+    max-height: 5.9in !important;
+    height: 100% !important;
     width: auto !important;
+    object-fit: contain !important;
   }
 }
 
