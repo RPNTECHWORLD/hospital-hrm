@@ -303,7 +303,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   return (
     <div className="fade-in">
       {!activePatient ? (
-        <div className="card" style={{ maxWidth: '850px', margin: '0 auto' }}>
+        <div className="card doctor-terminal-card" style={{ maxWidth: '850px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem' }}>
               <Clipboard size={20} style={{ color: 'var(--primary)' }} />
@@ -321,7 +321,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   Doctor Desk:
                 </label>
                 <select
-                  className="form-input"
+                  className="form-input doctor-desk-select"
                   value={doctorId}
                   onChange={(e) => setSelectedDoctorId(Number(e.target.value))}
                   style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem', minWidth: '180px', background: 'var(--bg-dark)', color: 'var(--primary)', fontWeight: 'bold' }}
@@ -341,7 +341,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               Pending Consultation Queue ({consultationQueue.length})
             </h4>
             {consultationQueue.length === 0 ? (
-              <div style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div className="empty-queue-box" style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
                 No pending consults.
               </div>
             ) : (
@@ -349,7 +349,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 {consultationQueue.map(p => (
                   <div 
                     key={p.id} 
-                    className="stat-card" 
+                    className="stat-card pending-queue-card" 
                     style={{ cursor: 'pointer', borderLeft: '4px solid var(--primary)', padding: '1rem 1.25rem' }}
                     onClick={() => handleSelectPatient(p)}
                   >
@@ -359,9 +359,9 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           {p.name}
                           {Number(p.specialInvestigation) === 1 && (
                             <span title="Special Investigation Required" style={{
-                              background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.2), rgba(234, 88, 12, 0.1))',
-                              color: '#ea580c',
-                              border: '1px solid rgba(234, 88, 12, 0.4)',
+                              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(139, 92, 246, 0.12))',
+                              color: '#a855f7',
+                              border: '1px solid rgba(168, 85, 247, 0.45)',
                               borderRadius: '6px',
                               fontSize: '0.65rem',
                               fontWeight: 700,
@@ -377,7 +377,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                             </span>
                           )}
                         </span>
-                        <span style={{ 
+                        <span className="token-badge" style={{ 
                           background: 'rgba(59, 130, 246, 0.15)', 
                           color: 'var(--primary)', 
                           fontWeight: 800, 
@@ -396,7 +396,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
-                          className="btn btn-secondary"
+                          className="btn btn-secondary btn-ward-action"
                           style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
                           onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
                           title="Admit to Ward Room"
@@ -404,7 +404,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           <Bed size={12} /> Ward
                         </button>
                       )}
-                      <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
+                      <button className="btn btn-primary btn-consult-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
                     </div>
                   </div>
                 ))}
@@ -417,7 +417,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               Follow-Up Review Queue ({reviewQueue.length})
             </h4>
             {reviewQueue.length === 0 ? (
-              <div style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div className="empty-queue-box" style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
                 No patients awaiting review.
               </div>
             ) : (
@@ -425,7 +425,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 {reviewQueue.map(p => (
                   <div 
                     key={p.id} 
-                    className="stat-card" 
+                    className="stat-card review-queue-card" 
                     style={{ cursor: 'pointer', borderLeft: '4px solid var(--warning)', padding: '1rem 1.25rem' }}
                     onClick={() => handleSelectPatient(p)}
                   >
@@ -438,7 +438,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
-                          className="btn btn-secondary"
+                          className="btn btn-secondary btn-ward-action"
                           style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
                           onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
                           title="Admit to Ward Room"
@@ -446,7 +446,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           <Bed size={12} /> Ward
                         </button>
                       )}
-                      <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
+                      <button className="btn btn-warning btn-review-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
                     </div>
                   </div>
                 ))}
@@ -565,6 +565,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button
                       type="button"
+                      className="quick-template-btn"
                       style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', background: '#ffffff', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
                       onClick={() => {
                         setDiagnosis('Acute Viral Fever & Upper Respiratory Tract Infection');
@@ -579,6 +580,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     </button>
                     <button
                       type="button"
+                      className="quick-template-btn"
                       style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', background: '#ffffff', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
                       onClick={() => {
                         setDiagnosis('Acute Gastritis & Acid Reflux');

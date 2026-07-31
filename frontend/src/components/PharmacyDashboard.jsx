@@ -72,7 +72,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
   return (
     <div className="fade-in">
       <div className="stats-grid">
-        <div className="stat-card">
+        <div className="stat-card pharmacy-stat-pending">
           <div className="stat-icon primary">
             <Pill size={24} />
           </div>
@@ -82,7 +82,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card pharmacy-stat-dispensed">
           <div className="stat-icon success">
             <Award size={24} />
           </div>
@@ -95,7 +95,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
 
       <div className="grid-2">
         {/* Prescription Inbox */}
-        <div className="card">
+        <div className="card pharmacy-inbox-card">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
             <Clock size={20} style={{ color: 'var(--primary)' }} />
             Prescription Inbox
@@ -112,7 +112,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                 return (
                   <div
                     key={p.id}
-                    className="stat-card"
+                    className="stat-card pharmacy-inbox-item"
                     style={{ cursor: 'pointer', borderLeft: '4px solid var(--info)', padding: '1rem 1.25rem' }}
                     onClick={() => handleSelectPatient(p)}
                   >
@@ -122,7 +122,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                         Prescribed by: {docName}
                       </div>
                     </div>
-                    <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                    <button className="btn btn-primary btn-pharmacy-dispense" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
                       Dispense
                     </button>
                   </div>
@@ -135,13 +135,13 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
         {/* Dispensing panel */}
         <div>
           {!activePatient ? (
-            <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
+            <div className="card pharmacy-preview-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
               <Pill size={64} style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', opacity: 0.5 }} />
               <h3>Dispense Medication</h3>
               <p style={{ marginTop: '0.5rem', maxWidth: '300px' }}>Select a patient from the inbox queue to manage their prescriptions.</p>
             </div>
           ) : (
-            <div className="card fade-in">
+            <div className="card pharmacy-preview-card fade-in">
               <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.5rem' }}>Dispensing: {activePatient.name}</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>

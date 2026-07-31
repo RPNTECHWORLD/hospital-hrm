@@ -49,7 +49,7 @@ const PrescriptionTemplate = ({ patient }) => {
       {/* ===== TOP HEADER: Clean Proportions ===== */}
       <div style={{ position: 'relative', width: '100%', minHeight: '148px', background: '#ffffff', borderBottom: '1px solid #f1f5f9' }}>
         {/* Top Header Arched Swoosh SVG */}
-        <svg viewBox="0 0 800 150" width="100%" height="180" preserveAspectRatio="none" style={{ position: 'absolute', top:'0', left:'0',zIndex: 1 }}>
+        <svg viewBox="0 0 800 150" width="100%" height="180" preserveAspectRatio="none" style={{ position: 'absolute', top: '0', left: '0', zIndex: 1 }}>
           <path d="M 0,0 L 450,0 Q 270,140 0,140 Z" fill="#008099" />
           <path d="M 0,132 Q 282,142 468,0 L 480,0 Q 295,152 0,140 Z" fill="#e11d48" />
         </svg>
@@ -65,9 +65,9 @@ const PrescriptionTemplate = ({ patient }) => {
               முழுமையான நலம் மகிழ்ச்சியான வாழ்க்கை
             </div>
             <div style={{ fontSize: '0.88rem', color: '#ffffff', marginTop: '0.4rem', lineHeight: '1.38', fontWeight: 700, letterSpacing: '0.01em' }}>
-              <div>DR. D. NANDHA M.B.B.S., F.C.P.S. (FCCP)</div>
-              <div>DR. SINDHUJA M.B.B.S., DNB (O'Well)</div>
-              <div>DR. N. ARAVINDRAJ M.B.B.S.</div>
+              <div>Rtn Dr. N. ANBU, M.B.B.S., FIDM, FCCM</div>
+              <div>Dr. SINDHUJA ANBU, M.B.B.S., DNB (Pediatrics)</div>
+              <div>DR. N. ARAVINDRAJ M.B.B.S.,</div>
             </div>
           </div>
 

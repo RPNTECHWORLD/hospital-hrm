@@ -722,7 +722,7 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Special Investigation Toggle */}
-                <div style={{ 
+                <div className={`special-investigation-box ${specialInvestigation ? 'active' : ''}`} style={{ 
                   margin: '0 0 1rem',
                   padding: '0.75rem 1rem',
                   borderRadius: '10px',
@@ -732,8 +732,8 @@ const ReceptionistDashboard = ({
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: specialInvestigation ? '#ea580c' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{
+                      <div className="special-investigation-title" style={{ fontWeight: 700, fontSize: '0.9rem', color: specialInvestigation ? '#ea580c' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className="special-investigation-icon" style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -753,6 +753,7 @@ const ReceptionistDashboard = ({
                     </div>
                     <button
                       type="button"
+                      className="special-investigation-toggle"
                       onClick={() => setSpecialInvestigation(!specialInvestigation)}
                       style={{
                         width: '48px',
@@ -1024,7 +1025,7 @@ const ReceptionistDashboard = ({
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span style={{
+                          <span className="token-badge-cell" style={{
                             background: 'rgba(16, 185, 129, 0.15)',
                             color: 'var(--success)',
                             fontWeight: 800,
@@ -1075,6 +1076,7 @@ const ReceptionistDashboard = ({
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span 
+                              className={`payment-status-badge ${(patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'paid' : 'unpaid'}`}
                               style={{ 
                                 cursor: 'pointer',
                                 padding: '0.25rem 0.5rem', 

@@ -339,22 +339,24 @@ const AdminPatientRecords = ({
             <table className="custom-table" style={{ minWidth: '1100px', width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Patient ID</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Patient ID</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                       <Calendar size={13} style={{ color: 'var(--primary)' }} /> Admit Date
                     </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Patient Info</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Mother / Guardian</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Contact Details</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Patient Info</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Mother / Guardian</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Contact Details</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
+                    </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Assigned Doctor</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Queue Status</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc' }}>Payment</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#f8fafc', textAlign: 'center' }}>Ward</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Assigned Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Queue Status</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Payment</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, textAlign: 'center' }}>Ward</th>
                 </tr>
               </thead>
               <tbody>
@@ -365,7 +367,11 @@ const AdminPatientRecords = ({
                     : p.status;
                   const statusBadgeClass = queueStatusText === 'Completed'
                     ? 'badge-success'
-                    : (queueStatusText === 'In Queue' ? 'badge-pending' : 'badge-info');
+                    : (queueStatusText === 'In Queue'
+                      ? 'badge-pending'
+                      : (queueStatusText === 'At Pharmacy' || queueStatusText === 'Pharmacy'
+                        ? 'badge-warning'
+                        : 'badge-info'));
 
                   return (
                     <tr
@@ -595,7 +601,7 @@ const AdminPatientRecords = ({
                   {/* Demographics card */}
                   <div style={{
                     background: '#ffffff',
-                    border: '1px solid var(--border)',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '10px',
                     padding: '1rem 1.25rem',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
@@ -604,11 +610,11 @@ const AdminPatientRecords = ({
                       Demographics & Relatives
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Age / Gender:</span>
                         <strong style={{ textTransform: 'capitalize' }}>{selectedPatient.age} Yrs • {selectedPatient.gender}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Father / Husband:</span>
                         <strong>{selectedPatient.fatherOrHusbandName || '--'}</strong>
                       </div>
@@ -631,22 +637,22 @@ const AdminPatientRecords = ({
                         }
                         return (
                           <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Mother's Name:</span>
                               <strong>{motherVal}</strong>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Guardian's Name:</span>
                               <strong>{guardianVal}</strong>
                             </div>
                           </>
                         );
                       })()}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Primary Contact:</span>
                         <strong>{selectedPatient.contact || '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Alternate Phone:</span>
                         <strong>{selectedPatient.alternatePhone || '--'}</strong>
                       </div>
@@ -660,7 +666,7 @@ const AdminPatientRecords = ({
                   {/* Vitals card */}
                   <div style={{
                     background: '#ffffff',
-                    border: '1px solid var(--border)',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '10px',
                     padding: '1rem 1.25rem',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
@@ -668,27 +674,27 @@ const AdminPatientRecords = ({
                     <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Checked Vitals Triage
                     </h4>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem', fontStyle: 'italic' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem', fontStyle: 'italic' }}>
                       Recorded on: {vitalsDate}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>BP / Heart Rate:</span>
                         <strong>{selectedPatient.bp || '--'} • {selectedPatient.hr || '--'} bpm</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Oxygen SPO2:</span>
                         <strong>{selectedPatient.spo2 ? `${selectedPatient.spo2}%` : '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Temperature:</span>
                         <strong>{selectedPatient.temp ? `${selectedPatient.temp} °F` : '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>GRBS Glucose:</span>
                         <strong>{selectedPatient.grbs || '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Height / Weight:</span>
                         <strong>{selectedPatient.height ? `${selectedPatient.height} cm` : '--'} / {selectedPatient.weight ? `${selectedPatient.weight} kg` : '--'}</strong>
                       </div>
@@ -738,8 +744,8 @@ const AdminPatientRecords = ({
                           key={index}
                           style={{
                             background: visit.date.includes('Current') ? 'rgba(245, 158, 11, 0.04)' : '#ffffff',
-                            border: '1px solid var(--border)',
-                            borderLeft: visit.date.includes('Current') ? '4px solid var(--warning)' : '1px solid var(--border)',
+                            border: '1.5px solid #cbd5e1',
+                            borderLeft: visit.date.includes('Current') ? '4px solid var(--warning)' : '1.5px solid #cbd5e1',
                             padding: '1rem',
                             borderRadius: '8px',
                             boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)'
@@ -753,7 +759,7 @@ const AdminPatientRecords = ({
                           <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             Diagnosis: <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{visit.diagnosis || 'None'}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #cbd5e1', paddingTop: '0.5rem' }}>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                               <span>Status: {visit.status}</span>
                               <span>Payment: {visit.paymentStatus}</span>

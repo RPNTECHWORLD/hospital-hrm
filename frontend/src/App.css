@@ -310,6 +310,25 @@ h6 {
 }
 
 .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 76, 92, 0.1);
+  color: var(--primary);
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.stat-icon.primary { background: rgba(21, 115, 136, 0.12); color: var(--primary); }
+.stat-icon.info { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
+.stat-icon.success { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.stat-icon.warning { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.stat-icon.danger { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+
+.stat-icon {
   width: 52px;
   height: 52px;
   border-radius: 12px;
@@ -1007,6 +1026,11 @@ h6 {
     visibility: visible !important;
   }
 
+  #printable-rx div[style*="position: absolute"],
+  #printable-rx [style*="position: absolute"] {
+    position: absolute !important;
+  }
+
   #printable-rx {
     position: absolute !important;
     left: 0 !important;
@@ -1035,6 +1059,51 @@ h6 {
     break-inside: avoid !important;
   }
 
+  #printable-rx > div:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Specific Print Override for Child Prescription Image Overlay */
+  #printable-rx.child-rx-paper {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    max-width: 210mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  #printable-rx.child-rx-paper .rx-bg-image {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: fill !important;
+    z-index: 1 !important;
+  }
+
+  #printable-rx.child-rx-paper .child-rx-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 5 !important;
+  }
+
+  #printable-rx.child-rx-paper .child-rx-overlay div {
+    position: absolute !important;
+  }
+
+
   .prescription-paper,
   .child-rx-paper {
     padding: 0 !important;
@@ -1052,6 +1121,22 @@ h6 {
     border-radius: 0 !important;
   }
 
+  #printable-rx .child-rx-badge {
+    position: absolute !important;
+    left: 40px !important;
+    top: 65px !important;
+    width: 165px !important;
+    height: 165px !important;
+    border-radius: 50% !important;
+    border: 6px solid #E53935 !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify: center !important;
+    overflow: hidden !important;
+    z-index: 10 !important;
+  }
+
   #printable-rx .rx-drawing-area {
     min-height: 3.0in !important;
     max-height: 6.0in !important;
@@ -1065,6 +1150,15 @@ h6 {
     height: 100% !important;
     width: auto !important;
     object-fit: contain !important;
+  }
+
+  #printable-rx .rx-bottom-photo-right {
+    position: absolute !important;
+    bottom: 105px !important;
+    right: 1.2rem !important;
+    left: auto !important;
+    z-index: 9999 !important;
+    display: flex !important;
   }
 }
 
@@ -1087,39 +1181,267 @@ h6 {
    UI / UX ENHANCEMENTS: Theme, Compact Density, Badges & Quick Search
    ========================================================================== */
 
-/* 🌗 Dark Theme Variables */
+/* 🌗 Comprehensive Ultra-Sleek & High-Contrast Dark Theme System */
 [data-theme="dark"] {
-  --bg-dark: #0b1320;
-  --bg-card: rgba(18, 28, 45, 0.85);
-  --bg-sidebar: #071926;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-focus: rgba(56, 189, 248, 0.5);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --bg-dark: #0b1329;
+  --bg-card: #111c30;
+  --bg-sidebar: #08111e;
+
+  --primary: #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.2);
+  --accent: #ff4d4d;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
+
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --border: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(56, 189, 248, 0.6);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.7);
 }
 
+[data-theme="dark"] body {
+  background-color: var(--bg-dark);
+  color: #f8fafc;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, rgba(20, 184, 166, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.08) 0px, transparent 50%);
+}
+
+/* Header & Typography High Contrast */
+[data-theme="dark"] .dashboard-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1rem;
+}
+
+[data-theme="dark"] .header-title {
+  font-size: 2.2rem !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #38bdf8 55%, #2dd4bf 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  letter-spacing: -0.03em !important;
+  filter: drop-shadow(0 2px 12px rgba(56, 189, 248, 0.35));
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .header-subtitle {
+  color: #cbd5e1 !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Sidebar & Nav Items */
+[data-theme="dark"] .sidebar {
+  background: var(--bg-sidebar) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .nav-item {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .nav-item.active {
+  background: linear-gradient(135deg, #0ea5e9, #0d9488) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.45) !important;
+}
+
+[data-theme="dark"] .nav-item.active svg {
+  color: #ffffff !important;
+}
+
+/* Cards & Stat Widgets */
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .mobile-header {
+  background: #111c30 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .stat-card h3,
+[data-theme="dark"] .stat-card .stat-value,
+[data-theme="dark"] .stat-card span,
+[data-theme="dark"] .stat-card div {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .stat-card p,
+[data-theme="dark"] .stat-card .stat-label {
+  color: #cbd5e1 !important;
+  font-weight: 500 !important;
+}
+
+/* Dark Mode Glowing Stat Icons */
+[data-theme="dark"] .stat-icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] .stat-icon.primary {
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3) !important;
+}
+
+[data-theme="dark"] .stat-icon.info {
+  background: rgba(14, 165, 233, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(14, 165, 233, 0.4) !important;
+  box-shadow: 0 0 16px rgba(14, 165, 233, 0.3) !important;
+}
+
+[data-theme="dark"] .stat-icon.success {
+  background: rgba(16, 185, 129, 0.22) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .stat-icon.warning {
+  background: rgba(245, 158, 11, 0.22) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .stat-icon.danger {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] .stat-icon svg {
+  stroke-width: 2.2px !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) !important;
+}
+
+/* Inputs, Selects & Textareas */
 [data-theme="dark"] .form-input,
-[data-theme="dark"] .card {
-  background: #111c2e;
-  color: #f1f5f9;
-  border-color: rgba(255, 255, 255, 0.12);
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] select::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3) !important;
+}
+
+/* Table Styling */
+[data-theme="dark"] .table-container {
+  background: #111c30 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .custom-table {
+  background: #111c30 !important;
 }
 
 [data-theme="dark"] .custom-table th {
-  background: rgba(255, 255, 255, 0.03);
-  color: #94a3b8;
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  font-weight: 700 !important;
 }
 
 [data-theme="dark"] .custom-table td {
-  color: #e2e8f0;
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-theme="dark"] .custom-table tr:hover td {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .table-container::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .table-container::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-color: #0f172a;
+}
+
+[data-theme="dark"] .table-container::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* 🌙 Dark Mode Popups & Overlay Audit Modals - Black Text for Maximum Clarity */
+[data-theme="dark"] div[style*="position: fixed"][style*="zIndex: 9999"],
+[data-theme="dark"] div[style*="position: fixed"][style*="zIndex: 10000"] {
+  background: rgba(15, 23, 42, 0.75) !important;
+}
+
+/* Ensure Popup Modal Container & All Text inside is Bold Dark Black/Charcoal */
+[data-theme="dark"] div[style*="position: fixed"] h3,
+[data-theme="dark"] div[style*="position: fixed"] h4,
+[data-theme="dark"] div[style*="position: fixed"] h5 {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] div[style*="position: fixed"] p,
+[data-theme="dark"] div[style*="position: fixed"] span,
+[data-theme="dark"] div[style*="position: fixed"] label,
+[data-theme="dark"] div[style*="position: fixed"] div {
+  color: #334155 !important;
+}
+
+[data-theme="dark"] div[style*="position: fixed"] strong,
+[data-theme="dark"] div[style*="position: fixed"] b {
+  color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] div[style*="position: fixed"] button,
+[data-theme="dark"] div[style*="position: fixed"] .btn {
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 
 /* 📐 Compact Density View */
@@ -1183,6 +1505,333 @@ h6 {
   background: rgba(239, 68, 68, 0.15);
   color: #dc2626;
   border: none;
+}
+
+/* Common Table & Queue Status Badges */
+.badge-info {
+  background: rgba(14, 165, 233, 0.15) !important;
+  color: #0284c7 !important;
+  border: 1px solid rgba(14, 165, 233, 0.25) !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+.badge-warning {
+  background: rgba(13, 148, 136, 0.15) !important;
+  color: #0d9488 !important;
+  border: 1px solid rgba(13, 148, 136, 0.25) !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+.badge-pending {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #d97706 !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+/* Dark Mode Glowing Badges */
+[data-theme="dark"] .badge-info {
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+[data-theme="dark"] .badge-warning {
+  background: rgba(45, 212, 191, 0.22) !important;
+  color: #2dd4bf !important;
+  border: 1px solid rgba(45, 212, 191, 0.4) !important;
+}
+
+[data-theme="dark"] .badge-pending {
+  background: rgba(251, 191, 36, 0.22) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+}
+
+[data-theme="dark"] .badge-success {
+  background: rgba(52, 211, 153, 0.22) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(52, 211, 153, 0.4) !important;
+}
+
+[data-theme="dark"] .badge-danger {
+  background: rgba(248, 113, 113, 0.22) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(248, 113, 113, 0.4) !important;
+}
+
+/* 🩺 Doctor Consultation Terminal Dark Theme Differentiations */
+[data-theme="dark"] .doctor-terminal-card {
+  background: #111c30 !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+  border-top: 4px solid #38bdf8 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="dark"] .doctor-terminal-card h3 {
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .doctor-desk-select {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+[data-theme="dark"] .pending-queue-card {
+  background: #16243d !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  border-left: 4px solid #38bdf8 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .pending-queue-card:hover {
+  background: #1a2d4d !important;
+  border-color: #38bdf8 !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .review-queue-card {
+  background: #251c33 !important;
+  border: 1px solid rgba(192, 132, 252, 0.3) !important;
+  border-left: 4px solid #fbbf24 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .review-queue-card:hover {
+  background: #2d223d !important;
+  border-color: #fbbf24 !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .token-badge {
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .btn-consult-action {
+  background: linear-gradient(135deg, #0ea5e9, #0d9488) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .btn-ward-action {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .btn-review-action {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .empty-queue-box {
+  background: #141f36 !important;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15) !important;
+  color: #94a3b8 !important;
+}
+
+/* 🔬 Special Investigation Active Box - Dark Mode Violet Glow Override */
+[data-theme="dark"] .special-investigation-box.active {
+  border-color: rgba(192, 132, 252, 0.6) !important;
+  background: rgba(192, 132, 252, 0.12) !important;
+  box-shadow: 0 0 18px rgba(192, 132, 252, 0.25) !important;
+}
+
+[data-theme="dark"] .special-investigation-box.active .special-investigation-title {
+  color: #c084fc !important;
+}
+
+[data-theme="dark"] .special-investigation-box.active .special-investigation-icon {
+  background: rgba(192, 132, 252, 0.22) !important;
+  color: #c084fc !important;
+  border-color: rgba(192, 132, 252, 0.45) !important;
+}
+
+[data-theme="dark"] .special-investigation-box.active .special-investigation-toggle {
+  background: linear-gradient(135deg, #c084fc, #a855f7) !important;
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.4) !important;
+}
+
+/* ⚡ Doctor Quick Action Template Buttons - Dark Mode Styling Fix */
+[data-theme="dark"] .quick-template-btn {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .quick-template-btn:hover {
+  background: #283852 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+}
+
+/* 💊 Pharmacy Dispatch Desk - Dark Mode Color Differentiations */
+[data-theme="dark"] .pharmacy-stat-pending {
+  background: #16263d !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  border-top: 3px solid #38bdf8 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .pharmacy-stat-dispensed {
+  background: #132c29 !important;
+  border: 1px solid rgba(52, 211, 153, 0.3) !important;
+  border-top: 3px solid #34d399 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .pharmacy-inbox-card {
+  background: #111c30 !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+  border-top: 4px solid #38bdf8 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .pharmacy-inbox-card h3 {
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .pharmacy-inbox-item {
+  background: #1a2942 !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+  border-left: 4px solid #38bdf8 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .pharmacy-inbox-item:hover {
+  background: #203352 !important;
+  border-color: #38bdf8 !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .btn-pharmacy-dispense {
+  background: linear-gradient(135deg, #0ea5e9, #0d9488) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .pharmacy-preview-card {
+  background: #141f36 !important;
+  border: 1px solid rgba(192, 132, 252, 0.25) !important;
+  border-top: 4px solid #c084fc !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .pharmacy-preview-card h3 {
+  color: #c084fc !important;
+}
+
+/* 🏷️ Receptionist Table Token, Queue Status & Payment Badges Dark Mode High-Contrast Overrides */
+[data-theme="dark"] .token-badge-cell {
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.55) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-pharmacy {
+  background: rgba(45, 212, 191, 0.22) !important;
+  color: #2dd4bf !important;
+  border: 1.5px solid rgba(45, 212, 191, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-completed {
+  background: rgba(52, 211, 153, 0.22) !important;
+  color: #34d399 !important;
+  border: 1.5px solid rgba(52, 211, 153, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-consulting {
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-pending {
+  background: rgba(251, 191, 36, 0.22) !important;
+  color: #fbbf24 !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-reviewing {
+  background: rgba(192, 132, 252, 0.22) !important;
+  color: #c084fc !important;
+  border: 1.5px solid rgba(192, 132, 252, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(192, 132, 252, 0.25) !important;
+}
+
+[data-theme="dark"] .badge-admitted {
+  background: rgba(248, 113, 113, 0.22) !important;
+  color: #f87171 !important;
+  border: 1.5px solid rgba(248, 113, 113, 0.55) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.25) !important;
+}
+
+[data-theme="dark"] .payment-status-badge.unpaid {
+  background: rgba(248, 113, 113, 0.25) !important;
+  color: #f87171 !important;
+  border: 1.5px solid rgba(248, 113, 113, 0.55) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.25) !important;
+}
+
+[data-theme="dark"] .payment-status-badge.paid {
+  background: rgba(52, 211, 153, 0.25) !important;
+  color: #34d399 !important;
+  border: 1.5px solid rgba(52, 211, 153, 0.55) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.25) !important;
 }
 
 @keyframes pulse-glow {

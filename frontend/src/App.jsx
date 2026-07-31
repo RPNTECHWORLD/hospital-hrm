@@ -789,8 +789,27 @@ function App() {
           </div>
           <span className="logo-text-mobile">Vijayas <span className="logo-sub">HMS</span></span>
         </div>
-        <div className="mobile-avatar" onClick={() => setIsSidebarOpen(true)}>
-          {user.name.charAt(0)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            className="theme-toggle-btn-mobile"
+            onClick={() => setThemeMode(prev => prev === 'dark' ? 'light' : 'dark')}
+            title="Toggle Theme"
+            aria-label="Toggle Dark Mode"
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.35rem 0.5rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {themeMode === 'dark' ? <Sun size={18} style={{ color: '#f59e0b' }} /> : <Moon size={18} style={{ color: '#6366f1' }} />}
+          </button>
+          <div className="mobile-avatar" onClick={() => setIsSidebarOpen(true)}>
+            {user.name.charAt(0)}
+          </div>
         </div>
       </div>
 
@@ -1010,6 +1029,26 @@ function App() {
 
           {/* Header Action Controls */}
           <div className="header-actions">
+            {/* Dark / Light Theme Toggle Button */}
+            <button
+              className="header-btn theme-toggle-btn"
+              onClick={() => setThemeMode(prev => prev === 'dark' ? 'light' : 'dark')}
+              title={themeMode === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+              aria-label="Toggle Theme Mode"
+            >
+              {themeMode === 'dark' ? (
+                <>
+                  <Sun size={15} style={{ color: '#f59e0b' }} />
+                  <span className="hide-mobile">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={15} style={{ color: '#6366f1' }} />
+                  <span className="hide-mobile">Dark</span>
+                </>
+              )}
+            </button>
+
             {/* Quick Search Button */}
             <button className="header-btn" onClick={() => setShowQuickSearch(true)} title="Quick Search Patients (Ctrl + K)">
               <Search size={15} />

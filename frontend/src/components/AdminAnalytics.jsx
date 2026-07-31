@@ -91,14 +91,26 @@ const HBar = ({ bars }) => {
 
 /* ── KPI Card ────────────────────────────────────────────────────── */
 const Kpi = ({ icon: Icon, value, label, sub, color, bg }) => (
-  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-    <div style={{ background: bg, color, width: 48, height: 48, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <Icon size={22} />
+  <div className="kpi-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', transition: 'all 0.3s ease' }}>
+    <div className="kpi-icon-box" style={{
+      background: bg,
+      color: color,
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: `0 4px 15px ${color}35`,
+      border: `1px solid ${color}55`
+    }}>
+      <Icon size={22} strokeWidth={2.2} />
     </div>
     <div>
       <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: 3 }}>{label}</div>
-      {sub && <div style={{ fontSize: '0.7rem', color, marginTop: 2, fontWeight: 600 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: '0.72rem', color, marginTop: 2, fontWeight: 600 }}>{sub}</div>}
     </div>
   </div>
 );
@@ -138,28 +150,38 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
   const genSeg   = Object.entries(genMap).map(([g, v]) => ({ label: g, value: v, color: GEN_CLR[g] || '#94a3b8' }));
 
   /* Age bars */
-  const ageBins  = { '0-12': 0, '13-17': 0, '18-30': 0, '31-50': 0, '51-70': 0, '70+': 0 };
-  const AGE_CLR  = { '0-12': '#f472b6', '13-17': '#a78bfa', '18-30': '#6366f1', '31-50': '#0ea5e9', '51-70': '#10b981', '70+': '#f59e0b' };
+  const ageMap = { '0-12': 0, '13-25': 0, '26-45': 0, '46-60': 0, '60+': 0 };
   patients.forEach(p => {
-    const a = parseInt(p.age) || 0;
-    if (a <= 12) ageBins['0-12']++;
-    else if (a <= 17) ageBins['13-17']++;
-    else if (a <= 30) ageBins['18-30']++;
-    else if (a <= 50) ageBins['31-50']++;
-    else if (a <= 70) ageBins['51-70']++;
-    else ageBins['70+']++;
+    const a = parseInt(p.age);
+    if (!a) return;
+    if (a <= 12) ageMap['0-12']++;
+    else if (a <= 25) ageMap['13-25']++;
+    else if (a <= 45) ageMap['26-45']++;
+    else if (a <= 60) ageMap['46-60']++;
+    else ageMap['60+']++;
   });
-  const ageBars = Object.entries(ageBins).map(([k, v]) => ({ label: k, value: v, color: AGE_CLR[k] }));
+  const AGE_COLORS = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f472b6'];
+  const ageBars = Object.entries(ageMap).map(([label, value], i) => ({
+    label,
+    value,
+    color: AGE_COLORS[i % AGE_COLORS.length]
+  }));
 
-  /* 7-day flow */
-  const DAY_CLR   = ['#6366f1', '#818cf8', '#a5b4fc', '#0ea5e9', '#38bdf8', '#10b981', '#f59e0b'];
-  const dailyBars = Array.from({ length: 7 }).map((_, i) => {
+  /* Daily flow bars (last 7 days) */
+  const last7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const str   = d.toLocaleDateString('en-GB');
-    const lbl   = d.toLocaleDateString('en-GB', { weekday: 'short' });
-    const count = patients.filter(p => p.registrationDate && new Date(p.registrationDate).toLocaleDateString('en-GB') === str).length;
-    return { label: lbl, value: count, color: DAY_CLR[i] };
+    return d;
+  });
+  const DAILY_COLORS = ['#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fbbf24', '#34d399', '#f87171'];
+  const dailyBars = last7.map((d, index) => {
+    const dateStr = d.toLocaleDateString('en-GB');
+    const count = patients.filter(p => p.registrationDate && new Date(p.registrationDate).toLocaleDateString('en-GB') === dateStr).length;
+    return {
+      label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: count,
+      color: DAILY_COLORS[index % DAILY_COLORS.length]
+    };
   });
 
   /* Doctor workload */
@@ -198,12 +220,12 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-        <Kpi icon={Users}       value={totalActive}        label="Total Patients"         sub={`${todayP.length} registered today`}  color="#6366f1" bg="rgba(99,102,241,0.12)" />
-        <Kpi icon={Activity}    value={activeP.length}     label="Currently Active"       sub="In care right now"                    color="#0ea5e9" bg="rgba(14,165,233,0.12)" />
-        <Kpi icon={CheckCircle} value={`${compRate}%`}     label="Completion Rate"        sub={`${completed.length} completed`}      color="#10b981" bg="rgba(16,185,129,0.12)" />
-        <Kpi icon={DollarSign}  value={paid.length}        label="Paid Consultations"     sub={`${unpaid.length} unpaid`}            color="#f59e0b" bg="rgba(245,158,11,0.12)" />
-        <Kpi icon={Stethoscope} value={doctors.length}     label="Active Doctors"         sub={`${staffList.length} other staff`}    color="#8b5cf6" bg="rgba(139,92,246,0.12)" />
-        <Kpi icon={TrendingUp}  value={todayP.length}      label="Today's Registrations"  sub={new Date().toLocaleDateString('en-GB', { weekday: 'long' })} color="#ec4899" bg="rgba(236,72,153,0.12)" />
+        <Kpi icon={Users}       value={totalActive}        label="Total Patients"         sub={`${todayP.length} registered today`}  color="#818cf8" bg="rgba(129, 140, 248, 0.18)" />
+        <Kpi icon={Activity}    value={activeP.length}     label="Currently Active"       sub="In care right now"                    color="#38bdf8" bg="rgba(56, 189, 248, 0.18)" />
+        <Kpi icon={CheckCircle} value={`${compRate}%`}     label="Completion Rate"        sub={`${completed.length} completed`}      color="#34d399" bg="rgba(52, 211, 153, 0.18)" />
+        <Kpi icon={DollarSign}  value={paid.length}        label="Paid Consultations"     sub={`${unpaid.length} unpaid`}            color="#fbbf24" bg="rgba(251, 191, 36, 0.18)" />
+        <Kpi icon={Stethoscope} value={doctors.length}     label="Active Doctors"         sub={`${staffList.length} other staff`}    color="#c084fc" bg="rgba(192, 132, 252, 0.18)" />
+        <Kpi icon={TrendingUp}  value={todayP.length}      label="Today's Registrations"  sub={new Date().toLocaleDateString('en-GB', { weekday: 'long' })} color="#f472b6" bg="rgba(244, 114, 182, 0.18)" />
       </div>
 
       {/* Charts Row 1 */}
