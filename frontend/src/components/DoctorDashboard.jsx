@@ -7,6 +7,194 @@ import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+const COMMON_MEDICINES = [
+  { name: 'Paracetamol 650mg (Dolo 650)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Paracetamol 500mg (Calpol)', dosage: '1-1-1 SOS', duration: 3 },
+  { name: 'Amoxicillin 500mg (Mox 500)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Augmentin 625mg (Amoxy + Clav)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Azithromycin 500mg (Azee 500)', dosage: '1-0-0 before food', duration: 3 },
+  { name: 'Pantoprazole 40mg (Pan 40)', dosage: '1-0-0 empty stomach', duration: 7 },
+  { name: 'Rabeprazole 20mg (Razo 20)', dosage: '1-0-0 empty stomach', duration: 7 },
+  { name: 'Omeprazole 20mg (Omez 20)', dosage: '1-0-0 empty stomach', duration: 7 },
+  { name: 'Cetirizine 10mg (Okacet / Cetzine)', dosage: '0-0-1 at bedtime', duration: 5 },
+  { name: 'Montair LC (Montelukast + Levo)', dosage: '0-0-1 at night', duration: 7 },
+  { name: 'Zerodol SP (Aceclofenac + Para)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Hifenac P (Aceclofenac + Para)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Meftal Spas (Dicyclomine + Mefenamic)', dosage: '1-0-1 SOS for pain', duration: 3 },
+  { name: 'Combiflam (Ibuprofen + Para)', dosage: '1-0-1 after food', duration: 3 },
+  { name: 'Voveran SR 100mg (Diclofenac)', dosage: '1-0-0 after food', duration: 3 },
+  { name: 'Oflomac OZ (Ofloxacin + Ornidazole)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Cifran 500mg (Ciprofloxacin)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Taxim O 200mg (Cefixime 200)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Flagyl 400mg (Metronidazole)', dosage: '1-0-1 after food', duration: 5 },
+  { name: 'Emset 4mg (Ondansetron)', dosage: '1-0-1 SOS for vomiting', duration: 3 },
+  { name: 'Vomistop 10mg (Domperidone)', dosage: '1-0-0 before food', duration: 5 },
+  { name: 'Glycomet 500mg (Metformin)', dosage: '1-0-1 after food', duration: 30 },
+  { name: 'Telma 40mg (Telmisartan)', dosage: '1-0-0 morning', duration: 30 },
+  { name: 'Amlong 5mg (Amlodipine)', dosage: '1-0-0 morning', duration: 30 },
+  { name: 'Atorva 10mg (Atorvastatin)', dosage: '0-0-1 at night', duration: 30 },
+  { name: 'Ecosprin 75mg (Aspirin)', dosage: '0-1-0 after lunch', duration: 30 },
+  { name: 'Deplatt 75mg (Clopidogrel)', dosage: '1-0-0 morning', duration: 30 },
+  { name: 'Becosules Capsules', dosage: '0-1-0 daily', duration: 10 },
+  { name: 'Neurobion Forte Tablet', dosage: '0-1-0 daily', duration: 10 },
+  { name: 'Shelcal 500 (Calcium + Vit D3)', dosage: '0-1-0 after food', duration: 30 },
+  { name: 'Zincovit Tablet', dosage: '0-1-0 daily', duration: 15 },
+  { name: 'Celin 500mg (Vitamin C)', dosage: '1-0-0 daily', duration: 10 },
+  { name: 'Benadryl Cough Syrup 100ml', dosage: '2 tsp (10ml) thrice daily', duration: 5 },
+  { name: 'Ascoril LS Syrup 100ml', dosage: '10ml thrice daily', duration: 5 },
+  { name: 'Corex DX Syrup 100ml', dosage: '5ml twice daily', duration: 5 },
+  { name: 'Sucrafil Suspension 200ml', dosage: '10ml before meals', duration: 7 },
+  { name: 'Inj. Ceftriaxone 1g IV', dosage: '1g IV Stat', duration: 1 },
+  { name: 'Inj. Pantoprazole 40mg IV', dosage: '40mg IV Stat', duration: 1 },
+  { name: 'Inj. Paracetamol 100ml IV', dosage: '100ml IV Infusion', duration: 1 },
+  { name: 'Inj. Ondansetron 4mg IV', dosage: '4mg IV Stat', duration: 1 },
+  { name: 'Inj. Tramadol 50mg IV/IM', dosage: '50mg IV Stat', duration: 1 },
+  { name: 'Inj. Hydrocortisone 100mg IV', dosage: '100mg IV Stat', duration: 1 }
+];
+
+const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = React.useRef(null);
+
+  const suggestions = React.useMemo(() => {
+    if (!med.name || med.name.trim().length < 1) return [];
+    const query = med.name.toLowerCase().trim();
+    return COMMON_MEDICINES.filter(m => 
+      m.name.toLowerCase().includes(query)
+    ).slice(0, 10);
+  }, [med.name]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectSuggestion = (selectedMed) => {
+    onChange(idx, {
+      name: selectedMed.name,
+      dosage: selectedMed.dosage || med.dosage || '',
+      duration: selectedMed.duration || med.duration || 5
+    });
+    setShowSuggestions(false);
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    const exactMatch = COMMON_MEDICINES.find(m => m.name.toLowerCase() === val.toLowerCase().trim());
+    if (exactMatch) {
+      onChange(idx, {
+        name: val,
+        dosage: exactMatch.dosage || med.dosage || '',
+        duration: exactMatch.duration || med.duration || 5
+      });
+    } else {
+      onChange(idx, 'name', val);
+    }
+    setShowSuggestions(true);
+  };
+
+  return (
+    <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative' }}>
+      <div ref={wrapperRef} style={{ position: 'relative' }}>
+        <input 
+          type="text" 
+          className="form-input" 
+          placeholder="Medicine Name (e.g. Paracetamol)"
+          value={med.name}
+          onChange={handleInputChange}
+          onFocus={() => {
+            if (med.name && med.name.trim().length > 0) {
+              setShowSuggestions(true);
+            }
+          }}
+          required
+          autoComplete="off"
+        />
+
+        {showSuggestions && suggestions.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            background: '#ffffff',
+            border: '1px solid var(--primary, #157388)',
+            borderRadius: '8px',
+            boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
+            zIndex: 99999,
+            maxHeight: '230px',
+            overflowY: 'auto'
+          }}>
+            {suggestions.map((s, sIdx) => (
+              <div
+                key={sIdx}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelectSuggestion(s);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelectSuggestion(s);
+                }}
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  cursor: 'pointer',
+                  borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                  fontSize: '0.85rem',
+                  background: '#ffffff',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+              >
+                <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <input 
+        type="text" 
+        className="form-input" 
+        placeholder="Dosage (e.g. 500mg - 1-0-1)"
+        value={med.dosage}
+        onChange={(e) => onChange(idx, 'dosage', e.target.value)}
+        required
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input 
+          type="number" 
+          className="form-input" 
+          style={{ paddingRight: '0.5rem' }}
+          value={med.duration}
+          onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
+          required
+        />
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
+      </div>
+
+      <button 
+        type="button" 
+        className="btn-logout" 
+        onClick={() => onRemove(idx)}
+        disabled={!canRemove}
+        style={{ margin: '0 auto' }}
+      >
+        <Trash2 size={18} />
+      </button>
+    </div>
+  );
+};
+
 const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -15,6 +203,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
   const [isHistoryPreview, setIsHistoryPreview] = useState(false);
+  const [padDesignMode, setPadDesignMode] = useState('auto');
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
@@ -227,14 +416,16 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     setMedicines(medicines.filter((_, i) => i !== idx));
   };
 
-  const handleMedicineChange = (idx, field, value) => {
-    const updated = medicines.map((med, i) => {
+  const handleMedicineChange = (idx, fieldOrObj, value) => {
+    setMedicines(prevMedicines => prevMedicines.map((med, i) => {
       if (i === idx) {
-        return { ...med, [field]: value };
+        if (typeof fieldOrObj === 'object') {
+          return { ...med, ...fieldOrObj };
+        }
+        return { ...med, [fieldOrObj]: value };
       }
       return med;
-    });
-    setMedicines(updated);
+    }));
   };
 
   const handlePrescriptionSubmit = (e) => {
@@ -645,20 +836,21 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
 
 
-                {(activePatient.height || activePatient.weight || activePatient.bp || activePatient.hr || activePatient.spo2 || activePatient.grbs || activePatient.temp) && (
+                {(activePatient.height || activePatient.weight || activePatient.bp || activePatient.hr || activePatient.spo2 || activePatient.grbs || activePatient.temp || activePatient.respiratoryRate || activePatient.painScale || activePatient.headCircumference || activePatient.avpu) && (
                   <div style={{ 
                     marginTop: '0.75rem', 
-                    padding: '0.75rem', 
+                    padding: '0.85rem', 
                     background: 'rgba(99, 102, 241, 0.04)', 
                     border: '1px solid rgba(99, 102, 241, 0.15)', 
                     borderRadius: '8px',
                     fontSize: '0.85rem', 
                     color: 'var(--text-secondary)'
                   }}>
-                    <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Receptionist Triage Vitals
+                    <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Latest Recorded Vitals / Triage</span>
+                      {activePatient.dob && <span style={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}>DOB: {activePatient.dob}</span>}
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem 1.5rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem 1.5rem' }}>
                       {activePatient.height && <div><strong>Height (Ht):</strong> {activePatient.height} cm</div>}
                       {activePatient.weight && <div><strong>Weight (Wt):</strong> {activePatient.weight} kg</div>}
                       {activePatient.bp && <div><strong>BP:</strong> {activePatient.bp}</div>}
@@ -666,6 +858,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       {activePatient.spo2 && <div><strong>SPO2:</strong> {activePatient.spo2}%</div>}
                       {activePatient.grbs && <div><strong>GRBS:</strong> {activePatient.grbs}</div>}
                       {activePatient.temp && <div><strong>Temp (TEMP):</strong> {activePatient.temp} °F</div>}
+                      {activePatient.respiratoryRate && <div><strong>Resp Rate (RR):</strong> {activePatient.respiratoryRate}</div>}
+                      {activePatient.painScale !== undefined && activePatient.painScale !== '' && <div><strong>Pain Scale:</strong> {activePatient.painScale}/10</div>}
+                      {activePatient.headCircumference && <div><strong>Head Cir.:</strong> {activePatient.headCircumference} cm</div>}
+                      {activePatient.avpu && <div><strong>Consciousness:</strong> {activePatient.avpu}</div>}
                       {activePatient.bmi && <div><strong>BMI:</strong> <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{activePatient.bmi}</span></div>}
                     </div>
                   </div>
@@ -1093,44 +1289,14 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       </div>
 
                       {medicines.map((med, idx) => (
-                        <div key={idx} className="medicine-row-grid">
-                          <input 
-                            type="text" 
-                            className="form-input" 
-                            placeholder="Medicine Name (e.g. Paracetamol)"
-                            value={med.name}
-                            onChange={(e) => handleMedicineChange(idx, 'name', e.target.value)}
-                            required
-                          />
-                          <input 
-                            type="text" 
-                            className="form-input" 
-                            placeholder="Dosage (e.g. 500mg - 1-0-1)"
-                            value={med.dosage}
-                            onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)}
-                            required
-                          />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <input 
-                              type="number" 
-                              className="form-input" 
-                              style={{ paddingRight: '0.5rem' }}
-                              value={med.duration}
-                              onChange={(e) => handleMedicineChange(idx, 'duration', parseInt(e.target.value))}
-                              required
-                            />
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
-                          </div>
-                          <button 
-                            type="button" 
-                            className="btn-logout" 
-                            onClick={() => handleRemoveMedicine(idx)}
-                            disabled={medicines.length === 1}
-                            style={{ margin: '0 auto' }}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                        <MedicineInputRow
+                          key={idx}
+                          med={med}
+                          idx={idx}
+                          onChange={handleMedicineChange}
+                          onRemove={handleRemoveMedicine}
+                          canRemove={medicines.length > 1}
+                        />
                       ))}
                     </div>
                   )}
@@ -1693,8 +1859,28 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   : "Please review the digital prescription details below. Clicking 'Send to Pharmacy' will record and dispatch this prescription."}
               </p>
 
-              {/* Official Prescription Paper (Adult vs Child Template) */}
-              {sharePatient?.patientCategory === 'child' || (sharePatient?.age && parseInt(sharePatient.age) <= 12) ? (
+              {/* Official Prescription Paper (Adult vs Child Template Switcher) */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Select Pad Design:</span>
+                <button
+                  type="button"
+                  className={`btn ${ (padDesignMode === 'adult' || (padDesignMode === 'auto' && !(sharePatient?.patientCategory === 'child' || (sharePatient?.age && parseInt(sharePatient.age) <= 12)))) ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem' }}
+                  onClick={() => setPadDesignMode('adult')}
+                >
+                  Standard Adult Pad
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${ (padDesignMode === 'child' || (padDesignMode === 'auto' && (sharePatient?.patientCategory === 'child' || (sharePatient?.age && parseInt(sharePatient.age) <= 12)))) ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem' }}
+                  onClick={() => setPadDesignMode('child')}
+                >
+                  Pediatric / Child Pad (Vijaya's)
+                </button>
+              </div>
+
+              {(padDesignMode === 'child' || (padDesignMode === 'auto' && (sharePatient?.patientCategory === 'child' || (sharePatient?.age && parseInt(sharePatient.age) <= 12)))) ? (
                 <ChildPrescriptionTemplate patient={sharePatient} />
               ) : (
                 <PrescriptionTemplate patient={sharePatient} />

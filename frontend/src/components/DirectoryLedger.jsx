@@ -13,10 +13,18 @@ const DirectoryLedger = () => {
   // Contact Form States
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Agency'); // 'Plumber', 'Agency', 'Town/Ooru', 'Other'
+  const [countryCode, setCountryCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [details, setDetails] = useState('');
   const [amount, setAmount] = useState('');
   const [formError, setFormError] = useState('');
+
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    if (val.length <= 10) {
+      setPhone(val);
+    }
+  };
 
   // Ledger Form States
   const [ledgerType, setLedgerType] = useState('Purchase'); // 'Sale', 'Purchase', 'Agency Payment', 'General Expense'
@@ -68,6 +76,12 @@ const DirectoryLedger = () => {
       return;
     }
 
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setFormError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/api/directory`, {
         method: 'POST',
@@ -75,7 +89,7 @@ const DirectoryLedger = () => {
         body: JSON.stringify({
           name,
           category,
-          phone,
+          phone: `${countryCode} ${cleanPhone}`,
           details,
           amount: parseFloat(amount) || 0
         })
@@ -84,6 +98,7 @@ const DirectoryLedger = () => {
       if (response.ok) {
         setName('');
         setPhone('');
+        setCountryCode('+91');
         setDetails('');
         setAmount('');
         fetchContacts();
@@ -273,7 +288,38 @@ const DirectoryLedger = () => {
 
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
-                <input type="text" className="form-input" placeholder="e.g. 9845012345" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select 
+                    className="form-input" 
+                    style={{ width: '80px', flexShrink: 0, fontWeight: 600, fontSize: '0.85rem', padding: '0.4rem 0.25rem' }}
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                  >
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+971">🇦🇪 +971</option>
+                    <option value="+966">🇸🇦 +966</option>
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+61">🇦🇺 +61</option>
+                    <option value="+94">🇱🇰 +94</option>
+                  </select>
+                  <input 
+                    type="tel" 
+                    className="form-input" 
+                    placeholder="10-digit number" 
+                    value={phone} 
+                    onChange={handlePhoneChange} 
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    required 
+                  />
+                </div>
+                {phone && phone.length > 0 && phone.length < 10 && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
+                    Must be exactly 10 digits ({phone.length}/10)
+                  </span>
+                )}
               </div>
 
               <div className="form-group">

@@ -117,7 +117,15 @@ const camelCaseMap = {
   childdeliverytype: 'childDeliveryType',
   childnicuhistory: 'childNicuHistory',
   specialinvestigation: 'specialInvestigation',
-  specialinvestigationnotes: 'specialInvestigationNotes'
+  specialinvestigationnotes: 'specialInvestigationNotes',
+  dob: 'dob',
+  respiratoryrate: 'respiratoryRate',
+  painscale: 'painScale',
+  headcircumference: 'headCircumference',
+  avpu: 'avpu',
+  pharmacystatus: 'pharmacyStatus',
+  injectionstatus: 'injectionStatus',
+  trackinghistory: 'trackingHistory'
 };
 
 const camelizeObject = (obj) => {
@@ -238,6 +246,14 @@ export const initDB = async () => {
   try { await dbRun(`ALTER TABLE patients ADD COLUMN childnicuhistory TEXT`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigation INTEGER DEFAULT 0`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigationnotes TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN dob TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN respiratoryrate TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN painscale TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN headcircumference TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN avpu TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN pharmacystatus TEXT DEFAULT 'N/A'`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN injectionstatus TEXT DEFAULT 'N/A'`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN trackinghistory TEXT`); } catch (e) { }
 
   // Create Patient History
   await dbRun(`
@@ -574,6 +590,14 @@ export const getPatients = async () => {
       childNicuHistory: pat.childNicuHistory || '',
       specialInvestigation: pat.specialInvestigation || 0,
       specialInvestigationNotes: pat.specialInvestigationNotes || '',
+      dob: pat.dob || '',
+      respiratoryRate: pat.respiratoryrate || pat.respiratoryRate || '',
+      painScale: pat.painscale || pat.painScale || '',
+      headCircumference: pat.headcircumference || pat.headCircumference || '',
+      avpu: pat.avpu || '',
+      pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
+      injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
+      trackingHistory: pat.trackinghistory || pat.trackingHistory ? (typeof pat.trackinghistory === 'string' ? JSON.parse(pat.trackinghistory) : (Array.isArray(pat.trackingHistory) ? pat.trackingHistory : [])) : [],
       history: history
     });
   }
@@ -641,6 +665,14 @@ export const getPatientById = async (id) => {
     childNicuHistory: pat.childNicuHistory || '',
     specialInvestigation: pat.specialInvestigation || 0,
     specialInvestigationNotes: pat.specialInvestigationNotes || '',
+    dob: pat.dob || '',
+    respiratoryRate: pat.respiratoryrate || pat.respiratoryRate || '',
+    painScale: pat.painscale || pat.painScale || '',
+    headCircumference: pat.headcircumference || pat.headCircumference || '',
+    avpu: pat.avpu || '',
+    pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
+    injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
+    trackingHistory: pat.trackinghistory || pat.trackingHistory ? (typeof pat.trackinghistory === 'string' ? JSON.parse(pat.trackinghistory) : (Array.isArray(pat.trackingHistory) ? pat.trackingHistory : [])) : [],
     history: history
   };
 };

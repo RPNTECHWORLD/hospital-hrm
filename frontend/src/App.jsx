@@ -124,6 +124,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Each tab always starts at 'admin' view — never persisted so tabs are fully independent
   const [adminActiveView, setAdminActiveView] = useState('admin');
+  const [currentStaffView, setCurrentStaffView] = useState('');
   const [tvMode, setTvMode] = useState(false);
 
   const [patients, setPatients] = useState([]);
@@ -579,20 +580,25 @@ function App() {
         setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
 
         if (injectionData) {
-          try {
-            await fetch(`${API_BASE}/api/injections`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                patientId: patientId,
-                injectionName: injectionData.name,
-                dosage: injectionData.dosage,
-                status: 'Pending Approval',
-                dateGiven: ''
-              })
-            });
-          } catch (err) {
-            console.error("Error saving injection:", err);
+          const list = Array.isArray(injectionData) ? injectionData : [injectionData];
+          for (const inj of list) {
+            if (inj && (inj.name || inj.injectionName)) {
+              try {
+                await fetch(`${API_BASE}/api/injections`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    patientId: patientId,
+                    injectionName: inj.name || inj.injectionName,
+                    dosage: inj.dosage || '',
+                    status: 'Pending Approval',
+                    dateGiven: ''
+                  })
+                });
+              } catch (err) {
+                console.error("Error saving injection:", err);
+              }
+            }
           }
         }
       }
@@ -657,7 +663,7 @@ function App() {
     );
   }
 
-  const activeView = user.role === 'admin' ? adminActiveView : user.role;
+  const activeView = user.role === 'admin' ? adminActiveView : (currentStaffView || user.role);
 
   // Dashboard Renderer based on current active view
   const renderDashboard = () => {
@@ -787,7 +793,7 @@ function App() {
           <div className="logo-icon" style={{ padding: '0.35rem', boxShadow: 'none' }}>
             <Stethoscope size={18} />
           </div>
-          <span className="logo-text-mobile">Vijayas <span className="logo-sub">HMS</span></span>
+          <span className="logo-text-mobile">Vijaya's <span className="logo-sub">Health Care</span></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
@@ -827,7 +833,7 @@ function App() {
             <Stethoscope size={24} />
           </div>
           <div>
-            <h1 className="logo-text">Vijayas <span className="logo-sub">HMS</span></h1>
+            <h1 className="logo-text">Vijaya's <span className="logo-sub">Health Care</span></h1>
           </div>
         </div>
 

@@ -77,14 +77,16 @@ const ChildPrescriptionTemplate = ({ patient }) => {
               pointerEvents: 'none'
             }}
           />
-        )}        {/* ===== 2. RECEPTIONIST DYNAMIC DETAILS OVERLAYER ===== */}
+        )}
+
+        {/* ===== 2. RECEPTIONIST DYNAMIC DETAILS OVERLAYER ===== */}
         <div className="child-rx-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 5, pointerEvents: 'none' }}>
           {/* --- ROW 1: DATE & PATIENT ID --- */}
           {/* Date */}
           <div style={{
             position: 'absolute',
-            top: '28.9%',
-            left: '14.8%',
+            top: '30.5%',
+            left: '13.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -98,8 +100,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Patient ID */}
           <div style={{
             position: 'absolute',
-            top: '28.9%',
-            left: '75.5%',
+            top: '30.5%',
+            left: '73.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -114,8 +116,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Patient Name */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
-            left: '18.5%',
+            top: '35.3%',
+            left: '16.0%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 900,
@@ -133,8 +135,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Age */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
-            left: '37.8%',
+            top: '35.3%',
+            left: '37.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -150,8 +152,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Gender */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
-            left: '51.2%',
+            top: '35.3%',
+            left: '50.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -168,7 +170,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Height (HT) */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
+            top: '35.3%',
             left: '61.2%',
             fontSize: '0.67rem',
             lineHeight: 1,
@@ -185,8 +187,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Weight (WT) */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
-            left: '71.2%',
+            top: '35.3%',
+            left: '71.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -202,7 +204,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Phone (Ph) */}
           <div style={{
             position: 'absolute',
-            top: '33.8%',
+            top: '35.3%',
             left: '81.8%',
             fontSize: '0.65rem',
             lineHeight: 1,
@@ -221,8 +223,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* BP */}
           <div style={{
             position: 'absolute',
-            top: '38.4%',
-            left: '9.5%',
+            top: '40.3%',
+            left: '7.8%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -235,8 +237,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* HR */}
           <div style={{
             position: 'absolute',
-            top: '38.4%',
-            left: '26.5%',
+            top: '40.3%',
+            left: '23.8%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -249,8 +251,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* SpO2 */}
           <div style={{
             position: 'absolute',
-            top: '38.4%',
-            left: '43.5%',
+            top: '40.3%',
+            left: '40.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -263,8 +265,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* GRBS / Sugar */}
           <div style={{
             position: 'absolute',
-            top: '38.4%',
-            left: '67.0%',
+            top: '40.3%',
+            left: '64.0%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -277,8 +279,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* TEMP */}
           <div style={{
             position: 'absolute',
-            top: '38.4%',
-            left: '84.8%',
+            top: '40.3%',
+            left: '83.2%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
@@ -292,20 +294,30 @@ const ChildPrescriptionTemplate = ({ patient }) => {
         {/* ===== 3. MAIN PRESCRIPTION CONTENT AREA (Medicines Table / Canvas Drawing) ===== */}
         <div style={{
           position: 'absolute',
-          top: '49.0%',
-          left: '5.0%',
-          right: '5.0%',
-          bottom: '14.0%',
+          top: '44.8%',
+          left: '11.5%',
+          right: '4.5%',
+          bottom: '20.0%',
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          overflow: 'hidden'
         }}>
           {patient.prescriptionImg ? (
             <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <img
                 src={patient.prescriptionImg}
-                style={{ width: '100%', height: '100%', maxHeight: '100%', objectFit: 'contain', border: 'none', background: '#ffffff', borderRadius: '6px' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  border: 'none',
+                  background: 'transparent',
+                  mixBlendMode: 'multiply',
+                  filter: 'contrast(1.15)'
+                }}
                 alt="Prescription Sheet"
               />
             </div>
@@ -340,5 +352,3 @@ const ChildPrescriptionTemplate = ({ patient }) => {
 };
 
 export default ChildPrescriptionTemplate;
-
-

@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { Stethoscope, User, Lock, Activity, ShieldAlert } from 'lucide-react';
+import { 
+  Stethoscope, 
+  User, 
+  Lock, 
+  ShieldAlert, 
+  Mail, 
+  Eye, 
+  EyeOff, 
+  UserCheck, 
+  Building2, 
+  Pill, 
+  Bed, 
+  Syringe, 
+  Microscope,
+  ArrowRight
+} from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -7,8 +22,21 @@ const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('receptionist');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const quickRoles = [
+    { role: 'admin', email: 'admin@vijayas.com', label: 'Admin', icon: Building2, color: '#4f46e5', bg: 'rgba(79, 70, 229, 0.1)', desc: 'All Modules' },
+    { role: 'receptionist', email: 'receptionist@vijayas.com', label: 'Reception', icon: UserCheck, color: '#0284c7', bg: 'rgba(2, 132, 199, 0.1)', desc: 'Registration' },
+    { role: 'doctor', email: 'doctor1@vijayas.com', label: 'Dr. Vijayan', icon: Stethoscope, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)', desc: 'OPD Doctor' },
+    { role: 'doctor', email: 'doctor2@vijayas.com', label: 'Dr. Sarah', icon: Stethoscope, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', desc: 'Pediatrics' },
+    { role: 'pharmacy', email: 'pharmacy1@vijayas.com', label: 'Pharmacy 1', icon: Pill, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', desc: 'Meds & Stock' },
+    { role: 'pharmacy', email: 'pharmacy2@vijayas.com', label: 'Pharmacy 2', icon: Pill, color: '#a855f7', bg: 'rgba(168, 85, 247, 0.1)', desc: 'Billing' },
+    { role: 'ward', email: 'ward@vijayas.com', label: 'Ward Staff', icon: Bed, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', desc: 'Bed Admission' },
+    { role: 'injection', email: 'injection@vijayas.com', label: 'Injection Desk', icon: Syringe, color: '#d97706', bg: 'rgba(217, 119, 6, 0.1)', desc: 'Nurse Station' },
+    { role: 'lab', email: 'lab@vijayas.com', label: 'Lab Staff', icon: Microscope, color: '#0d9488', bg: 'rgba(13, 148, 136, 0.1)', desc: 'Investigations' },
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +66,11 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  const handleQuickLogin = async (selectedRole, defaultEmail, customName) => {
+  const handleQuickLogin = async (selectedRole, defaultEmail) => {
+    setRole(selectedRole);
+    setEmail(defaultEmail);
+    setPassword('password123');
+    
     setError('');
     setLoading(true);
     try {
@@ -68,190 +100,184 @@ const Login = ({ onLogin }) => {
 
   return (
     <div className="login-container">
-      <div className="card login-card fade-in">
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div className="logo-icon" style={{ display: 'inline-flex', marginBottom: '1rem', padding: '0.75rem' }}>
-            <Stethoscope size={32} />
-          </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
-            eDoc <span className="logo-sub">HMS</span>
-          </h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Hospital Management System</p>
-        </div>
+      {/* Dynamic Ambient Glow Effects */}
+      <div className="login-glow-bg login-glow-1"></div>
+      <div className="login-glow-bg login-glow-2"></div>
 
-        {error && (
-          <div style={{
-            background: 'rgba(227, 30, 36, 0.08)',
-            border: '1px solid rgba(227, 30, 36, 0.2)',
-            color: 'var(--accent)',
-            padding: '0.75rem 1rem',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.9rem',
-            textAlign: 'left'
-          }}>
-            <ShieldAlert size={18} style={{ flexShrink: 0 }} />
-            <span>{error}</span>
+      <div className="login-wrapper fade-in">
+        {/* Single Centered Login Card */}
+        <div className="login-card">
+          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+            <div style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '54px', 
+              height: '54px', 
+              borderRadius: '16px', 
+              background: 'linear-gradient(135deg, #e31e24 0%, #b91c1c 100%)',
+              color: '#ffffff',
+              boxShadow: '0 8px 20px rgba(227, 30, 36, 0.35)',
+              marginBottom: '0.85rem'
+            }}>
+              <Stethoscope size={30} />
+            </div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
+              VIJAYA'S <span style={{ color: '#e31e24' }}>HEALTH CARE</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '0.25rem' }}>
+              Hospital Management System Portal
+            </p>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Select Role</label>
-            <select 
-              className="form-input" 
-              value={role} 
-              onChange={(e) => setRole(e.target.value)}
+          {error && (
+            <div style={{
+              background: 'rgba(227, 30, 36, 0.08)',
+              border: '1px solid rgba(227, 30, 36, 0.25)',
+              color: 'var(--accent)',
+              padding: '0.75rem 1rem',
+              borderRadius: '12px',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              fontSize: '0.88rem',
+              textAlign: 'left'
+            }}>
+              <ShieldAlert size={18} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Select Role</label>
+              <div className="login-input-group">
+                <UserCheck className="login-input-icon" size={18} />
+                <select 
+                  className="form-input login-input-with-icon" 
+                  value={role} 
+                  onChange={(e) => setRole(e.target.value)}
+                  disabled={loading}
+                  style={{ fontWeight: 600 }}
+                >
+                  <option value="receptionist">Receptionist</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="pharmacy">Pharmacy Staff</option>
+                  <option value="ward">Ward Room Staff</option>
+                  <option value="injection">Injection Room Staff</option>
+                  <option value="lab">Lab / Investigation Staff</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Email Address</label>
+              <div className="login-input-group">
+                <Mail className="login-input-icon" size={18} />
+                <input 
+                  type="email" 
+                  className="form-input login-input-with-icon" 
+                  placeholder="Enter email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Password</label>
+              <div className="login-input-group">
+                <Lock className="login-input-icon" size={18} />
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  className="form-input login-input-with-icon" 
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  style={{ paddingRight: '2.75rem' }}
+                />
+                <button 
+                  type="button" 
+                  className="login-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ 
+                width: '100%', 
+                padding: '0.85rem', 
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 6px 16px rgba(227, 30, 36, 0.25)'
+              }}
               disabled={loading}
             >
-              <option value="receptionist">Receptionist</option>
-              <option value="doctor">Doctor</option>
-              <option value="pharmacy">Pharmacy Staff</option>
-              <option value="ward">Ward Room Staff</option>
-              <option value="injection">Injection Room Staff</option>
-              <option value="lab">Lab / Investigation Staff</option>
-              <option value="admin">Administrator</option>
-            </select>
+              {loading ? 'Authenticating...' : <>Sign In to Portal <ArrowRight size={18} /></>}
+            </button>
+          </form>
+
+          {/* Quick Demo Access Divider */}
+          <div style={{ margin: '1.5rem 0 0.85rem 0', textAlign: 'center', position: 'relative' }}>
+            <span style={{ 
+              background: 'rgba(255, 255, 255, 0.85)', 
+              padding: '0 0.75rem', 
+              fontSize: '0.72rem', 
+              fontWeight: 700,
+              color: '#64748b',
+              letterSpacing: '0.5px',
+              zIndex: 1,
+              position: 'relative'
+            }}>
+              ONE-TAP QUICK DEMO LOGIN
+            </span>
+            <div style={{ 
+              position: 'absolute', 
+              top: '50%', 
+              left: 0, 
+              right: 0, 
+              height: '1px', 
+              background: '#e2e8f0', 
+              zIndex: 0 
+            }}/>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="email" 
-                className="form-input" 
-                placeholder="Enter email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
+          <div className="quick-login-grid">
+            {quickRoles.map((item, idx) => {
+              const IconComp = item.icon;
+              return (
+                <button 
+                  key={idx}
+                  type="button"
+                  className="quick-login-btn"
+                  onClick={() => handleQuickLogin(item.role, item.email)}
+                >
+                  <div className="quick-login-icon-badge" style={{ background: item.bg, color: item.color }}>
+                    <IconComp size={16} />
+                  </div>
+                  <div className="quick-login-role" style={{ color: item.color }}>{item.label}</div>
+                  <div className="quick-login-desc">{item.desc}</div>
+                </button>
+              );
+            })}
           </div>
-
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input 
-              type="password" 
-              className="form-input" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            style={{ width: '100%', marginTop: '1rem' }}
-            disabled={loading}
-          >
-            {loading ? 'Sign In...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div style={{ margin: '2rem 0 1rem 0', textAlign: 'center', position: 'relative' }}>
-          <span style={{ 
-            background: 'var(--bg-dark)', 
-            padding: '0 0.75rem', 
-            fontSize: '0.8rem', 
-            color: 'var(--text-muted)',
-            zIndex: 1,
-            position: 'relative'
-          }}>
-            OR QUICK TEST LOGIN
-          </span>
-          <div style={{ 
-            position: 'absolute', 
-            top: '50%', 
-            left: 0, 
-            right: 0, 
-            height: '1px', 
-            background: 'var(--border)', 
-            zIndex: 0 
-          }}/>
-        </div>
-
-        <div className="quick-login-grid">
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('admin', 'admin@vijayas.com', 'System Admin')}
-            style={{ borderColor: 'var(--primary)', background: 'rgba(99, 102, 241, 0.05)' }}
-          >
-            <div className="quick-login-role" style={{ color: 'var(--primary)' }}>Admin</div>
-            <div className="quick-login-desc">All Modules</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('receptionist', 'receptionist@vijayas.com', 'Receptionist')}
-          >
-            <div className="quick-login-role">Receptionist</div>
-            <div className="quick-login-desc">1 User</div>
-          </button>
-          
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('doctor', 'doctor1@vijayas.com', 'Dr. Vijayan')}
-          >
-            <div className="quick-login-role">Dr. Vijayan</div>
-            <div className="quick-login-desc">Doctor 1</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('doctor', 'doctor2@vijayas.com', 'Dr. Sarah')}
-          >
-            <div className="quick-login-role">Dr. Sarah</div>
-            <div className="quick-login-desc">Doctor 2</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('pharmacy', 'pharmacy1@vijayas.com', 'Pharmacy Staff 1')}
-          >
-            <div className="quick-login-role">Pharmacy 1</div>
-            <div className="quick-login-desc">Staff User</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('pharmacy', 'pharmacy2@vijayas.com', 'Pharmacy Staff 2')}
-          >
-            <div className="quick-login-role">Pharmacy 2</div>
-            <div className="quick-login-desc">Staff User</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('ward', 'ward@vijayas.com', 'Ward Staff')}
-          >
-            <div className="quick-login-role">Ward Staff</div>
-            <div className="quick-login-desc">1 User</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('injection', 'injection@vijayas.com', 'Injection Staff')}
-            style={{ borderColor: '#f59e0b', background: 'rgba(245,158,11,0.06)' }}
-          >
-            <div className="quick-login-role" style={{ color: '#f59e0b' }}>Injection Desk</div>
-            <div className="quick-login-desc">Nurse / Staff</div>
-          </button>
-
-          <button 
-            className="quick-login-btn"
-            onClick={() => handleQuickLogin('lab', 'lab@vijayas.com', 'Lab Staff')}
-            style={{ borderColor: '#10b981', background: 'rgba(16,185,129,0.06)' }}
-          >
-            <div className="quick-login-role" style={{ color: '#10b981' }}>Lab Staff</div>
-            <div className="quick-login-desc">Investigation</div>
-          </button>
         </div>
       </div>
     </div>

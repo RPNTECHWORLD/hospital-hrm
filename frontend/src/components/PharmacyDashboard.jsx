@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
@@ -19,14 +19,34 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
 
   // Injection states
   const [requiresInjection, setRequiresInjection] = useState(false);
-  const [injectionName, setInjectionName] = useState('Inj. Ceftriaxone');
-  const [injectionDosage, setInjectionDosage] = useState('1.5g IV');
+  const [injections, setInjections] = useState([
+    { name: 'Inj. Ceftriaxone', dosage: '1.5g IV' }
+  ]);
 
   React.useEffect(() => {
     setRequiresInjection(false);
-    setInjectionName('Inj. Ceftriaxone');
-    setInjectionDosage('1.5g IV');
+    setInjections([
+      { name: 'Inj. Ceftriaxone', dosage: '1.5g IV' }
+    ]);
   }, [activePatient]);
+
+  const handleAddInjectionRow = () => {
+    setInjections([...injections, { name: '', dosage: '' }]);
+  };
+
+  const handleRemoveInjectionRow = (index) => {
+    if (injections.length === 1) {
+      setInjections([{ name: '', dosage: '' }]);
+    } else {
+      setInjections(injections.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleInjectionChange = (index, field, value) => {
+    const updated = [...injections];
+    updated[index][field] = value;
+    setInjections(updated);
+  };
 
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const pendingPrescriptions = patients.filter(p => 
@@ -60,12 +80,11 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
       ? 'Full Duration'
       : `Partial Duration (${partialDays} Days)`;
 
-    const injectionData = requiresInjection ? {
-      name: injectionName,
-      dosage: injectionDosage
-    } : null;
+    const validInjections = requiresInjection 
+      ? injections.filter(inj => inj.name.trim()) 
+      : null;
 
-    onIssueMedication(activePatient.id, issuedString, injectionData);
+    onIssueMedication(activePatient.id, issuedString, validInjections);
     setActivePatient(null);
   };
 
@@ -379,28 +398,68 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                   </label>
 
                   {requiresInjection && (
-                    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                      <div>
-                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Injection Name</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="e.g. Inj. Ceftriaxone"
-                          value={injectionName}
-                          onChange={(e) => setInjectionName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Dosage / Frequency</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="e.g. 1.5g IV Stat"
-                          value={injectionDosage}
-                          onChange={(e) => setInjectionDosage(e.target.value)}
-                          required
-                        />
+                    <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {injections.map((inj, index) => (
+                        <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'flex-end', background: '#ffffff', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                              Injection Name {injections.length > 1 ? `#${index + 1}` : ''}
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. Inj. Ceftriaxone"
+                              value={inj.name}
+                              onChange={(e) => handleInjectionChange(index, 'name', e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Dosage / Frequency</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. 1.5g IV Stat"
+                              value={inj.dosage}
+                              onChange={(e) => handleInjectionChange(index, 'dosage', e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div>
+                            {injections.length > 1 && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => handleRemoveInjectionRow(index)}
+                                style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '0.5rem', height: '40px' }}
+                                title="Remove Injection"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.25rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={handleAddInjectionRow}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.85rem',
+                            padding: '0.4rem 0.85rem',
+                            borderColor: 'var(--primary)',
+                            color: 'var(--primary)',
+                            background: 'rgba(21, 115, 136, 0.05)',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Plus size={16} /> Add Another Injection
+                        </button>
                       </div>
                     </div>
                   )}

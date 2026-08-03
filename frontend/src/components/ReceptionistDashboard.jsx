@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope } from 'lucide-react';
 
-const ReceptionistDashboard = ({ 
-  patients, 
-  doctors, 
-  onRegisterPatient, 
-  onUpdatePaymentStatus, 
+const ReceptionistDashboard = ({
+  patients,
+  doctors,
+  onRegisterPatient,
+  onUpdatePaymentStatus,
   onReRegisterPatient,
   isAdmin = false,
   onDeletePatient,
@@ -14,11 +14,130 @@ const ReceptionistDashboard = ({
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('Male');
+  const [countryCode, setCountryCode] = useState('+91');
   const [contact, setContact] = useState('');
   const [fatherOrHusbandName, setFatherOrHusbandName] = useState('');
   const [motherName, setMotherName] = useState('');
   const [guardianName, setGuardianName] = useState('');
+  const [altCountryCode, setAltCountryCode] = useState('+91');
   const [alternatePhone, setAlternatePhone] = useState('');
+  const [dob, setDob] = useState('');
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [returningPatientId, setReturningPatientId] = useState(null);
+
+  const handleSelectReturningPatient = (p) => {
+    setReturningPatientId(p.id);
+    setName(p.name || '');
+    setFatherOrHusbandName(p.fatherOrHusbandName || '');
+    
+    let mName = '';
+    let gName = '';
+    if (p.motherOrGuardianName) {
+      if (p.motherOrGuardianName.includes(' | Guardian: ')) {
+        const parts = p.motherOrGuardianName.split(' | Guardian: ');
+        mName = parts[0].replace('Mother: ', '');
+        gName = parts[1];
+      } else if (p.motherOrGuardianName.startsWith('Mother: ')) {
+        mName = p.motherOrGuardianName.replace('Mother: ', '');
+      } else if (p.motherOrGuardianName.startsWith('Guardian: ')) {
+        gName = p.motherOrGuardianName.replace('Guardian: ', '');
+      } else {
+        mName = p.motherOrGuardianName;
+      }
+    }
+    setMotherName(mName);
+    setGuardianName(gName);
+
+    setDob(p.dob || '');
+    setAge(p.age !== undefined && p.age !== null ? String(p.age) : '');
+    setGender(p.gender || 'Male');
+
+    if (p.contact) {
+      const parts = p.contact.trim().split(' ');
+      if (parts.length > 1 && parts[0].startsWith('+')) {
+        setCountryCode(parts[0]);
+        setContact(parts.slice(1).join('').replace(/\D/g, ''));
+      } else {
+        setContact(p.contact.replace(/\D/g, ''));
+      }
+    }
+
+    if (p.alternatePhone) {
+      const altParts = p.alternatePhone.trim().split(' ');
+      if (altParts.length > 1 && altParts[0].startsWith('+')) {
+        setAltCountryCode(altParts[0]);
+        setAlternatePhone(altParts.slice(1).join('').replace(/\D/g, ''));
+      } else {
+        setAlternatePhone(p.alternatePhone.replace(/\D/g, ''));
+      }
+    } else {
+      setAlternatePhone('');
+    }
+
+    if (p.address) {
+      const addrParts = p.address.split(' | ');
+      setStreet(addrParts[0] || '');
+      setCity(addrParts[1] || '');
+      setPincode(addrParts[2] || '');
+    } else {
+      setStreet('');
+      setCity('');
+      setPincode('');
+    }
+
+    if (p.assignedDoctorId) {
+      setAssignedDoctorId(String(p.assignedDoctorId));
+    }
+
+    // CLEAR ALL VITALS FOR TODAY'S NEW VISIT
+    setHeight('');
+    setWeight('');
+    setBp('');
+    setHr('');
+    setSpo2('');
+    setGrbs('');
+    setTemp('');
+    setRespiratoryRate('');
+    setPainScale('');
+    setHeadCircumference('');
+    setAvpu('Alert');
+    setBmi('');
+    setFormSubmitted(false);
+
+    setReceptionistTab(p.isChild ? 'child' : 'new');
+  };
+
+  const calculateAgeFromDob = (dobString) => {
+    if (!dobString) return '';
+    const birthDate = new Date(dobString);
+    if (isNaN(birthDate.getTime())) return '';
+    const today = new Date();
+    let ageYears = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      ageYears--;
+    }
+    if (ageYears < 1) {
+      let ageMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+      if (today.getDate() < birthDate.getDate()) ageMonths--;
+      return ageMonths > 0 ? `${ageMonths} Months` : '0 Yrs';
+    }
+    return `${ageYears}`;
+  };
+
+  const handleContactChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    if (val.length <= 10) {
+      setContact(val);
+    }
+  };
+
+  const handleAlternatePhoneChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    if (val.length <= 10) {
+      setAlternatePhone(val);
+    }
+  };
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
@@ -53,7 +172,7 @@ const ReceptionistDashboard = ({
   const openPaymentModal = (patient) => {
     setPaymentModalPatient(patient);
     setPaymentMethod(patient.paymentStatus && patient.paymentStatus.startsWith('Paid') ? patient.paymentStatus : 'Paid - Cash');
-    
+
     let breakdown = {
       doctor: { checked: true, amount: 100 },
       procedure: { checked: true, amount: 200 },
@@ -96,20 +215,20 @@ const ReceptionistDashboard = ({
     setFeeEcg(breakdown.ecg ? breakdown.ecg.amount : 150);
     setFeeNurseChecked(breakdown.nurse ? breakdown.nurse.checked : true);
     setFeeNurse(breakdown.nurse ? breakdown.nurse.amount : 50);
-    
+
     setCustomPaidAmount(patient.paidAmount !== undefined && patient.paidAmount > 0 ? String(patient.paidAmount) : '');
   };
 
   const calculatedTotal = (feeDoctorChecked ? parseFloat(feeDoctor || 0) : 0) +
-                          (feeProcedureChecked ? parseFloat(feeProcedure || 0) : 0) +
-                          (feeLabChecked ? parseFloat(feeLab || 0) : 0) +
-                          (feeWardChecked ? parseFloat(feeWard || 0) : 0) +
-                          (feeO2Checked ? parseFloat(feeO2 || 0) : 0) +
-                          (feeGrbsChecked ? parseFloat(feeGrbs || 0) : 0) +
-                          (feeDressingChecked ? parseFloat(feeDressing || 0) : 0) +
-                          (feeNebuliserChecked ? parseFloat(feeNebuliser || 0) : 0) +
-                          (feeEcgChecked ? parseFloat(feeEcg || 0) : 0) +
-                          (feeNurseChecked ? parseFloat(feeNurse || 0) : 0);
+    (feeProcedureChecked ? parseFloat(feeProcedure || 0) : 0) +
+    (feeLabChecked ? parseFloat(feeLab || 0) : 0) +
+    (feeWardChecked ? parseFloat(feeWard || 0) : 0) +
+    (feeO2Checked ? parseFloat(feeO2 || 0) : 0) +
+    (feeGrbsChecked ? parseFloat(feeGrbs || 0) : 0) +
+    (feeDressingChecked ? parseFloat(feeDressing || 0) : 0) +
+    (feeNebuliserChecked ? parseFloat(feeNebuliser || 0) : 0) +
+    (feeEcgChecked ? parseFloat(feeEcg || 0) : 0) +
+    (feeNurseChecked ? parseFloat(feeNurse || 0) : 0);
 
   // Automatically update the paid amount field when checkboxes change, unless they manually override
   React.useEffect(() => {
@@ -133,9 +252,9 @@ const ReceptionistDashboard = ({
       nurse: { checked: feeNurseChecked, amount: parseFloat(feeNurse || 0) }
     };
     onUpdatePaymentStatus(
-      paymentModalPatient.id, 
-      paymentMethod, 
-      finalAmount, 
+      paymentModalPatient.id,
+      paymentMethod,
+      finalAmount,
       JSON.stringify(breakdown)
     );
     setPaymentModalPatient(null);
@@ -149,6 +268,10 @@ const ReceptionistDashboard = ({
   const [spo2, setSpo2] = useState('');
   const [grbs, setGrbs] = useState('');
   const [temp, setTemp] = useState('');
+  const [respiratoryRate, setRespiratoryRate] = useState('');
+  const [painScale, setPainScale] = useState('');
+  const [headCircumference, setHeadCircumference] = useState('');
+  const [avpu, setAvpu] = useState('Alert');
   const [bmi, setBmi] = useState('');
 
   React.useEffect(() => {
@@ -184,14 +307,57 @@ const ReceptionistDashboard = ({
   const [specialInvestigation, setSpecialInvestigation] = useState(false);
   const [specialInvestigationNotes, setSpecialInvestigationNotes] = useState('');
 
+  // Vitals validation helpers
+  const isValidWeight = (val) => !!val.trim() && /^\d+(\.\d+)?$/.test(val.trim());
+  const isValidBp = (val) => !!val.trim() && /^\d{2,3}(\/\d{2,3})?$/.test(val.trim());
+  const isValidHr = (val) => !!val.trim() && /^\d{2,3}$/.test(val.trim());
+  const isValidTemp = (val) => !!val.trim() && /^\d{2,3}(\.\d+)?$/.test(val.trim());
+  const isValidHeight = (val) => !val.trim() || /^\d+(\.\d+)?$/.test(val.trim());
+  const isValidSpo2 = (val) => !val.trim() || /^\d{1,3}$/.test(val.trim());
+  const isValidGrbs = (val) => !val.trim() || /^\d{1,4}(\.\d+)?$/.test(val.trim());
+  const isValidRr = (val) => !val.trim() || /^\d{1,3}$/.test(val.trim());
+  const isValidHeadCirc = (val) => !val.trim() || /^\d{1,3}(\.\d+)?$/.test(val.trim());
+
   const handleSubmit = async (e) => {
-    if (!name || (receptionistTab !== 'child' && !age) || !contact || !assignedDoctorId) return;
+    if (e && e.preventDefault) e.preventDefault();
+    setFormSubmitted(true);
+
+    const cleanContact = contact.replace(/\D/g, '');
+    const isNameValid = !!name.trim();
+    const isAgeValid = receptionistTab === 'child' || !!age;
+    const isContactValid = cleanContact.length === 10;
+    const isDoctorValid = !!assignedDoctorId;
+    const isWeightVal = isValidWeight(weight);
+    const isBpVal = isValidBp(bp);
+    const isHrVal = isValidHr(hr);
+    const isTempVal = isValidTemp(temp);
+    const isHeightVal = isValidHeight(height);
+    const isSpo2Val = isValidSpo2(spo2);
+    const isGrbsVal = isValidGrbs(grbs);
+    const isRrVal = isValidRr(respiratoryRate);
+    const isHeadCircVal = isValidHeadCirc(headCircumference);
+
+    if (!isNameValid || !isAgeValid || !isContactValid || !isDoctorValid ||
+      !isWeightVal || !isBpVal || !isHrVal || !isTempVal ||
+      !isHeightVal || !isSpo2Val || !isGrbsVal || !isRrVal || !isHeadCircVal) {
+      return;
+    }
+
+    if (alternatePhone) {
+      const cleanAlt = alternatePhone.replace(/\D/g, '');
+      if (cleanAlt.length !== 10) {
+        return;
+      }
+    }
+
+    const fullContact = `${countryCode} ${cleanContact}`;
+    const fullAltPhone = alternatePhone ? `${altCountryCode} ${alternatePhone.replace(/\D/g, '')}` : '';
 
     let calculatedAge = parseInt(age);
     if (isNaN(calculatedAge)) {
       if (childBirthDate) {
         const diffMs = Date.now() - new Date(childBirthDate).getTime();
-        const ageDate = new Date(diffMs); 
+        const ageDate = new Date(diffMs);
         calculatedAge = Math.abs(ageDate.getUTCFullYear() - 1970);
       } else {
         calculatedAge = 0;
@@ -207,16 +373,17 @@ const ReceptionistDashboard = ({
       motherOrGuardianValue = `Guardian: ${guardianName.trim()}`;
     }
 
-    const registered = await onRegisterPatient({
+    const patientPayload = {
       name,
       age: calculatedAge,
       gender,
-      contact,
+      contact: fullContact,
       fatherOrHusbandName,
       motherOrGuardianName: motherOrGuardianValue,
-      alternatePhone,
+      alternatePhone: fullAltPhone,
       address: [street.trim(), city.trim(), pincode.trim()].filter(Boolean).join(' | '),
       assignedDoctorId: parseInt(assignedDoctorId),
+      dob,
       height,
       weight,
       bp,
@@ -224,6 +391,10 @@ const ReceptionistDashboard = ({
       spo2,
       grbs,
       temp,
+      respiratoryRate,
+      painScale,
+      headCircumference,
+      avpu,
       bmi,
       isChild: receptionistTab === 'child' ? 1 : 0,
       childGa: receptionistTab === 'child' ? childGa : '',
@@ -234,19 +405,30 @@ const ReceptionistDashboard = ({
       childNicuHistory: receptionistTab === 'child' ? childNicuHistory : '',
       specialInvestigation: specialInvestigation ? 1 : 0,
       specialInvestigationNotes: specialInvestigation ? specialInvestigationNotes : ''
-    });
+    };
+
+    let registered;
+    if (returningPatientId) {
+      registered = await onReRegisterPatient(returningPatientId, parseInt(assignedDoctorId), patientPayload);
+    } else {
+      registered = await onRegisterPatient(patientPayload);
+    }
 
     if (registered) {
       setSuccessPatient(registered);
+      setFormSubmitted(false);
+      setReturningPatientId(null);
       // Reset Form
       setName('');
       setAge('');
       setGender('Male');
       setContact('');
+      setCountryCode('+91');
       setFatherOrHusbandName('');
       setMotherName('');
       setGuardianName('');
       setAlternatePhone('');
+      setAltCountryCode('+91');
       setStreet('');
       setCity('');
       setPincode('');
@@ -257,6 +439,11 @@ const ReceptionistDashboard = ({
       setSpo2('');
       setGrbs('');
       setTemp('');
+      setRespiratoryRate('');
+      setPainScale('');
+      setHeadCircumference('');
+      setAvpu('Alert');
+      setDob('');
       setBmi('');
       // Child Fields Reset
       setChildGa('');
@@ -296,8 +483,8 @@ const ReceptionistDashboard = ({
 
   // Filter patients for Today's Active Reception Queue & Payment Collection (24-hour daily reset)
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-  const todayPatients = patients.filter(p => 
-    p.status !== 'Inactive' && 
+  const todayPatients = patients.filter(p =>
+    p.status !== 'Inactive' &&
     (p.registrationDate === todayStr || p.wardBedId)
   );
 
@@ -319,11 +506,11 @@ const ReceptionistDashboard = ({
   });
 
   const filteredPatients = searchQuery.trim()
-    ? uniquePatients.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.contact.includes(searchQuery) ||
-        p.id.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? uniquePatients.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.contact.includes(searchQuery) ||
+      p.id.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : [];
 
   return (
@@ -374,7 +561,7 @@ const ReceptionistDashboard = ({
         {/* Register Patient Form */}
         <div className="card">
           <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-            <button 
+            <button
               type="button"
               className={`btn ${receptionistTab === 'new' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
@@ -382,7 +569,7 @@ const ReceptionistDashboard = ({
             >
               <UserPlus size={15} /> New Patient
             </button>
-            <button 
+            <button
               type="button"
               className={`btn ${receptionistTab === 'child' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
@@ -390,7 +577,7 @@ const ReceptionistDashboard = ({
             >
               <Baby size={15} /> Child Register
             </button>
-            <button 
+            <button
               type="button"
               className={`btn ${receptionistTab === 'returning' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ flexGrow: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
@@ -402,8 +589,67 @@ const ReceptionistDashboard = ({
 
           {receptionistTab === 'new' || receptionistTab === 'child' ? (
             <>
+              {returningPatientId && (
+                <div style={{ 
+                  padding: '0.85rem 1rem', 
+                  background: 'rgba(99, 102, 241, 0.08)', 
+                  border: '1px solid rgba(99, 102, 241, 0.3)', 
+                  borderRadius: '8px', 
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    🔄 Re-Registering Returning Patient: #{returningPatientId} - {name}
+                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      Demographics pre-filled. Please record today's new vitals and assign a doctor below.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                    onClick={() => {
+                      setReturningPatientId(null);
+                      setName('');
+                      setAge('');
+                      setContact('');
+                      setFatherOrHusbandName('');
+                      setMotherName('');
+                      setGuardianName('');
+                      setAlternatePhone('');
+                      setStreet('');
+                      setCity('');
+                      setPincode('');
+                      setDob('');
+                      setHeight('');
+                      setWeight('');
+                      setBp('');
+                      setHr('');
+                      setSpo2('');
+                      setGrbs('');
+                      setTemp('');
+                      setRespiratoryRate('');
+                      setPainScale('');
+                      setHeadCircumference('');
+                      setAvpu('Alert');
+                      setBmi('');
+                      setFormSubmitted(false);
+                    }}
+                  >
+                    Cancel & Clear Form
+                  </button>
+                </div>
+              )}
+
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
-                {receptionistTab === 'child' ? (
+                {returningPatientId ? (
+                  <>
+                    <History size={20} style={{ color: 'var(--primary)' }} />
+                    Re-Register Returning Patient (#{returningPatientId})
+                  </>
+                ) : receptionistTab === 'child' ? (
                   <>
                     <Baby size={20} style={{ color: 'var(--primary)' }} />
                     Pediatric Child Registration
@@ -419,22 +665,28 @@ const ReceptionistDashboard = ({
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Patient's Full Name"
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={formSubmitted && !name.trim() ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
+                    placeholder="Enter patient full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
                   />
+                  {formSubmitted && !name.trim() && (
+                    <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                      Please fill out this field
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Father's / Husband's Name</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="Father's or Husband's Name"
                       value={fatherOrHusbandName}
                       onChange={(e) => setFatherOrHusbandName(e.target.value)}
@@ -443,9 +695,9 @@ const ReceptionistDashboard = ({
 
                   <div className="form-group">
                     <label className="form-label">Mother's Name</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                    <input
+                      type="text"
+                      className="form-input"
                       placeholder="Mother's Name (Optional)"
                       value={motherName}
                       onChange={(e) => setMotherName(e.target.value)}
@@ -455,32 +707,56 @@ const ReceptionistDashboard = ({
 
                 <div className="form-group">
                   <label className="form-label">Guardian's Name</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
+                  <input
+                    type="text"
+                    className="form-input"
                     placeholder="Guardian's Name (Optional)"
                     value={guardianName}
                     onChange={(e) => setGuardianName(e.target.value)}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
-                    <label className="form-label">Age</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <label className="form-label">Date of Birth (DOB)</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={dob}
+                      max={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDob(val);
+                        const calcAge = calculateAgeFromDob(val);
+                        if (calcAge) {
+                          setAge(calcAge.replace(/[^0-9]/g, ''));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Age {dob ? '(Auto)' : ''}</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={formSubmitted && receptionistTab !== 'child' && !age ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                       placeholder="Age"
                       value={age}
                       onChange={(e) => setAge(e.target.value)}
                       required
                     />
+                    {formSubmitted && receptionistTab !== 'child' && !age && (
+                      <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                        Please fill out this field
+                      </span>
+                    )}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">Gender</label>
-                    <select 
-                      className="form-input" 
+                    <select
+                      className="form-input"
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
                     >
@@ -494,25 +770,72 @@ const ReceptionistDashboard = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Contact Number</label>
-                    <input 
-                      type="tel" 
-                      className="form-input" 
-                      placeholder="Contact Number"
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      required
-                    />
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select
+                        className="form-input"
+                        style={{ width: '80px', flexShrink: 0, fontWeight: 600, fontSize: '0.85rem', padding: '0.4rem 0.25rem' }}
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                      >
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+966">🇸🇦 +966</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+94">🇱🇰 +94</option>
+                      </select>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        style={formSubmitted && contact.replace(/\D/g, '').length !== 10 ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
+                        placeholder="10-digit number"
+                        value={contact}
+                        onChange={handleContactChange}
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        required
+                      />
+                    </div>
+                    {contact && contact.length > 0 && contact.length < 10 && (
+                      <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
+                        Must be exactly 10 digits ({contact.length}/10)
+                      </span>
+                    )}
+                    {formSubmitted && contact.length === 0 && (
+                      <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                        Please fill out this field
+                      </span>
+                    )}
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Alternate Phone Number</label>
-                    <input 
-                      type="tel" 
-                      className="form-input" 
-                      placeholder="Alternate Mobile (Optional)"
-                      value={alternatePhone}
-                      onChange={(e) => setAlternatePhone(e.target.value)}
-                    />
+                    <label className="form-label">Alternate Phone Number (Optional)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select
+                        className="form-input"
+                        style={{ width: '80px', flexShrink: 0, fontWeight: 600, fontSize: '0.85rem', padding: '0.4rem 0.25rem' }}
+                        value={altCountryCode}
+                        onChange={(e) => setAltCountryCode(e.target.value)}
+                      >
+                        <option value="+91"> +91</option>
+
+                      </select>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="10-digit number"
+                        value={alternatePhone}
+                        onChange={handleAlternatePhoneChange}
+                        maxLength={10}
+                      />
+                    </div>
+                    {alternatePhone && alternatePhone.length > 0 && alternatePhone.length < 10 && (
+                      <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
+                        Must be 10 digits if provided ({alternatePhone.length}/10)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -559,9 +882,9 @@ const ReceptionistDashboard = ({
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div className="form-group">
                         <label className="form-label">GA (Gestational Age)</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
+                        <input
+                          type="text"
+                          className="form-input"
                           placeholder="e.g. 38 weeks"
                           value={childGa}
                           onChange={(e) => setChildGa(e.target.value)}
@@ -569,9 +892,9 @@ const ReceptionistDashboard = ({
                       </div>
                       <div className="form-group">
                         <label className="form-label">Birth Date</label>
-                        <input 
-                          type="date" 
-                          className="form-input" 
+                        <input
+                          type="date"
+                          className="form-input"
                           value={childBirthDate}
                           onChange={(e) => setChildBirthDate(e.target.value)}
                         />
@@ -581,9 +904,9 @@ const ReceptionistDashboard = ({
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">Birth Weight</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
+                        <input
+                          type="text"
+                          className="form-input"
                           placeholder="e.g. 3.2 kg"
                           value={childBirthWeight}
                           onChange={(e) => setChildBirthWeight(e.target.value)}
@@ -591,9 +914,9 @@ const ReceptionistDashboard = ({
                       </div>
                       <div className="form-group">
                         <label className="form-label">Place of Birth</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
+                        <input
+                          type="text"
+                          className="form-input"
                           placeholder="Hospital name / Home"
                           value={childPlaceOfBirth}
                           onChange={(e) => setChildPlaceOfBirth(e.target.value)}
@@ -604,7 +927,7 @@ const ReceptionistDashboard = ({
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">Delivery Type</label>
-                        <select 
+                        <select
                           className="form-input"
                           value={childDeliveryType}
                           onChange={(e) => setChildDeliveryType(e.target.value)}
@@ -615,7 +938,7 @@ const ReceptionistDashboard = ({
                       </div>
                       <div className="form-group">
                         <label className="form-label">History of NICU Admission</label>
-                        <select 
+                        <select
                           className="form-input"
                           value={childNicuHistory}
                           onChange={(e) => setChildNicuHistory(e.target.value)}
@@ -629,35 +952,56 @@ const ReceptionistDashboard = ({
                 )}
 
                 <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                  <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Patient Vitals / Triage
-                  </h4>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Patient Vitals / Triage (Mandatory Fields *)
+                    </h4>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label">Height (Ht in cm)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidHeight(height) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="Height (e.g. 170)"
                         value={height}
                         onChange={(e) => setHeight(e.target.value)}
                       />
+                      {formSubmitted && !isValidHeight(height) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Weight (Wt in kg)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <label className="form-label">Weight (Wt in kg) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidWeight(weight) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="Weight (e.g. 65)"
                         value={weight}
                         onChange={(e) => setWeight(e.target.value)}
+                        required
                       />
+                      {formSubmitted && !weight.trim() && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill out this field
+                        </span>
+                      )}
+                      {formSubmitted && weight.trim() && !isValidWeight(weight) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct value
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label className="form-label">Calculated BMI</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <input
+                        type="text"
+                        className="form-input"
                         style={{ background: 'rgba(255,255,255,0.05)', fontWeight: 'bold', color: 'var(--primary)' }}
                         placeholder="BMI"
                         value={bmi}
@@ -665,64 +1009,178 @@ const ReceptionistDashboard = ({
                       />
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
-                      <label className="form-label">Blood Pressure (BP)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <label className="form-label">Blood Pressure (BP) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidBp(bp) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="e.g. 120/80"
                         value={bp}
                         onChange={(e) => setBp(e.target.value)}
+                        required
                       />
+                      {formSubmitted && !bp.trim() && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill out this field
+                        </span>
+                      )}
+                      {formSubmitted && bp.trim() && !isValidBp(bp) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Heart Rate / Pulse (HR)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <label className="form-label">Heart Rate / Pulse (HR) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidHr(hr) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="Pulse (e.g. 72)"
                         value={hr}
                         onChange={(e) => setHr(e.target.value)}
+                        required
                       />
+                      {formSubmitted && !hr.trim() && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill out this field
+                        </span>
+                      )}
+                      {formSubmitted && hr.trim() && !isValidHr(hr) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">TEMP (°F) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidTemp(temp) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
+                        placeholder="Temp (e.g. 98.4)"
+                        value={temp}
+                        onChange={(e) => setTemp(e.target.value)}
+                        required
+                      />
+                      {formSubmitted && !temp.trim() && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill out this field
+                        </span>
+                      )}
+                      {formSubmitted && temp.trim() && !isValidTemp(temp) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
                     </div>
                   </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
                       <label className="form-label">SPO2 (%)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidSpo2(spo2) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="SPO2 (e.g. 98)"
                         value={spo2}
                         onChange={(e) => setSpo2(e.target.value)}
                       />
+                      {formSubmitted && !isValidSpo2(spo2) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label className="form-label">GRBS (Blood Sugar)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidGrbs(grbs) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
                         placeholder="GRBS (e.g. 110)"
                         value={grbs}
                         onChange={(e) => setGrbs(e.target.value)}
                       />
+                      {formSubmitted && !isValidGrbs(grbs) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">TEMP (°F)</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder="Temp (e.g. 98.4)"
-                        value={temp}
-                        onChange={(e) => setTemp(e.target.value)}
+                      <label className="form-label">Respiratory Rate (RR)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidRr(respiratoryRate) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
+                        placeholder="RR (e.g. 18 breaths/min)"
+                        value={respiratoryRate}
+                        onChange={(e) => setRespiratoryRate(e.target.value)}
                       />
+                      {formSubmitted && !isValidRr(respiratoryRate) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Pain Scale (0-10)</label>
+                      <select
+                        className="form-input"
+                        value={painScale}
+                        onChange={(e) => setPainScale(e.target.value)}
+                      >
+                        <option value="">Select Pain Level</option>
+                        <option value="0">0 - No Pain</option>
+                        <option value="2">2 - Mild Pain</option>
+                        <option value="4">4 - Moderate Pain</option>
+                        <option value="6">6 - Severe Pain</option>
+                        <option value="8">8 - Very Severe Pain</option>
+                        <option value="10">10 - Worst Pain Possible</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Head Circumference (cm)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={formSubmitted && !isValidHeadCirc(headCircumference) ? { borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.04)' } : {}}
+                        placeholder="Head Cir. (e.g. 42 cm)"
+                        value={headCircumference}
+                        onChange={(e) => setHeadCircumference(e.target.value)}
+                      />
+                      {formSubmitted && !isValidHeadCirc(headCircumference) && (
+                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                          Please fill correct answer
+                        </span>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Consciousness (AVPU)</label>
+                      <select
+                        className="form-input"
+                        value={avpu}
+                        onChange={(e) => setAvpu(e.target.value)}
+                      >
+                        <option value="Alert">Alert (A)</option>
+                        <option value="Voice">Responds to Voice (V)</option>
+                        <option value="Pain">Responds to Pain (P)</option>
+                        <option value="Unresponsive">Unresponsive (U)</option>
+                      </select>
                     </div>
                   </div>
                 </div>
 
                 {/* Special Investigation Toggle */}
-                <div className={`special-investigation-box ${specialInvestigation ? 'active' : ''}`} style={{ 
+                <div className={`special-investigation-box ${specialInvestigation ? 'active' : ''}`} style={{
                   margin: '0 0 1rem',
                   padding: '0.75rem 1rem',
                   borderRadius: '10px',
@@ -796,8 +1254,8 @@ const ReceptionistDashboard = ({
 
                 <div className="form-group">
                   <label className="form-label">Assign Available Doctor</label>
-                  <select 
-                    className="form-input" 
+                  <select
+                    className="form-input"
                     value={assignedDoctorId}
                     onChange={(e) => setAssignedDoctorId(e.target.value)}
                     required
@@ -816,148 +1274,182 @@ const ReceptionistDashboard = ({
             </>
           ) : (
             <>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                 <Search size={20} style={{ color: 'var(--primary)' }} />
                 Re-queue Returning Patient
               </h3>
 
-              <div className="form-group">
-                <label className="form-label">Search Patient Name, Mobile Number or ID</label>
-                <input 
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter name, phone or ID (e.g. VH001)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Search Patient Profile</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ paddingLeft: '2.4rem', fontSize: '0.92rem' }}
+                    placeholder="Search by Patient Name, Mobile Number or ID (e.g. VH001)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
 
               {searchQuery.trim() && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '480px', overflowY: 'auto', paddingRight: '4px' }}>
                   {filteredPatients.length === 0 ? (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>No matching patients found.</p>
+                    <div style={{ textStyle: 'center', padding: '2rem 1rem', background: 'rgba(248, 250, 252, 0.8)', borderRadius: '10px', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>No matching patient record found for "<strong>{searchQuery}</strong>".</p>
+                    </div>
                   ) : (
                     filteredPatients.map(p => (
-                      <div key={p.id} style={{ border: '1px solid var(--border)', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)' }}>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{p.name}</span>
-                          <span style={{ fontSize: '0.8rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                      <div 
+                        key={p.id} 
+                        style={{ 
+                          border: '1px solid rgba(99, 102, 241, 0.2)', 
+                          padding: '1.15rem', 
+                          borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                          transition: 'all 0.25s ease'
+                        }}
+                      >
+                        {/* Header: Patient Name + Avatar + ID Badge */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 800,
+                              fontSize: '1.1rem',
+                              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+                              flexShrink: 0
+                            }}>
+                              {p.name ? p.name.charAt(0).toUpperCase() : 'P'}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', letterSpacing: '-0.01em' }}>
+                                {p.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
+                                Last Visit: <span style={{ fontWeight: 600, color: '#334155' }}>{p.registrationDate || 'Previous Visit'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <span style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 700, 
+                            background: 'rgba(99, 102, 241, 0.12)', 
+                            color: '#4f46e5', 
+                            padding: '0.3rem 0.65rem', 
+                            borderRadius: '20px',
+                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                            letterSpacing: '0.02em',
+                            flexShrink: 0
+                          }}>
                             ID: #{p.id}
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem', lineHeight: '1.4' }}>
-                          <div>{p.age} Yrs • {p.gender} • {p.contact}</div>
-                          {p.fatherOrHusbandName && <div>Father/Husband: {p.fatherOrHusbandName}</div>}
-                          {p.motherOrGuardianName && (
-                            <div>
-                              {p.motherOrGuardianName.includes(' | Guardian: ') ? (
-                                <>
-                                  <div>Mother: {p.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
-                                  <div>Guardian: {p.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
-                                </>
-                              ) : p.motherOrGuardianName.startsWith('Mother: ') ? (
-                                <div>Mother: {p.motherOrGuardianName.replace('Mother: ', '')}</div>
-                              ) : p.motherOrGuardianName.startsWith('Guardian: ') ? (
-                                <div>Guardian: {p.motherOrGuardianName.replace('Guardian: ', '')}</div>
-                              ) : (
-                                <div>Mother/Guardian: {p.motherOrGuardianName}</div>
-                              )}
-                            </div>
-                          )}
-                          {p.alternatePhone && <div>Alt Contact: {p.alternatePhone}</div>}
-                        </div>
-                        
-                        <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                          <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.35rem' }}>Current Visit Vitals / Triage</label>
-                          
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', marginBottom: '0.75rem' }}>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>Ht (cm)</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="Ht" value={height} onChange={(e) => setHeight(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>Wt (kg)</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="Wt" value={weight} onChange={(e) => setWeight(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>BP</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="BP" value={bp} onChange={(e) => setBp(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>HR</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="HR" value={hr} onChange={(e) => setHr(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>SPO2 (%)</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="SPO2" value={spo2} onChange={(e) => setSpo2(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>GRBS</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="GRBS" value={grbs} onChange={(e) => setGrbs(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>TEMP (°F)</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem' }} placeholder="TEMP" value={temp} onChange={(e) => setTemp(e.target.value)} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '0.15rem' }}>BMI</label>
-                              <input type="text" className="form-input" style={{ padding: '0.35rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.05)', fontWeight: 'bold', color: 'var(--primary)' }} placeholder="BMI" value={bmi} readOnly />
-                            </div>
-                          </div>
 
-                          <label className="form-label" style={{ fontSize: '0.8rem' }}>Assign Doctor for New Visit</label>
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                            <select 
-                              className="form-input"
-                              style={{ padding: '0.45rem', fontSize: '0.85rem', flexGrow: 1 }}
-                              value={reRegisterDoctorId}
-                              onChange={(e) => setReRegisterDoctorId(e.target.value)}
-                            >
-                              {doctors.map(doc => (
-                                <option key={doc.id} value={doc.id}>{doc.name} ({doc.specialty})</option>
-                              ))}
-                            </select>
-                            
-                            <button 
-                              type="button"
-                              className="btn btn-primary"
-                              style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                              onClick={() => handleReRegisterClick(p.id)}
-                            >
-                              Queue
-                            </button>
-                          </div>
+                        {/* Demographic Info Pills */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                            {p.age} Yrs
+                          </span>
+                          <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                            {p.gender}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', background: 'rgba(14, 165, 233, 0.1)', color: '#0284c7', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                            📞 {p.contact}
+                          </span>
                         </div>
 
-                        {((p.history && p.history.length > 0) || p.diagnosis) && (
-                          <button 
-                            type="button"
-                            className="btn btn-secondary"
-                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', marginTop: '0.75rem', width: '100%', gap: '0.25rem' }}
-                            onClick={() => {
-                              if (p.history && p.history.length > 0) {
-                                setSelectedPatientForHistory(p);
-                              } else {
-                                const currentVisitMock = {
-                                  name: p.name,
-                                  history: [{
-                                    visitId: p.id,
-                                    date: 'Last Visit Details',
-                                    doctorName: doctors.find(d => d.id === p.assignedDoctorId)?.name || 'Unknown',
-                                    diagnosis: p.diagnosis,
-                                    prescription: p.prescription || [],
-                                    issuedMedication: p.issuedMedication || 'None',
-                                    paymentStatus: p.paymentStatus,
-                                    status: p.status
-                                  }]
-                                };
-                                setSelectedPatientForHistory(currentVisitMock);
-                              }
-                            }}
-                          >
-                            <History size={14} /> View Clinical History
-                          </button>
+                        {/* Family Details if present */}
+                        {(p.fatherOrHusbandName || p.motherOrGuardianName || p.alternatePhone) && (
+                          <div style={{ 
+                            fontSize: '0.8rem', 
+                            color: '#475569', 
+                            background: 'rgba(241, 245, 249, 0.7)', 
+                            padding: '0.5rem 0.75rem', 
+                            borderRadius: '6px', 
+                            marginBottom: '1rem',
+                            lineHeight: '1.4' 
+                          }}>
+                            {p.fatherOrHusbandName && <div><strong>Father/Husband:</strong> {p.fatherOrHusbandName}</div>}
+                            {p.motherOrGuardianName && (
+                              <div>
+                                {p.motherOrGuardianName.includes(' | Guardian: ') ? (
+                                  <>
+                                    <div><strong>Mother:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
+                                    <div><strong>Guardian:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
+                                  </>
+                                ) : p.motherOrGuardianName.startsWith('Mother: ') ? (
+                                  <div><strong>Mother:</strong> {p.motherOrGuardianName.replace('Mother: ', '')}</div>
+                                ) : p.motherOrGuardianName.startsWith('Guardian: ') ? (
+                                  <div><strong>Guardian:</strong> {p.motherOrGuardianName.replace('Guardian: ', '')}</div>
+                                ) : (
+                                  <div><strong>Mother/Guardian:</strong> {p.motherOrGuardianName}</div>
+                                )}
+                              </div>
+                            )}
+                            {p.alternatePhone && <div><strong>Alt Phone:</strong> {p.alternatePhone}</div>}
+                          </div>
                         )}
+
+                        {/* Action Buttons Side-by-Side */}
+                        <div style={{ display: 'grid', gridTemplateColumns: ((p.history && p.history.length > 0) || p.diagnosis) ? '1fr 1fr' : '1fr', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                          {((p.history && p.history.length > 0) || p.diagnosis) && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.5rem 0.65rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                              onClick={() => {
+                                if (p.history && p.history.length > 0) {
+                                  setSelectedPatientForHistory(p);
+                                } else {
+                                  const currentVisitMock = {
+                                    name: p.name,
+                                    history: [{
+                                      visitId: p.id,
+                                      date: 'Last Visit Details',
+                                      doctorName: doctors.find(d => d.id === p.assignedDoctorId)?.name || 'Unknown',
+                                      diagnosis: p.diagnosis,
+                                      prescription: p.prescription || [],
+                                      issuedMedication: p.issuedMedication || 'None',
+                                      paymentStatus: p.paymentStatus,
+                                      status: p.status
+                                    }]
+                                  };
+                                  setSelectedPatientForHistory(currentVisitMock);
+                                }
+                              }}
+                            >
+                              <History size={14} /> Clinical History
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ 
+                              padding: '0.5rem 0.85rem', 
+                              fontSize: '0.82rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              gap: '0.4rem'
+                            }}
+                            onClick={() => handleSelectReturningPatient(p)}
+                          >
+                            <UserPlus size={15} /> Re-Register Patient
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -1075,12 +1567,12 @@ const ReceptionistDashboard = ({
                         </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span 
+                            <span
                               className={`payment-status-badge ${(patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'paid' : 'unpaid'}`}
-                              style={{ 
+                              style={{
                                 cursor: 'pointer',
-                                padding: '0.25rem 0.5rem', 
-                                fontSize: '0.85rem', 
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.85rem',
                                 borderRadius: '4px',
                                 width: 'fit-content',
                                 background: (patient.paymentStatus && patient.paymentStatus.startsWith('Paid')) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
@@ -1113,8 +1605,8 @@ const ReceptionistDashboard = ({
                                 <Bed size={16} />
                               </button>
                             )}
-                            <button 
-                              className="btn-logout" 
+                            <button
+                              className="btn-logout"
                               onClick={() => {
                                 if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
                                   onDeletePatient(patient.id);
@@ -1147,7 +1639,7 @@ const ReceptionistDashboard = ({
                 <X size={24} />
               </button>
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem', maxHeight: '60vh', overflowY: 'auto' }}>
               {selectedPatientForHistory.history && selectedPatientForHistory.history.length > 0 ? (
                 selectedPatientForHistory.history.slice().reverse().map((visit, index) => (
@@ -1159,7 +1651,7 @@ const ReceptionistDashboard = ({
                     <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem', color: 'var(--text-primary)' }}>
                       Diagnosis: <span style={{ fontWeight: 500 }}>{visit.diagnosis}</span>
                     </div>
-                    
+
                     {visit.prescription && visit.prescription.length > 0 && (
                       <div style={{ marginTop: '0.75rem' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Prescribed Medicines:</div>
@@ -1183,19 +1675,19 @@ const ReceptionistDashboard = ({
                         </table>
                       </div>
                     )}
-                    
+
                     {visit.prescriptionImg && (
                       <div style={{ marginTop: '0.75rem' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Handwritten Prescription (Click to enlarge):</div>
-                        <img 
-                          src={visit.prescriptionImg} 
-                          alt="Handwritten Prescription" 
-                          style={{ maxWidth: '100%', maxHeight: '300px', display: 'block', marginTop: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'zoom-in' }} 
+                        <img
+                          src={visit.prescriptionImg}
+                          alt="Handwritten Prescription"
+                          style={{ maxWidth: '100%', maxHeight: '300px', display: 'block', marginTop: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'zoom-in' }}
                           onClick={() => setPreviewImage(visit.prescriptionImg)}
                         />
                       </div>
                     )}
-                    
+
                     <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
                       <span>Payment: {visit.paymentStatus}</span>
                       <span>Medication Issued: {visit.issuedMedication || 'None'}</span>
@@ -1227,16 +1719,16 @@ const ReceptionistDashboard = ({
             }}>
               <CheckCircle size={36} />
             </div>
-            
+
             <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Patient Queued Successfully!</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
               The patient has been registered and added to the doctor's queue.
             </p>
 
-            <div style={{ 
-              background: 'rgba(255, 255, 255, 0.02)', 
-              border: '1px solid var(--border)', 
-              borderRadius: '12px', 
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
               padding: '1.25rem',
               marginBottom: '1.75rem',
               textAlign: 'left'
@@ -1255,8 +1747,8 @@ const ReceptionistDashboard = ({
               </div>
             </div>
 
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               style={{ width: '100%' }}
               onClick={() => setSuccessPatient(null)}
             >
@@ -1302,7 +1794,7 @@ const ReceptionistDashboard = ({
               <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>
                 💳 Billing Checklist: #{paymentModalPatient.id}
               </span>
-              <button 
+              <button
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer', padding: 0 }}
                 onClick={() => setPaymentModalPatient(null)}
               >
@@ -1317,9 +1809,9 @@ const ReceptionistDashboard = ({
             {/* Payment Method Status */}
             <div className="form-group" style={{ marginBottom: '0.75rem' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>Payment Method Status</label>
-              <select 
-                className="form-input" 
-                value={paymentMethod} 
+              <select
+                className="form-input"
+                value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 style={{ marginTop: '0.25rem' }}
               >
@@ -1341,9 +1833,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeDoctor}
                       onChange={(e) => setFeeDoctor(parseFloat(e.target.value) || 0)}
@@ -1359,9 +1851,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeProcedure}
                       onChange={(e) => setFeeProcedure(parseFloat(e.target.value) || 0)}
@@ -1377,9 +1869,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeLab}
                       onChange={(e) => setFeeLab(parseFloat(e.target.value) || 0)}
@@ -1395,9 +1887,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeWard}
                       onChange={(e) => setFeeWard(parseFloat(e.target.value) || 0)}
@@ -1413,9 +1905,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeO2}
                       onChange={(e) => setFeeO2(parseFloat(e.target.value) || 0)}
@@ -1431,9 +1923,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeGrbs}
                       onChange={(e) => setFeeGrbs(parseFloat(e.target.value) || 0)}
@@ -1449,9 +1941,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeDressing}
                       onChange={(e) => setFeeDressing(parseFloat(e.target.value) || 0)}
@@ -1467,9 +1959,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeNebuliser}
                       onChange={(e) => setFeeNebuliser(parseFloat(e.target.value) || 0)}
@@ -1485,9 +1977,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeEcg}
                       onChange={(e) => setFeeEcg(parseFloat(e.target.value) || 0)}
@@ -1503,9 +1995,9 @@ const ReceptionistDashboard = ({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
-                    <input 
-                      type="number" 
-                      className="form-input" 
+                    <input
+                      type="number"
+                      className="form-input"
                       style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
                       value={feeNurse}
                       onChange={(e) => setFeeNurse(parseFloat(e.target.value) || 0)}
@@ -1521,9 +2013,9 @@ const ReceptionistDashboard = ({
                 <span>Total Paid Amount (INR)</span>
                 <span style={{ color: 'var(--text-secondary)' }}>Auto: ₹{calculatedTotal}</span>
               </div>
-              <input 
-                type="number" 
-                className="form-input" 
+              <input
+                type="number"
+                className="form-input"
                 value={customPaidAmount}
                 onChange={(e) => setCustomPaidAmount(e.target.value)}
                 placeholder={calculatedTotal}
@@ -1533,15 +2025,15 @@ const ReceptionistDashboard = ({
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
-              <button 
-                className="btn btn-secondary" 
+              <button
+                className="btn btn-secondary"
                 style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}
                 onClick={() => setPaymentModalPatient(null)}
               >
                 Cancel
               </button>
-              <button 
-                className="btn btn-primary" 
+              <button
+                className="btn btn-primary"
                 style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem', background: 'var(--primary)', border: 'none', fontWeight: 700 }}
                 onClick={handleConfirmPayment}
               >
@@ -1554,8 +2046,8 @@ const ReceptionistDashboard = ({
 
       {/* Image Preview Modal */}
       {previewImage && (
-        <div 
-          className="modal-overlay" 
+        <div
+          className="modal-overlay"
           onClick={() => setPreviewImage(null)}
           style={{
             position: 'fixed',
@@ -1573,7 +2065,7 @@ const ReceptionistDashboard = ({
           }}
         >
           <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', background: '#fff', borderRadius: '12px', padding: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={(e) => e.stopPropagation()}>
-            <button 
+            <button
               onClick={() => setPreviewImage(null)}
               style={{
                 position: 'absolute',
@@ -1596,10 +2088,10 @@ const ReceptionistDashboard = ({
             >
               ✕
             </button>
-            <img 
-              src={previewImage} 
-              alt="Prescription Preview" 
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block', borderRadius: '8px' }} 
+            <img
+              src={previewImage}
+              alt="Prescription Preview"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block', borderRadius: '8px' }}
             />
           </div>
         </div>
