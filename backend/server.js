@@ -20,6 +20,7 @@ import {
   deleteDirectory,
   getHousekeeping,
   addHousekeeping,
+  deleteHousekeeping,
   getMedicalWaste,
   addMedicalWaste,
   getPharmacyLedger,
@@ -32,6 +33,9 @@ import {
   getInjections,
   addInjection,
   updateInjectionStatus,
+  updateInjection,
+  deleteInjection,
+  updateInjectionsStatusByPatientId,
   getPatientById
 } from './database.js';
 
@@ -272,6 +276,14 @@ app.post('/api/housekeeping', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+app.delete('/api/housekeeping/:id', async (req, res) => {
+  try {
+    await deleteHousekeeping(parseInt(req.params.id));
+    res.json({ message: 'Housekeeping task deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Bio-Medical Waste API
 app.get('/api/waste', async (req, res) => {
@@ -386,9 +398,36 @@ app.post('/api/injections', async (req, res) => {
 });
 app.put('/api/injections/:id', async (req, res) => {
   try {
-    const { status, dateGiven } = req.body;
-    await updateInjectionStatus(parseInt(req.params.id), status, dateGiven);
-    res.json({ message: 'Injection status updated' });
+    const { status, dateGiven, administeredBy, isEdit, patientId, injectionName, dosage, route, frequency, isStat, notes } = req.body;
+    if (isEdit) {
+      await updateInjection(parseInt(req.params.id), { patientId, injectionName, dosage, route, frequency, isStat, notes });
+      res.json({ message: 'Injection updated successfully' });
+    } else {
+      await updateInjectionStatus(parseInt(req.params.id), status, dateGiven, administeredBy);
+      res.json({ message: 'Injection status updated' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.delete('/api/injections/:id', async (req, res) => {
+  try {
+    await deleteInjection(parseInt(req.params.id));
+    res.json({ message: 'Injection deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.put('/api/injections/patient/:patientId/complete', async (req, res) => {
+  try {
+    const { status, dateGiven, administeredBy } = req.body;
+    await updateInjectionsStatusByPatientId(
+      req.params.patientId,
+      status || 'Administered',
+      dateGiven || new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
+      administeredBy || 'Doctor / Nurse'
+    );
+    res.json({ message: 'Patient pending injections marked as administered' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -404,3 +443,5 @@ initDB().then(() => {
 });
 
 export default app;
+// Reload trigger: IM & STAT default fallback update
+

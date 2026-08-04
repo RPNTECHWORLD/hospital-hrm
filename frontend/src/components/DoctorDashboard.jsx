@@ -621,9 +621,25 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     onClick={() => handleSelectPatient(p)}
                   >
                     <div style={{ flexGrow: 1 }}>
-                      <div style={{ fontWeight: 700 }}>{p.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Status: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>Returned ({p.issuedMedication})</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: '#b45309',
+                          background: '#fef3c7',
+                          border: '1px solid #fde68a',
+                          padding: '0.15rem 0.55rem',
+                          borderRadius: '6px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}>
+                          Pharmacy Issued
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        {p.age} Yrs • {p.gender} • ID: #{p.id} • Medication: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{p.issuedMedication || 'Dispensed'}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

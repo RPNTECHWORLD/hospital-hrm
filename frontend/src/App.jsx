@@ -530,8 +530,8 @@ function App() {
     try {
       const updatedData = {
         status: 'Completed',
-        followUpNotes: data.followUpNotes,
-        nextVisitDate: data.nextVisitDate
+        followUpNotes: data?.followUpNotes || '',
+        nextVisitDate: data?.nextVisitDate || ''
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
@@ -541,6 +541,22 @@ function App() {
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+
+        // Automatically update any pending injections for this patient to 'Administered' (Given ✅)
+        const dateStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+        try {
+          await fetch(`${API_BASE}/api/injections/patient/${patientId}/complete`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'Administered',
+              dateGiven: dateStr,
+              administeredBy: 'Doctor / Nurse'
+            })
+          });
+        } catch (injErr) {
+          console.error("Error completing patient injections:", injErr);
+        }
       }
     } catch (err) {
       console.error("Error submitting review:", err);
@@ -567,7 +583,7 @@ function App() {
   const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
     try {
       const updatedData = {
-        status: 'Completed',
+        status: 'Reviewing',
         issuedMedication: issuedString
       };
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
@@ -583,6 +599,8 @@ function App() {
           const list = Array.isArray(injectionData) ? injectionData : [injectionData];
           for (const inj of list) {
             if (inj && (inj.name || inj.injectionName)) {
+              const freq = inj.frequency || (inj.dosage?.toLowerCase().includes('stat') ? 'STAT (Single / Immediate)' : 'NORMAL');
+              const isStatDose = inj.isStat || (freq && freq.includes('STAT')) || inj.dosage?.toLowerCase().includes('stat') ? 1 : 0;
               try {
                 await fetch(`${API_BASE}/api/injections`, {
                   method: 'POST',
@@ -591,7 +609,10 @@ function App() {
                     patientId: patientId,
                     injectionName: inj.name || inj.injectionName,
                     dosage: inj.dosage || '',
-                    status: 'Pending Approval',
+                    route: inj.route || 'IM',
+                    frequency: freq,
+                    isStat: isStatDose,
+                    status: 'Pending',
                     dateGiven: ''
                   })
                 });
@@ -759,7 +780,7 @@ function App() {
         );
       case 'injection':
         return (
-          <InjectionRoom patients={patients} />
+          <InjectionRoom patients={patients} currentUser={user} />
         );
       case 'lab':
         return (

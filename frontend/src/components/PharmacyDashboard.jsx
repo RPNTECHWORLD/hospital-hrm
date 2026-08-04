@@ -20,41 +20,48 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
   // Injection states
   const [requiresInjection, setRequiresInjection] = useState(false);
   const [injections, setInjections] = useState([
-    { name: 'Inj. Ceftriaxone', dosage: '1.5g IV' }
+    { name: 'Inj. Ceftriaxone', dosage: '1.5g', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
   ]);
 
   React.useEffect(() => {
     setRequiresInjection(false);
     setInjections([
-      { name: 'Inj. Ceftriaxone', dosage: '1.5g IV' }
+      { name: 'Inj. Ceftriaxone', dosage: '1.5g', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
     ]);
   }, [activePatient]);
 
   const handleAddInjectionRow = () => {
-    setInjections([...injections, { name: '', dosage: '' }]);
+    setInjections(prev => [...prev, { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }]);
   };
 
   const handleRemoveInjectionRow = (index) => {
-    if (injections.length === 1) {
-      setInjections([{ name: '', dosage: '' }]);
-    } else {
-      setInjections(injections.filter((_, i) => i !== index));
-    }
+    setInjections(prev => {
+      if (prev.length === 1) {
+        return [{ name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }];
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleInjectionChange = (index, field, value) => {
-    const updated = [...injections];
-    updated[index][field] = value;
-    setInjections(updated);
+    setInjections(prev => {
+      const updated = [...prev];
+      if (typeof field === 'object') {
+        updated[index] = { ...updated[index], ...field };
+      } else {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return updated;
+    });
   };
 
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-  const pendingPrescriptions = patients.filter(p => 
-    p.status === 'At Pharmacy' && 
+  const pendingPrescriptions = patients.filter(p =>
+    p.status === 'At Pharmacy' &&
     (p.registrationDate === todayStr || p.wardBedId)
   );
-  const completedIssues = patients.filter(p => 
-    ['Reviewing', 'Completed'].includes(p.status) && 
+  const completedIssues = patients.filter(p =>
+    ['Reviewing', 'Completed'].includes(p.status) &&
     (p.registrationDate === todayStr || p.wardBedId)
   ).length;
 
@@ -80,8 +87,8 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
       ? 'Full Duration'
       : `Partial Duration (${partialDays} Days)`;
 
-    const validInjections = requiresInjection 
-      ? injections.filter(inj => inj.name.trim()) 
+    const validInjections = requiresInjection
+      ? injections.filter(inj => inj.name.trim())
       : null;
 
     onIssueMedication(activePatient.id, issuedString, validInjections);
@@ -400,9 +407,9 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                   {requiresInjection && (
                     <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {injections.map((inj, index) => (
-                        <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'flex-end', background: '#ffffff', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <div key={index} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 1fr auto', gap: '0.5rem', alignItems: 'flex-end', background: '#ffffff', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                           <div>
-                            <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                            <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>
                               Injection Name {injections.length > 1 ? `#${index + 1}` : ''}
                             </label>
                             <input
@@ -415,15 +422,45 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                             />
                           </div>
                           <div>
-                            <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Dosage / Frequency</label>
+                            <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>Dose</label>
                             <input
                               type="text"
                               className="form-input"
-                              placeholder="e.g. 1.5g IV Stat"
+                              placeholder="e.g. 1.5g"
                               value={inj.dosage}
                               onChange={(e) => handleInjectionChange(index, 'dosage', e.target.value)}
                               required
                             />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>Route</label>
+                            <select
+                              className="form-input"
+                              value={inj.route || 'IM'}
+                              onChange={(e) => handleInjectionChange(index, 'route', e.target.value)}
+                            >
+                              <option value="IM">IM</option>
+                              <option value="IV">IV</option>
+
+                            </select>
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>Frequency / STAT</label>
+                            <select
+                              className="form-input"
+                              value={inj.frequency || 'STAT (Single / Immediate)'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                handleInjectionChange(index, {
+                                  frequency: val,
+                                  isStat: val.includes('STAT')
+                                });
+                              }}
+                            >
+                              <option value="STAT (Single / Immediate)">STAT (Single / Immediate)</option>
+                              <option value="NORMAL">NORMAL</option>
+
+                            </select>
                           </div>
                           <div>
                             {injections.length > 1 && (
@@ -431,7 +468,7 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() => handleRemoveInjectionRow(index)}
-                                style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '0.5rem', height: '40px' }}
+                                style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '0.4rem', height: '36px' }}
                                 title="Remove Injection"
                               >
                                 <Trash2 size={16} />

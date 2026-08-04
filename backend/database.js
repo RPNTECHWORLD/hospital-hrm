@@ -379,10 +379,22 @@ export const initDB = async () => {
       patientId TEXT NOT NULL,
       injectionName TEXT NOT NULL,
       dosage TEXT NOT NULL,
+      route TEXT DEFAULT 'IV',
+      frequency TEXT DEFAULT 'STAT',
+      isStat INTEGER DEFAULT 1,
+      administeredBy TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
       status TEXT DEFAULT 'Pending',
       dateGiven TEXT
     )
   `);
+
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS route TEXT DEFAULT 'IV'`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS frequency TEXT DEFAULT 'STAT'`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS isStat INTEGER DEFAULT 1`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS administeredBy TEXT DEFAULT ''`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT ''`); } catch (e) { }
+
 
   // Ensure injection and lab default staff accounts always exist
   await dbRun(
@@ -936,6 +948,7 @@ export const addHousekeeping = async (task) => {
   );
   return { id: result.lastID, ...task };
 };
+export const deleteHousekeeping = (id) => dbRun(`DELETE FROM housekeeping_checklist WHERE id = ?`, [id]);
 
 // Medical Waste
 export const getMedicalWaste = () => dbAll(`SELECT * FROM medical_waste`);
@@ -983,15 +996,86 @@ export const addVaccine = async (vac) => {
 };
 
 // Injections
-export const getInjections = () => dbAll(`SELECT * FROM injections_log`);
-export const addInjection = async (inj) => {
-  const result = await dbRun(
-    `INSERT INTO injections_log (patientId, injectionName, dosage, status, dateGiven) VALUES (?, ?, ?, ?, ?)`,
-    [inj.patientId, inj.injectionName, inj.dosage, inj.status || 'Pending', inj.dateGiven || '']
-  );
-  return { id: result.lastID, ...inj };
+export const getInjections = async () => {
+  const list = await dbAll(`SELECT * FROM injections_log ORDER BY id DESC`);
+  return list.map(inj => {
+    const isStat = inj.isStat === 1 || inj.isStat === true || (inj.frequency && inj.frequency.includes('STAT'));
+    const frequency = inj.frequency || (isStat ? 'STAT (Single / Immediate)' : 'OD (Once Daily)');
+    return {
+      ...inj,
+      route: inj.route || 'IV',
+      frequency: frequency,
+      isStat: isStat ? 1 : 0
+    };
+  });
 };
-export const updateInjectionStatus = (id, status, dateGiven) => dbRun(
-  `UPDATE injections_log SET status = ?, dateGiven = ? WHERE id = ?`,
-  [status, dateGiven, id]
+
+export const addInjection = async (inj) => {
+  const route = inj.route || 'IM';
+  const frequency = inj.frequency || (inj.isStat ? 'STAT (Single / Immediate)' : 'NORMAL');
+  const isStat = inj.isStat !== undefined ? (inj.isStat ? 1 : 0) : (frequency.includes('STAT') ? 1 : 0);
+  const result = await dbRun(
+    `INSERT INTO injections_log (patientId, injectionName, dosage, route, frequency, isStat, administeredBy, notes, status, dateGiven) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      inj.patientId,
+      inj.injectionName,
+      inj.dosage || '',
+      route,
+      frequency,
+      isStat,
+      inj.administeredBy || '',
+      inj.notes || '',
+      inj.status || 'Pending',
+      inj.dateGiven || ''
+    ]
+  );
+  return { id: result.lastID, ...inj, route, frequency, isStat };
+};
+export const updateInjectionStatus = (id, status, dateGiven, administeredBy = '') => dbRun(
+  `UPDATE injections_log SET status = ?, dateGiven = ?, administeredBy = COALESCE(NULLIF(?, ''), administeredBy) WHERE id = ?`,
+  [status, dateGiven, administeredBy, id]
 );
+export const updateInjection = (id, inj) => {
+  const route = inj.route || 'IM';
+  const frequency = inj.frequency || (inj.isStat ? 'STAT (Single / Immediate)' : 'NORMAL');
+  const isStat = inj.isStat !== undefined ? (inj.isStat ? 1 : 0) : (frequency.includes('STAT') ? 1 : 0);
+  return dbRun(
+    `UPDATE injections_log SET patientId = ?, injectionName = ?, dosage = ?, route = ?, frequency = ?, isStat = ?, notes = ? WHERE id = ?`,
+    [
+      inj.patientId,
+      inj.injectionName,
+      inj.dosage || '',
+      route,
+      frequency,
+      isStat,
+      inj.notes || '',
+      id
+    ]
+  );
+};
+export const deleteInjection = (id) => dbRun(
+  `DELETE FROM injections_log WHERE id = ?`,
+  [id]
+);
+export const updateInjectionsStatusByPatientId = (patientId, status, dateGiven, administeredBy = 'Doctor / Nurse') => {
+  const rawStr = String(patientId || '');
+  const cleanId = rawStr.replace(/#/g, '').trim();
+  const numId = cleanId.replace(/^vh0*/i, '');
+  const vhId = 'VH' + numId.padStart(3, '0');
+
+  return dbRun(
+    `UPDATE injections_log 
+     SET status = ?, 
+         dateGiven = ?, 
+         administeredBy = COALESCE(NULLIF(?, ''), administeredBy, 'Doctor / Nurse') 
+     WHERE (
+       LOWER(patientId) = LOWER(?) 
+       OR LOWER(patientId) = LOWER(?)
+       OR LOWER(patientId) = LOWER(?)
+       OR LOWER(patientId) = LOWER(?)
+       OR LOWER(REPLACE(patientId, '#', '')) = LOWER(?)
+     ) 
+     AND status = 'Pending'`,
+    [status, dateGiven, administeredBy, rawStr, cleanId, vhId, numId, cleanId]
+  );
+};
