@@ -24,6 +24,26 @@ export const VijayasHospitalLogo = ({ width = 245, height = 62 }) => {
   );
 };
 
+const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
+  const str = (dosageStr || '').toLowerCase();
+  let frequency = 2;
+  const fourPartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+  if (fourPartMatch) {
+    frequency = (parseInt(fourPartMatch[1]) || 0) + (parseInt(fourPartMatch[2]) || 0) + (parseInt(fourPartMatch[3]) || 0) + (parseInt(fourPartMatch[4]) || 0);
+  } else {
+    const threePartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+    if (threePartMatch) {
+      frequency = (parseInt(threePartMatch[1]) || 0) + (parseInt(threePartMatch[2]) || 0) + (parseInt(threePartMatch[3]) || 0);
+    } else if (str.includes('once daily') || str.includes('1-0-0') || str.includes('0-0-1')) {
+      frequency = 1;
+    } else if (str.includes('thrice daily') || str.includes('1-1-1')) {
+      frequency = 3;
+    }
+  }
+  if (frequency <= 0) frequency = 1;
+  return frequency * (parseInt(durationDays) || 1);
+};
+
 const PrescriptionTemplate = ({ patient }) => {
   if (!patient) return null;
 
@@ -208,19 +228,38 @@ const PrescriptionTemplate = ({ patient }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #008099', background: '#e0f2fe', textAlign: 'left' }}>
-                  <th style={{ padding: '0.5rem 0.6rem', color: '#008099', width: '45%' }}>Medicine Name</th>
-                  <th style={{ padding: '0.5rem 0.6rem', color: '#008099', width: '35%' }}>Dosage / Frequency</th>
-                  <th style={{ padding: '0.5rem 0.6rem', textAlign: 'right', width: '20%', color: '#008099' }}>Duration</th>
+                  <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '32%' }}>Medicine Name & Strength</th>
+                  <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '15%' }}>Route</th>
+                  <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '23%' }}>Dosage / Frequency</th>
+                  <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '15%' }}>Instructions</th>
+                  <th style={{ padding: '0.45rem 0.5rem', textAlign: 'right', width: '15%', color: '#008099' }}>Duration & Qty</th>
                 </tr>
               </thead>
               <tbody>
-                {patient.prescription?.map((m, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                    <td style={{ padding: '0.5rem 0.6rem', fontWeight: 700, color: '#0f172a' }}>{m.name}</td>
-                    <td style={{ padding: '0.5rem 0.6rem', color: '#334155' }}>{m.dosage}</td>
-                    <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 800, color: '#e11d48' }}>{m.duration} Days</td>
-                  </tr>
-                ))}
+                {patient.prescription?.map((m, i) => {
+                  const strength = m.strength || (m.name.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg)\b/i)?.[0] || '');
+                  const route = m.route || (m.isSyrup || m.name.toLowerCase().includes('syrup') ? 'Oral (Syrup)' : m.name.toLowerCase().includes('inj') ? 'IV / IM' : 'Oral (Tab)');
+                  const instructions = m.instructions || (m.dosage.toLowerCase().includes('before food') ? 'Before Food' : m.dosage.toLowerCase().includes('after food') ? 'After Food' : m.dosage.toLowerCase().includes('sos') ? 'SOS' : 'After Food');
+                  const qty = m.quantity || (m.isSyrup || m.name.toLowerCase().includes('syrup') ? '1 Bottle' : `${calculateTabletQty(m.dosage, m.duration)} Tabs`);
+
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                      <td style={{ padding: '0.45rem 0.5rem', fontWeight: 700, color: '#0f172a' }}>
+                        {m.name}
+                        {strength && !m.name.toLowerCase().includes(strength.toLowerCase()) ? (
+                          <span style={{ fontSize: '0.72rem', color: '#008099', fontWeight: 600, marginLeft: '0.25rem' }}>({strength})</span>
+                        ) : null}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.5rem', color: '#475569', fontSize: '0.74rem' }}>{route}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', color: '#334155', fontWeight: 600 }}>{m.dosage}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', color: '#059669', fontWeight: 600, fontSize: '0.74rem' }}>{instructions}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontWeight: 800, color: '#e11d48' }}>
+                        {m.duration} Days
+                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>({qty})</div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

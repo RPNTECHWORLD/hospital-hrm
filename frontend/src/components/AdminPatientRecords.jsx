@@ -337,26 +337,27 @@ const AdminPatientRecords = ({
             </p>
           ) : (
             <table className="custom-table" style={{ minWidth: '1100px', width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Patient ID</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+              <thead style={{ background: '#e2e8f0' }}>
+                <tr style={{ background: '#e2e8f0' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Patient ID</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                       <Calendar size={13} style={{ color: 'var(--primary)' }} /> Admit Date
                     </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Patient Info</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Mother / Guardian</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Contact Details</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Patient Info</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Mother / Guardian</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Contact Details</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                       <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
                     </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Assigned Doctor</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Queue Status</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5 }}>Payment</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, textAlign: 'center' }}>Ward</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Previous Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Assigned Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Queue Status</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Payment</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, textAlign: 'center', background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Ward</th>
                 </tr>
               </thead>
               <tbody>
@@ -438,8 +439,87 @@ const AdminPatientRecords = ({
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>--</span>
                         )}
                       </td>
+                      <td style={{ fontSize: '0.88rem' }}>
+                        {(() => {
+                          let trackingLogs = [];
+                          if (p.trackingHistory) {
+                            if (Array.isArray(p.trackingHistory)) {
+                              trackingLogs = p.trackingHistory;
+                            } else if (typeof p.trackingHistory === 'string') {
+                              try { trackingLogs = JSON.parse(p.trackingHistory); } catch (e) {}
+                            }
+                          }
+                          const reassignLog = trackingLogs.find(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
+
+                          const prevDocName = p.previousDoctor || (reassignLog ? (
+                            (reassignLog.previousDoctor && reassignLog.previousDoctor !== 'Unassigned')
+                              ? reassignLog.previousDoctor
+                              : (reassignLog.changedBy && reassignLog.changedBy !== 'System Admin' ? reassignLog.changedBy : null)
+                          ) : null);
+
+                          if (prevDocName && prevDocName !== 'Unassigned') {
+                            return (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                color: '#334155',
+                                fontWeight: 700,
+                                background: 'rgba(100, 116, 139, 0.1)',
+                                border: '1px solid rgba(100, 116, 139, 0.25)',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '6px',
+                                fontSize: '0.84rem',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {prevDocName}
+                              </span>
+                            );
+                          }
+                          return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.8rem' }}>--</span>;
+                        })()}
+                      </td>
                       <td style={{ fontSize: '0.9rem' }}>
-                        {assignedDoc ? assignedDoc.name : 'Unassigned'}
+                        {(() => {
+                          let trackingLogs = [];
+                          if (p.trackingHistory) {
+                            if (Array.isArray(p.trackingHistory)) {
+                              trackingLogs = p.trackingHistory;
+                            } else if (typeof p.trackingHistory === 'string') {
+                              try { trackingLogs = JSON.parse(p.trackingHistory); } catch (e) {}
+                            }
+                          }
+                          const reassignLog = trackingLogs.find(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
+
+                          return (
+                            <div>
+                              {reassignLog && (
+                                <div
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    color: '#0284c7',
+                                    fontWeight: 700,
+                                    marginBottom: '0.15rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                    background: 'rgba(2, 132, 199, 0.08)',
+                                    border: '1px solid rgba(2, 132, 199, 0.25)',
+                                    padding: '0.1rem 0.4rem',
+                                    borderRadius: '4px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title={`Reassigned by ${reassignLog.changedBy || 'Doctor'} on ${reassignLog.dateTime || reassignLog.timestamp || ''}${reassignLog.reason ? ` (Reason: ${reassignLog.reason})` : ''}`}
+                                >
+                                  🔄 Reassigned by {reassignLog.changedBy || reassignLog.previousDoctor || 'Admin'}
+                                </div>
+                              )}
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {assignedDoc ? assignedDoc.name : 'Unassigned'}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td>
                         <span className={`badge ${statusBadgeClass}`}>
@@ -792,8 +872,57 @@ const AdminPatientRecords = ({
                       ))}
                     </div>
                   )}
-
                 </div>
+
+                {/* Doctor Reassignment Audit Log Section */}
+                {(() => {
+                  let trackingLogs = [];
+                  if (selectedPatient.trackingHistory) {
+                    if (Array.isArray(selectedPatient.trackingHistory)) {
+                      trackingLogs = selectedPatient.trackingHistory;
+                    } else if (typeof selectedPatient.trackingHistory === 'string') {
+                      try { trackingLogs = JSON.parse(selectedPatient.trackingHistory); } catch(e){}
+                    }
+                  }
+                  const reassignmentLogs = trackingLogs.filter(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
+
+                  if (reassignmentLogs.length === 0) return null;
+
+                  return (
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '1.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--primary)' }}>
+                          <Users size={16} /> Doctor Reassignment History ({reassignmentLogs.length})
+                        </h4>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {reassignmentLogs.map((log, i) => (
+                          <div key={log.id || i} style={{
+                            background: 'rgba(99, 102, 241, 0.04)',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                            borderRadius: '8px',
+                            padding: '0.85rem 1rem',
+                            fontSize: '0.85rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', borderBottom: '1px dashed rgba(0,0,0,0.1)', paddingBottom: '0.35rem' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.85rem' }}>
+                                🔄 Reassigned: {log.previousDoctor || 'Unassigned'} ➔ {log.newDoctor || 'New Doctor'}
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                📅 {log.dateTime || log.timestamp || '--'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                              <div><strong>Changed By:</strong> {log.changedBy || 'System User'}</div>
+                              <div><strong>Reason:</strong> {log.reason || 'Routine Reassignment'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
               </div>
 

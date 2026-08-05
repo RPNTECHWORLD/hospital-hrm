@@ -3,7 +3,7 @@ import { Calendar, Trash2, Plus, Sparkles, Check, ClipboardList, Clock, AlertCir
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const UtilityLogs = () => {
+const UtilityLogs = ({ userRole }) => {
   const [activeTab, setActiveTab] = useState('housekeeping'); // 'housekeeping', 'attendance', 'waste'
   const [loading, setLoading] = useState(false);
 
@@ -180,17 +180,19 @@ const UtilityLogs = () => {
 
   return (
     <div className="fade-in">
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-        <button className={`btn ${activeTab === 'housekeeping' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('housekeeping')}>
-          🧹 Housekeeping & Plants Checklist
-        </button>
-        <button className={`btn ${activeTab === 'attendance' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('attendance')}>
-          📅 Staff Attendance
-        </button>
-        <button className={`btn ${activeTab === 'waste' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('waste')}>
-          ☣️ Bio-Medical Waste Logs
-        </button>
-      </div>
+      {userRole !== 'receptionist' && (
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className={`btn ${activeTab === 'housekeeping' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('housekeeping')}>
+            🧹 Housekeeping & Plants Checklist
+          </button>
+          <button className={`btn ${activeTab === 'attendance' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('attendance')}>
+            📅 Staff Attendance
+          </button>
+          <button className={`btn ${activeTab === 'waste' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('waste')}>
+            ☣️ Bio-Medical Waste Logs
+          </button>
+        </div>
+      )}
 
       {activeTab === 'housekeeping' && (
         <div className="grid-2">

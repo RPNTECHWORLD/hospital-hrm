@@ -128,8 +128,8 @@ function App() {
   const [tvMode, setTvMode] = useState(false);
 
   const [patients, setPatients] = useState([]);
-  const [doctorsList, setDoctorsList] = useState([]);
-  const [staffList, setStaffList] = useState([]);
+  const [doctorsList, setDoctorsList] = useState(DEFAULT_DOCTORS);
+  const [staffList, setStaffList] = useState(DEFAULT_STAFF);
   const [loading, setLoading] = useState(true);
 
   // UI / UX States: Theme, Density, Quick Search, Notifications
@@ -215,20 +215,27 @@ function App() {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [patientsRes, doctorsRes, staffRes] = await Promise.all([
+        const [patientsRes, doctorsRes, staffRes] = await Promise.allSettled([
           fetch(`${API_BASE}/api/patients`),
           fetch(`${API_BASE}/api/doctors`),
           fetch(`${API_BASE}/api/staff`)
         ]);
 
-        if (patientsRes.ok && doctorsRes.ok && staffRes.ok) {
-          const patientsData = await patientsRes.json();
-          const doctorsData = await doctorsRes.json();
-          const staffData = await staffRes.json();
-
-          setPatients(patientsData);
-          setDoctorsList(doctorsData);
-          setStaffList(staffData);
+        if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
+          const patientsData = await patientsRes.value.json();
+          if (Array.isArray(patientsData)) setPatients(patientsData);
+        }
+        if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
+          const doctorsData = await doctorsRes.value.json();
+          if (Array.isArray(doctorsData) && doctorsData.length > 0) {
+            setDoctorsList(doctorsData);
+          }
+        }
+        if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
+          const staffData = await staffRes.value.json();
+          if (Array.isArray(staffData) && staffData.length > 0) {
+            setStaffList(staffData);
+          }
         }
       } catch (err) {
         console.error("Error loading data from server:", err);
@@ -237,21 +244,38 @@ function App() {
       }
     };
 
-    const pollPatients = async () => {
+    const pollData = async () => {
       try {
-        const patientsRes = await fetch(`${API_BASE}/api/patients`);
-        if (patientsRes.ok) {
-          const patientsData = await patientsRes.json();
-          setPatients(patientsData);
+        const [patientsRes, doctorsRes, staffRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/api/patients`),
+          fetch(`${API_BASE}/api/doctors`),
+          fetch(`${API_BASE}/api/staff`)
+        ]);
+
+        if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
+          const patientsData = await patientsRes.value.json();
+          setPatients(prev => JSON.stringify(prev) !== JSON.stringify(patientsData) ? patientsData : prev);
+        }
+        if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
+          const doctorsData = await doctorsRes.value.json();
+          if (Array.isArray(doctorsData) && doctorsData.length > 0) {
+            setDoctorsList(prev => JSON.stringify(prev) !== JSON.stringify(doctorsData) ? doctorsData : prev);
+          }
+        }
+        if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
+          const staffData = await staffRes.value.json();
+          if (Array.isArray(staffData) && staffData.length > 0) {
+            setStaffList(prev => JSON.stringify(prev) !== JSON.stringify(staffData) ? staffData : prev);
+          }
         }
       } catch (err) {
-        console.error("Error polling patients:", err);
+        console.error("Error polling data:", err);
       }
     };
 
     if (user) {
       loadInitialData();
-      const interval = setInterval(pollPatients, 3000); // Poll every 3 seconds
+      const interval = setInterval(pollData, 5000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -579,6 +603,75 @@ function App() {
     }
   };
 
+  const handleReassignDoctor = async (patientId, newDoctorId, reassignInfo = {}) => {
+    try {
+      const patient = patients.find(p => p && (Number(p.id) === Number(patientId) || String(p.id) === String(patientId) || (p.id && String(p.id).replace(/\D/g, '') === String(patientId).replace(/\D/g, ''))));
+      
+      let prevDoctorName = 'Dr. Vijayan';
+      if (patient && patient.assignedDoctorId) {
+        const prevDoc = doctorsList.find(d => Number(d.id) === Number(patient.assignedDoctorId));
+        if (prevDoc) prevDoctorName = prevDoc.name;
+      } else if (reassignInfo.changedBy && reassignInfo.changedBy !== 'System Admin') {
+        prevDoctorName = reassignInfo.changedBy;
+      }
+
+      const newDoc = doctorsList.find(d => Number(d.id) === Number(newDoctorId));
+      const newDoctorName = newDoc ? newDoc.name : 'Selected Doctor';
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+      const fullDateTime = `${dateStr}, ${timeStr}`;
+
+      const historyLog = {
+        id: `reassign_${Date.now()}`,
+        type: 'Doctor Reassignment',
+        desk: 'Doctor Reassignment',
+        previousDoctor: prevDoctorName,
+        newDoctor: newDoctorName,
+        previousStatus: `Assigned: ${prevDoctorName}`,
+        newStatus: `Assigned: ${newDoctorName}`,
+        dateTime: fullDateTime,
+        timestamp: fullDateTime,
+        changedBy: reassignInfo.changedBy || user?.name || 'System User',
+        reason: reassignInfo.reason || 'Reassigned from consultation desk',
+        notes: `Reassigned from ${prevDoctorName} to ${newDoctorName}`
+      };
+
+      let existingLogs = [];
+      if (patient && patient.trackingHistory) {
+        if (Array.isArray(patient.trackingHistory)) {
+          existingLogs = patient.trackingHistory;
+        } else if (typeof patient.trackingHistory === 'string') {
+          try {
+            existingLogs = JSON.parse(patient.trackingHistory);
+          } catch (e) {}
+        }
+      }
+
+      const updatedHistory = [historyLog, ...existingLogs];
+
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedDoctorId: parseInt(newDoctorId),
+          previousDoctor: prevDoctorName,
+          trackingHistory: updatedHistory
+        })
+      });
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(prev => prev.map(p => (p && (Number(p.id) === Number(patientId) || String(p.id) === String(patientId) || (p.id && String(p.id).replace(/\D/g, '') === String(patientId).replace(/\D/g, '')))) ? updatedPatient : p));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error reassigning doctor:", err);
+      return false;
+    }
+  };
+
   // Pharmacy Actions
   const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
     try {
@@ -758,6 +851,7 @@ function App() {
             onPrintPrescription={handlePrintPrescription}
             onEmailPrescription={handleEmailPrescription}
             onAdmitToWard={handleOpenWardAdmit}
+            onReassignDoctor={handleReassignDoctor}
           />
         );
       case 'pharmacy':
@@ -792,7 +886,7 @@ function App() {
         );
       case 'utility':
         return (
-          <UtilityLogs />
+          <UtilityLogs userRole={user?.role} />
         );
       default:
         return (
@@ -958,10 +1052,22 @@ function App() {
           )}
 
           {user.role === 'receptionist' && (
-            <div className="nav-item active">
-              <Users size={18} />
-              <span>Receptionist Module</span>
-            </div>
+            <>
+              <div
+                className={`nav-item ${activeView === 'receptionist' ? 'active' : ''}`}
+                onClick={() => { setCurrentStaffView('receptionist'); setIsSidebarOpen(false); }}
+              >
+                <Users size={18} />
+                <span>Receptionist Module</span>
+              </div>
+              <div
+                className={`nav-item ${activeView === 'utility' ? 'active' : ''}`}
+                onClick={() => { setCurrentStaffView('utility'); setIsSidebarOpen(false); }}
+              >
+                <ClipboardList size={18} />
+                <span>Housekeeping & Plants Checklist</span>
+              </div>
+            </>
           )}
           {user.role === 'doctor' && (
             <div className="nav-item active">

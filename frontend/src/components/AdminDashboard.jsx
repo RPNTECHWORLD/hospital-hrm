@@ -3,8 +3,8 @@ import { Shield, UserPlus, Users, Stethoscope, Pill, Bed, Trash2, DollarSign, Ch
 
 const AdminDashboard = ({
   patients = [],
-  doctors,
-  staffList,
+  doctors = [],
+  staffList = [],
   onAddDoctor,
   onDeleteDoctor,
   onAddStaff,
@@ -45,10 +45,10 @@ const AdminDashboard = ({
   };
 
   // Staff and Doctor Stats
-  const totalDoctors = doctors.length;
-  const totalPharmacy = staffList.filter(s => s.role === 'pharmacy').length;
-  const totalReceptionists = staffList.filter(s => s.role === 'receptionist').length;
-  const totalWard = staffList.filter(s => s.role === 'ward').length;
+  const totalDoctors = (doctors || []).length;
+  const totalPharmacy = (staffList || []).filter(s => s && s.role === 'pharmacy').length;
+  const totalReceptionists = (staffList || []).filter(s => s && s.role === 'receptionist').length;
+  const totalWard = (staffList || []).filter(s => s && s.role === 'ward').length;
 
   // Patient and Payment Stats
   const totalPatientsCount = patients.length;

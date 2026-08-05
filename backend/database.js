@@ -125,7 +125,8 @@ const camelCaseMap = {
   avpu: 'avpu',
   pharmacystatus: 'pharmacyStatus',
   injectionstatus: 'injectionStatus',
-  trackinghistory: 'trackingHistory'
+  trackinghistory: 'trackingHistory',
+  previousdoctor: 'previousDoctor'
 };
 
 const camelizeObject = (obj) => {
@@ -254,6 +255,7 @@ export const initDB = async () => {
   try { await dbRun(`ALTER TABLE patients ADD COLUMN pharmacystatus TEXT DEFAULT 'N/A'`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN injectionstatus TEXT DEFAULT 'N/A'`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN trackinghistory TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN previousdoctor TEXT`); } catch (e) { }
 
   // Create Patient History
   await dbRun(`
@@ -492,6 +494,28 @@ export const initDB = async () => {
     await dbRun(`UPDATE patients SET status = 'Completed' WHERE status = 'Inactive' AND (diagnosis IS NOT NULL AND diagnosis != '')`);
     await dbRun(`UPDATE patients SET status = 'In Queue' WHERE status = 'Inactive' AND (diagnosis IS NULL OR diagnosis = '')`);
   } catch (e) {}
+
+  try {
+    const allPats = await dbAll(`SELECT id, assignedDoctorId, trackinghistory, previousdoctor FROM patients`);
+    for (const pat of allPats) {
+      if (!pat.previousdoctor) {
+        let trackingLogs = [];
+        if (pat.trackinghistory) {
+          try { trackingLogs = JSON.parse(pat.trackinghistory); } catch (e) {}
+        }
+        const reassignLog = trackingLogs.find(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
+        let resolvedPrev = reassignLog ? (reassignLog.previousDoctor || reassignLog.changedBy) : null;
+        if (!resolvedPrev && Number(pat.assignedDoctorId) === 2) {
+          resolvedPrev = 'Dr. Vijayan';
+        }
+        if (resolvedPrev) {
+          await dbRun(`UPDATE patients SET previousdoctor = ? WHERE id = ?`, [resolvedPrev, pat.id]);
+        }
+      }
+    }
+  } catch (e) {
+    console.log("Migration warning for backfilling previousdoctor:", e.message);
+  }
 };
 
 // Database APIs
@@ -609,7 +633,16 @@ export const getPatients = async () => {
       avpu: pat.avpu || '',
       pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
       injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
-      trackingHistory: pat.trackinghistory || pat.trackingHistory ? (typeof pat.trackinghistory === 'string' ? JSON.parse(pat.trackinghistory) : (Array.isArray(pat.trackingHistory) ? pat.trackingHistory : [])) : [],
+      previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
+      trackingHistory: (() => {
+        const raw = pat.trackinghistory || pat.trackingHistory;
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === 'string') {
+          try { return JSON.parse(raw); } catch (e) { return []; }
+        }
+        return [];
+      })(),
       history: history
     });
   }
@@ -643,16 +676,16 @@ export const getPatientById = async (id) => {
     assignedDoctorId: pat.assignedDoctorId,
     status: pat.status,
     diagnosis: pat.diagnosis,
-    prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
+    prescription: pat.prescription ? JSON.parse(pat.prescription) : [],
     issuedMedication: pat.issuedMedication,
     paymentStatus: pat.paymentStatus,
     wardBedId: pat.wardBedId,
-    bedAdmissionPending: pat.bedAdmissionPending || 0,
-    fatherOrHusbandName: pat.fatherOrHusbandName || '',
-    motherOrGuardianName: pat.motherOrGuardianName || '',
-    alternatePhone: pat.alternatePhone || '',
-    tokenNumber: pat.tokenNumber || null,
-    registrationDate: pat.registrationDate || '',
+    bedAdmissionPending: pat.bedAdmissionPending,
+    fatherOrHusbandName: pat.fatherOrHusbandName,
+    motherOrGuardianName: pat.motherOrGuardianName,
+    alternatePhone: pat.alternatePhone,
+    tokenNumber: pat.tokenNumber,
+    registrationDate: pat.registrationDate,
     prescriptionImg: pat.prescriptionImg || null,
     height: pat.height || '',
     weight: pat.weight || '',
@@ -666,7 +699,7 @@ export const getPatientById = async (id) => {
     examination: pat.examination || '',
     investigation: pat.investigation || '',
     bmi: pat.bmi || '',
-    paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
+    paidAmount: pat.paidAmount || 0,
     feeBreakdown: pat.feeBreakdown || '',
     isChild: pat.isChild || 0,
     childGa: pat.childGa || '',
@@ -684,7 +717,16 @@ export const getPatientById = async (id) => {
     avpu: pat.avpu || '',
     pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
     injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
-    trackingHistory: pat.trackinghistory || pat.trackingHistory ? (typeof pat.trackinghistory === 'string' ? JSON.parse(pat.trackinghistory) : (Array.isArray(pat.trackingHistory) ? pat.trackingHistory : [])) : [],
+    previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
+    trackingHistory: (() => {
+      const raw = pat.trackinghistory || pat.trackingHistory;
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return []; }
+      }
+      return [];
+    })(),
     history: history
   };
 };
@@ -709,8 +751,8 @@ const getNextPatientId = async () => {
 export const addPatient = async (pat) => {
   const id = pat.id || (await getNextPatientId());
   await dbRun(
-    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes, previousDoctor)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       pat.name,
@@ -752,7 +794,8 @@ export const addPatient = async (pat) => {
       pat.childDeliveryType || '',
       pat.childNicuHistory || '',
       pat.specialInvestigation || 0,
-      pat.specialInvestigationNotes || ''
+      pat.specialInvestigationNotes || '',
+      pat.previousDoctor || ''
     ]
   );
 
@@ -819,14 +862,14 @@ export const updatePatient = async (id, data) => {
     'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
     'complaints', 'pastHistory', 'examination', 'investigation', 'bmi', 'paidAmount', 'feeBreakdown',
     'isChild', 'childGa', 'childBirthDate', 'childBirthWeight', 'childPlaceOfBirth', 'childDeliveryType', 'childNicuHistory',
-    'specialInvestigation', 'specialInvestigationNotes'
+    'specialInvestigation', 'specialInvestigationNotes', 'trackingHistory', 'previousDoctor'
   ];
 
   for (const k of keys) {
     if (data[k] !== undefined) {
       fields.push(`${k} = ?`);
-      if (k === 'prescription') {
-        params.push(data[k] ? JSON.stringify(data[k]) : null);
+      if (k === 'prescription' || k === 'trackingHistory') {
+        params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
         params.push(data[k]);
       }

@@ -3,14 +3,71 @@ import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, 
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
+  const str = (dosageStr || '').toLowerCase();
+  let frequency = 2; // Default 2/day (1-0-1)
+  
+  const fourPartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+  if (fourPartMatch) {
+    frequency = (parseInt(fourPartMatch[1]) || 0) + (parseInt(fourPartMatch[2]) || 0) + (parseInt(fourPartMatch[3]) || 0) + (parseInt(fourPartMatch[4]) || 0);
+  } else {
+    const threePartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+    if (threePartMatch) {
+      frequency = (parseInt(threePartMatch[1]) || 0) + (parseInt(threePartMatch[2]) || 0) + (parseInt(threePartMatch[3]) || 0);
+    } else if (str.includes('once daily') || str.includes('1-0-0') || str.includes('0-0-1')) {
+      frequency = 1;
+    } else if (str.includes('thrice daily') || str.includes('1-1-1')) {
+      frequency = 3;
+    }
+  }
+  if (frequency <= 0) frequency = 1;
+  return frequency * (parseInt(durationDays) || 1);
+};
 
-const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
+const formatMedUnitQty = (medicine = {}, calculatedQty = 1, days = 1) => {
+  const name = (medicine.name || '').toLowerCase();
+  const route = (medicine.route || '').toLowerCase();
+  const category = (medicine.category || '').toLowerCase();
+
+  const isSyrup = medicine.isSyrup || category === 'syrup' || name.includes('syrup') || name.includes('suspension');
+  const isInj = category === 'injection' || name.startsWith('inj') || name.includes('inj.') || route.includes('iv') || route.includes('im');
+  const isNeb = category === 'nebulization' || name.includes('respule') || name.includes('nebulizer');
+  const isOintment = name.includes('gel') || name.includes('ointment');
+  const isDrops = name.includes('drops');
+  const isInhaler = name.includes('inhaler');
+
+  if (isSyrup) {
+    const bottleMatch = medicine.name.match(/\b\d+\s*ml\b/i)?.[0];
+    const bottles = days > 10 ? Math.ceil(days / 10) : 1;
+    return `${bottles} Bottle${bottles > 1 ? 's' : ''}${bottleMatch ? ` (${bottleMatch})` : ''}`;
+  }
+
+  if (isInj) {
+    const doseMatch = medicine.name.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml)\b/i)?.[0];
+    const routeText = route ? route.toUpperCase() : (name.includes('iv') ? 'IV' : name.includes('im') ? 'IM' : 'IV/IM');
+    const count = Math.max(1, parseInt(days) || 1);
+    return `${count} Vial/Amp${doseMatch ? ` (${doseMatch} ${routeText})` : ` (${routeText})`}`;
+  }
+
+  if (isNeb) {
+    const respules = calculatedQty || (days * 2);
+    return `${respules} Respule${respules > 1 ? 's' : ''}`;
+  }
+
+  if (isOintment) return `1 Tube`;
+  if (isDrops) return `1 Bottle (Drops)`;
+  if (isInhaler) return `1 Inhaler`;
+
+  return `${calculatedQty} Tabs`;
+};
+
+const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
 
   // Issues state
   const [issueType, setIssueType] = useState('full'); // 'full' or 'partial'
   const [partialDays, setPartialDays] = useState(5);
+  const [customMedDays, setCustomMedDays] = useState({}); // { [medIndex]: daysCount }
 
   // Previous prescriptions panel
   const [showPrevRx, setShowPrevRx] = useState(false);
@@ -56,17 +113,17 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
   };
 
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-  const pendingPrescriptions = patients.filter(p =>
-    p.status === 'At Pharmacy' &&
+  const pendingPrescriptions = (patients || []).filter(p =>
+    (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy') &&
     (p.registrationDate === todayStr || p.wardBedId)
   );
-  const completedIssues = patients.filter(p =>
+  const completedIssues = (patients || []).filter(p =>
     ['Reviewing', 'Completed'].includes(p.status) &&
     (p.registrationDate === todayStr || p.wardBedId)
   ).length;
 
   const docName = activePatient
-    ? (doctors.find(d => d.id === activePatient.assignedDoctorId)?.name || 'Doctor')
+    ? ((doctors || []).find(d => d.id === activePatient.assignedDoctorId)?.name || 'Doctor')
     : 'Doctor';
 
   const handleSelectPatient = (patient) => {
@@ -74,18 +131,82 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
     setIssueType('full');
     setShowPrevRx(false);
     setSelectedHistIdx(0);
-    // Calculate a default partial day count (half of the first medicine's duration)
+    const initialDaysMap = {};
+    if (patient.prescription && patient.prescription.length > 0) {
+      patient.prescription.forEach((m, idx) => {
+        initialDaysMap[idx] = parseInt(m.duration) || 10;
+      });
+    }
+    setCustomMedDays(initialDaysMap);
     const firstMedDuration = patient.prescription?.[0]?.duration || 10;
     setPartialDays(Math.max(1, Math.floor(firstMedDuration / 2)));
+  };
+
+  const handleMedicineDaysChange = (idx, newDays, maxDays) => {
+    const parsed = Math.max(1, Math.min(parseInt(newDays) || 1, maxDays));
+    setCustomMedDays(prev => ({
+      ...prev,
+      [idx]: parsed
+    }));
+  };
+
+  const handlePharmacyDeleteMed = (indexToDelete) => {
+    if (!activePatient || !activePatient.prescription) return;
+    const updatedRx = activePatient.prescription.filter((_, i) => i !== indexToDelete);
+    setActivePatient(prev => ({
+      ...prev,
+      prescription: updatedRx
+    }));
+  };
+
+  const handlePharmacyAddMed = () => {
+    if (!activePatient) return;
+    const newMed = { name: 'New Medicine / Substitute', dosage: '1-0-1 - After Food', duration: 5 };
+    const updatedRx = [...(activePatient.prescription || []), newMed];
+    setActivePatient(prev => ({
+      ...prev,
+      prescription: updatedRx
+    }));
+  };
+
+  const handlePharmacyMedChange = (index, field, value) => {
+    if (!activePatient || !activePatient.prescription) return;
+    const updatedRx = activePatient.prescription.map((m, i) => {
+      if (i === index) {
+        return { ...m, [field]: value };
+      }
+      return m;
+    });
+    setActivePatient(prev => ({
+      ...prev,
+      prescription: updatedRx
+    }));
   };
 
   const handleSubmitIssue = (e) => {
     e.preventDefault();
     if (!activePatient) return;
 
-    const issuedString = issueType === 'full'
-      ? 'Full Duration'
-      : `Partial Duration (${partialDays} Days)`;
+    let issuedString = 'Full Prescribed Quantity Issued';
+    if (issueType === 'partial' && activePatient.prescription) {
+      const itemizedParts = activePatient.prescription.map((m, i) => {
+        const totalDays = parseInt(m.duration) || 1;
+        const issuedDays = Math.min(customMedDays[i] ?? totalDays, totalDays);
+        const totalQty = calculateTabletQty(m.dosage, totalDays);
+        const issuedQty = calculateTabletQty(m.dosage, issuedDays);
+        const remQty = totalQty - issuedQty;
+
+        const totalUnitStr = formatMedUnitQty(m, totalQty, totalDays);
+        const issuedUnitStr = formatMedUnitQty(m, issuedQty, issuedDays);
+
+        if (remQty <= 0) {
+          return `${m.name}: ${issuedUnitStr} (${issuedDays}/${totalDays} Days - Complete)`;
+        }
+        return `${m.name}: ${issuedUnitStr} (${issuedDays}/${totalDays} Days) • Pending`;
+      });
+
+      issuedString = `Partial Issue Breakdown: ${itemizedParts.join(' | ')}`;
+    }
 
     const validInjections = requiresInjection
       ? injections.filter(inj => inj.name.trim())
@@ -336,6 +457,167 @@ const PharmacyDashboard = ({ patients, doctors, onIssueMedication, onPrintPrescr
                       })()}
                     </div>
                   )}
+                </div>
+              )}
+              {/* Live Prescribed vs Issued Quantity Breakdown Card */}
+              {activePatient.prescription && activePatient.prescription.length > 0 && (
+                <div style={{
+                  background: 'rgba(21, 115, 136, 0.05)',
+                  border: '1.5px solid rgba(21, 115, 136, 0.25)',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  marginTop: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}>
+                  <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '0.65rem', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Prescribed Quantity vs Issued Quantity Breakdown</span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: issueType === 'full' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      color: issueType === 'full' ? 'var(--success)' : 'var(--warning)',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '6px',
+                      border: issueType === 'full' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)'
+                    }}>
+                      {issueType === 'full' ? 'Full Dispense' : 'Partial Dispense'}
+                    </span>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', minWidth: '580px', borderCollapse: 'collapse', fontSize: '0.75rem', tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1.5px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                          <th style={{ padding: '0.4rem 0.2rem', width: '24%' }}>Medicine Name</th>
+                          <th style={{ padding: '0.4rem 0.2rem', textAlign: 'center', width: '16%' }}>Doctor Prescribed</th>
+                          <th style={{ padding: '0.4rem 0.2rem', textAlign: 'center', width: '16%' }}>Issuing Duration</th>
+                          <th style={{ padding: '0.4rem 0.2rem', textAlign: 'center', width: '16%' }}>Issuing Now</th>
+                          <th style={{ padding: '0.4rem 0.2rem', textAlign: 'center', width: '18%' }}>Remaining Pending</th>
+                          <th style={{ padding: '0.4rem 0.2rem 0.4rem 0.5rem', textAlign: 'center', width: '10%' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activePatient.prescription.map((m, i) => {
+                          const totalDays = parseInt(m.duration) || 1;
+                          const totalQty = calculateTabletQty(m.dosage, totalDays);
+                          const selectedDays = customMedDays[i] !== undefined ? customMedDays[i] : (issueType === 'full' ? totalDays : Math.min(partialDays, totalDays));
+                          const issuedDays = issueType === 'full' ? totalDays : Math.min(selectedDays, totalDays);
+                          const issuedQty = issueType === 'full' ? totalQty : calculateTabletQty(m.dosage, issuedDays);
+                          const remQty = totalQty - issuedQty;
+                          const remDays = totalDays - issuedDays;
+
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '0.45rem 0.2rem', fontWeight: 600, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                                <input 
+                                  type="text" 
+                                  value={m.name} 
+                                  onChange={(e) => handlePharmacyMedChange(i, 'name', e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.76rem',
+                                    color: 'var(--text-primary)',
+                                    outline: 'none'
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '0.45rem 0.2rem', textAlign: 'center' }}>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatMedUnitQty(m, totalQty, totalDays)}</span>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({totalDays} Days)</div>
+                              </td>
+                              <td style={{ padding: '0.45rem 0.2rem', textAlign: 'center' }}>
+                                {issueType === 'full' ? (
+                                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--success)' }}>{totalDays} Days (Full)</span>
+                                ) : (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', flexWrap: 'nowrap' }}>
+                                    <input 
+                                      type="number"
+                                      min="1"
+                                      max={totalDays}
+                                      value={issuedDays}
+                                      onChange={(e) => handleMedicineDaysChange(i, e.target.value, totalDays)}
+                                      style={{
+                                        width: '42px',
+                                        padding: '0.15rem 0.2rem',
+                                        borderRadius: '4px',
+                                        border: '1.5px solid var(--primary)',
+                                        fontWeight: 800,
+                                        textAlign: 'center',
+                                        fontSize: '0.76rem',
+                                        background: 'var(--bg-card)',
+                                        color: 'var(--text-primary)'
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Days</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '0.45rem 0.2rem', textAlign: 'center', color: 'var(--primary)' }}>
+                                <span style={{ fontWeight: 800 }}>{formatMedUnitQty(m, issuedQty, issuedDays)}</span>
+                                <div style={{ fontSize: '0.68rem', fontWeight: 600 }}>({issuedDays} Days)</div>
+                              </td>
+                              <td style={{ padding: '0.45rem 0.2rem', textAlign: 'center' }}>
+                                {remQty > 0 ? (
+                                  <div>
+                                    <span style={{ fontWeight: 800, color: 'var(--warning)', fontSize: '0.74rem' }}>
+                                      {m.isSyrup || (m.name || '').toLowerCase().includes('syrup') ? '1 Bottle Pending' : (m.name || '').toLowerCase().includes('inj') ? `${remDays} Vials Pending` : `${remQty} Tabs`}
+                                    </span>
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--warning)' }}>({remDays} Days)</div>
+                                  </div>
+                                ) : (
+                                  <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '0.74rem' }}>0 (Completed)</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '0.45rem 0.2rem 0.45rem 0.5rem', textAlign: 'center' }}>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handlePharmacyDeleteMed(i)}
+                                  title="Delete Medicine from Prescription"
+                                  style={{
+                                    background: 'rgba(225, 29, 72, 0.08)',
+                                    border: '1px solid rgba(225, 29, 72, 0.2)',
+                                    color: 'var(--danger)',
+                                    cursor: 'pointer',
+                                    padding: '0.25rem 0.4rem',
+                                    borderRadius: '6px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        color: 'var(--primary)',
+                        borderColor: 'var(--primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                      onClick={handlePharmacyAddMed}
+                    >
+                      <Plus size={14} /> Add Medicine / Substitute
+                    </button>
+                  </div>
                 </div>
               )}
 

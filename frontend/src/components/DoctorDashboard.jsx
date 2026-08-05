@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope } from 'lucide-react';
+import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
@@ -52,6 +52,122 @@ const COMMON_MEDICINES = [
   { name: 'Inj. Hydrocortisone 100mg IV', dosage: '100mg IV Stat', duration: 1 }
 ];
 
+const COMMON_SYRUPS = [
+  { name: 'Benadryl Cough Syrup 100ml', dosage: '10ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Ascoril LS Syrup 100ml', dosage: '10ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Corex DX Syrup 100ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Sucrafil Suspension 200ml', dosage: '10ml (1-0-1) - Before Food', duration: 7, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Mucaine Gel Suspension 200ml', dosage: '10ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Cremaffin Plus Syrup 225ml', dosage: '10ml (0-0-1) - Night', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Grilinctus Cough Syrup 100ml', dosage: '5ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Alex Syrup 100ml', dosage: '5ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Ambrodil Syrup 100ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'T-Minic Syrup 60ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Duphalac Syrup 150ml', dosage: '15ml (0-0-1) - Night', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Calpol Paediatric Syrup 60ml', dosage: '5ml (1-0-1) - After Food', duration: 3, category: 'syrup', route: 'Oral (Syrup)' },
+  { name: 'Meftal-Spas Suspension 60ml', dosage: '5ml SOS', duration: 3, category: 'syrup', route: 'Oral (Syrup)' }
+];
+
+const COMMON_INJECTIONS = [
+  { name: 'Inj. Ceftriaxone 1g IV', dosage: '1g IV Stat', duration: 1, category: 'injection', route: 'IV' },
+  { name: 'Inj. Pantoprazole 40mg IV', dosage: '40mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
+  { name: 'Inj. Paracetamol 100ml IV', dosage: '100ml IV Infusion', duration: 1, category: 'injection', route: 'IV Infusion' },
+  { name: 'Inj. Ondansetron 4mg IV', dosage: '4mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
+  { name: 'Inj. Tramadol 50mg IV/IM', dosage: '50mg IV Stat', duration: 1, category: 'injection', route: 'IV/IM' },
+  { name: 'Inj. Hydrocortisone 100mg IV', dosage: '100mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
+  { name: 'Inj. Dexamethasone 8mg IV', dosage: '8mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
+  { name: 'Inj. Diclofenac 75mg IM', dosage: '75mg IM Stat', duration: 1, category: 'injection', route: 'IM' }
+];
+
+const COMMON_NEBULIZATIONS = [
+  { name: 'Duolin Respules (Ipratropium + Levosalbutamol)', dosage: '1 Respule (1-0-1)', duration: 3, category: 'nebulization', route: 'Inhalation' },
+  { name: 'Budecort Respules 0.5mg (Budesonide)', dosage: '1 Respule (1-0-1)', duration: 3, category: 'nebulization', route: 'Inhalation' },
+  { name: 'Asthalin Respules 2.5mg (Salbutamol)', dosage: '1 Respule SOS / twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' },
+  { name: 'Deriphyllin Respules', dosage: '1 Respule twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' },
+  { name: 'Normal Saline 3% Nebulizer Solution', dosage: '3ml nebulization twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' }
+];
+
+const COMMON_OTHERS = [
+  { name: 'Volini Gel (Diclofenac Ointment)', dosage: 'Apply topically 3 times daily', duration: 5, category: 'others', route: 'Topical' },
+  { name: 'Betadine Ointment 15g', dosage: 'Apply on wound twice daily', duration: 5, category: 'others', route: 'Topical' },
+  { name: 'Otrivin Nasal Drops', dosage: '2 drops twice daily', duration: 3, category: 'others', route: 'Nasal Drops' },
+  { name: 'Ciplox Eye/Ear Drops', dosage: '2 drops 3 times daily', duration: 5, category: 'others', route: 'Eye/Ear Drops' },
+  { name: 'Foracort 200 Inhaler', dosage: '2 puffs twice daily (1-0-1)', duration: 30, category: 'others', route: 'Inhalation' },
+  { name: 'Candid Dusting Powder', dosage: 'Apply topically twice daily', duration: 7, category: 'others', route: 'Topical' }
+];
+
+const parseDosageToSchedule = (dosageStr = '') => {
+  const str = (dosageStr || '').toLowerCase();
+  
+  let timing = '';
+  if (str.includes('before food') || str.includes('empty stomach')) timing = 'Before Food';
+  else if (str.includes('after food') || str.includes('after lunch') || str.includes('after meals')) timing = 'After Food';
+  else if (str.includes('with food')) timing = 'With Food';
+  else if (str.includes('sos') || str.includes('as needed')) timing = 'SOS';
+
+  let morning = false;
+  let afternoon = false;
+  let evening = false;
+  let night = false;
+
+  const fourPartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+  if (fourPartMatch) {
+    morning = fourPartMatch[1] !== '0';
+    afternoon = fourPartMatch[2] !== '0';
+    evening = fourPartMatch[3] !== '0';
+    night = fourPartMatch[4] !== '0';
+  } else {
+    const threePartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
+    if (threePartMatch) {
+      morning = threePartMatch[1] !== '0';
+      afternoon = threePartMatch[2] !== '0';
+      night = threePartMatch[3] !== '0';
+    } else {
+      if (str.includes('morning')) morning = true;
+      if (str.includes('afternoon') || str.includes('lunch')) afternoon = true;
+      if (str.includes('evening')) evening = true;
+      if (str.includes('night') || str.includes('bedtime')) night = true;
+      if (str.includes('thrice daily') || str.includes('tds') || str.includes('tid')) {
+        morning = true; afternoon = true; night = true;
+      } else if (str.includes('twice daily') || str.includes('bd') || str.includes('bid')) {
+        morning = true; night = true;
+      } else if (str.includes('once daily') || str.includes('od')) {
+        if (!morning && !afternoon && !evening && !night) morning = true;
+      }
+    }
+  }
+
+  return { morning, afternoon, evening, night, timing };
+};
+
+const formatScheduleToDosage = (m, a, e, n, timing) => {
+  const mVal = m ? '1' : '0';
+  const aVal = a ? '1' : '0';
+  const eVal = e ? '1' : '0';
+  const nVal = n ? '1' : '0';
+
+  let code = '';
+  if (e) {
+    code = `${mVal}-${aVal}-${eVal}-${nVal}`;
+  } else {
+    code = `${mVal}-${aVal}-${nVal}`;
+  }
+
+  const activeTimes = [];
+  if (m) activeTimes.push('Morning');
+  if (a) activeTimes.push('Afternoon');
+  if (e) activeTimes.push('Evening');
+  if (n) activeTimes.push('Night');
+
+  let timeStr = activeTimes.length > 0 ? activeTimes.join(', ') : 'No Schedule';
+
+  let result = `${code} (${timeStr})`;
+  if (timing) {
+    result += ` - ${timing}`;
+  }
+  return result;
+};
+
 const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = React.useRef(null);
@@ -59,10 +175,21 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   const suggestions = React.useMemo(() => {
     if (!med.name || med.name.trim().length < 1) return [];
     const query = med.name.toLowerCase().trim();
-    return COMMON_MEDICINES.filter(m => 
-      m.name.toLowerCase().includes(query)
-    ).slice(0, 10);
-  }, [med.name]);
+    let categoryPool = COMMON_MEDICINES;
+    if (med.category === 'syrup' || med.isSyrup) categoryPool = COMMON_SYRUPS;
+    else if (med.category === 'injection') categoryPool = COMMON_INJECTIONS;
+    else if (med.category === 'nebulization') categoryPool = COMMON_NEBULIZATIONS;
+    else if (med.category === 'others') categoryPool = COMMON_OTHERS;
+
+    const allCombined = [...categoryPool, ...COMMON_MEDICINES, ...COMMON_SYRUPS, ...COMMON_INJECTIONS, ...COMMON_NEBULIZATIONS, ...COMMON_OTHERS];
+    const uniquePool = Array.from(new Set(allCombined.map(a => a.name))).map(name => allCombined.find(a => a.name === name));
+    return uniquePool.filter(m => m.name.toLowerCase().includes(query)).slice(0, 10);
+  }, [med.name, med.isSyrup, med.category]);
+
+  const currentSchedule = React.useMemo(() => {
+    if (med.schedule) return med.schedule;
+    return parseDosageToSchedule(med.dosage || '');
+  }, [med.dosage, med.schedule]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -75,10 +202,12 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   }, []);
 
   const handleSelectSuggestion = (selectedMed) => {
+    const parsed = parseDosageToSchedule(selectedMed.dosage || '');
     onChange(idx, {
       name: selectedMed.name,
       dosage: selectedMed.dosage || med.dosage || '',
-      duration: selectedMed.duration || med.duration || 5
+      duration: selectedMed.duration || med.duration || 5,
+      schedule: parsed
     });
     setShowSuggestions(false);
   };
@@ -87,10 +216,12 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
     const val = e.target.value;
     const exactMatch = COMMON_MEDICINES.find(m => m.name.toLowerCase() === val.toLowerCase().trim());
     if (exactMatch) {
+      const parsed = parseDosageToSchedule(exactMatch.dosage || '');
       onChange(idx, {
         name: val,
         dosage: exactMatch.dosage || med.dosage || '',
-        duration: exactMatch.duration || med.duration || 5
+        duration: exactMatch.duration || med.duration || 5,
+        schedule: parsed
       });
     } else {
       onChange(idx, 'name', val);
@@ -98,105 +229,342 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
     setShowSuggestions(true);
   };
 
+  const handleToggleSchedule = (slot) => {
+    const updated = {
+      ...currentSchedule,
+      [slot]: !currentSchedule[slot]
+    };
+    const newDosageStr = formatScheduleToDosage(
+      updated.morning,
+      updated.afternoon,
+      updated.evening,
+      updated.night,
+      updated.timing
+    );
+    onChange(idx, {
+      dosage: newDosageStr,
+      schedule: updated
+    });
+  };
+
+  const handleSelectTiming = (tVal) => {
+    const newTiming = currentSchedule.timing === tVal ? '' : tVal;
+    const updated = { ...currentSchedule, timing: newTiming };
+    const newDosageStr = formatScheduleToDosage(
+      updated.morning,
+      updated.afternoon,
+      updated.evening,
+      updated.night,
+      updated.timing
+    );
+    onChange(idx, {
+      dosage: newDosageStr,
+      schedule: updated
+    });
+  };
+
   return (
-    <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative' }}>
-      <div ref={wrapperRef} style={{ position: 'relative' }}>
+    <div style={{
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid var(--border)',
+      borderRadius: '10px',
+      padding: '0.85rem 1rem',
+      marginBottom: '1rem',
+      position: 'relative'
+    }}>
+      {/* Primary Row: Name, Dosage input, Duration, Trash */}
+      <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative', marginBottom: '0.65rem' }}>
+        <div ref={wrapperRef} style={{ position: 'relative' }}>
+          {med.category && (
+            <span style={{
+              position: 'absolute',
+              top: '-18px',
+              left: '2px',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              color: med.category === 'injection' ? '#e11d48' : med.category === 'nebulization' ? '#9333ea' : med.category === 'others' ? '#d97706' : med.category === 'syrup' ? '#0f766e' : 'var(--primary)',
+              background: med.category === 'injection' ? 'rgba(225, 29, 72, 0.12)' : med.category === 'nebulization' ? 'rgba(147, 51, 234, 0.12)' : med.category === 'others' ? 'rgba(245, 158, 11, 0.12)' : med.category === 'syrup' ? 'rgba(15, 118, 110, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid currentColor',
+              padding: '0.05rem 0.4rem',
+              borderRadius: '4px',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}>
+              {med.category}
+            </span>
+          )}
+          <input 
+            type="text" 
+            className="form-input" 
+            placeholder={med.isSyrup ? "Syrup Name (e.g. Benadryl 100ml)" : "Medicine Name (e.g. Paracetamol)"}
+            value={med.name}
+            onChange={handleInputChange}
+            onFocus={() => {
+              if (med.name && med.name.trim().length > 0) {
+                setShowSuggestions(true);
+              }
+            }}
+            required
+            autoComplete="off"
+          />
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0,
+              right: 0,
+              background: '#ffffff',
+              border: '1px solid var(--primary, #157388)',
+              borderRadius: '8px',
+              boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
+              zIndex: 99999,
+              maxHeight: '230px',
+              overflowY: 'auto'
+            }}>
+              {suggestions.map((s, sIdx) => (
+                <div
+                  key={sIdx}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectSuggestion(s);
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectSuggestion(s);
+                  }}
+                  style={{
+                    padding: '0.65rem 0.85rem',
+                    cursor: 'pointer',
+                    borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                    fontSize: '0.85rem',
+                    background: '#ffffff',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                >
+                  <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+                  {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <input 
           type="text" 
           className="form-input" 
-          placeholder="Medicine Name (e.g. Paracetamol)"
-          value={med.name}
-          onChange={handleInputChange}
-          onFocus={() => {
-            if (med.name && med.name.trim().length > 0) {
-              setShowSuggestions(true);
-            }
+          placeholder={med.isSyrup ? "Dosage (e.g. 5ml - 1-0-1 - After Food)" : "Dosage (e.g. 1-0-1 - After Food)"}
+          value={med.dosage}
+          onChange={(e) => {
+            const val = e.target.value;
+            const parsed = parseDosageToSchedule(val);
+            onChange(idx, { dosage: val, schedule: parsed });
           }}
           required
-          autoComplete="off"
         />
 
-        {showSuggestions && suggestions.length > 0 && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            right: 0,
-            background: '#ffffff',
-            border: '1px solid var(--primary, #157388)',
-            borderRadius: '8px',
-            boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
-            zIndex: 99999,
-            maxHeight: '230px',
-            overflowY: 'auto'
-          }}>
-            {suggestions.map((s, sIdx) => (
-              <div
-                key={sIdx}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSelectSuggestion(s);
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input 
+            type="number" 
+            className="form-input" 
+            style={{ paddingRight: '0.5rem' }}
+            value={med.duration}
+            onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
+            required
+            min="1"
+          />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
+        </div>
+
+        <button 
+          type="button" 
+          className="btn-logout" 
+          onClick={() => onRemove(idx)}
+          disabled={!canRemove}
+          style={{ margin: '0 auto' }}
+          title="Remove Medicine"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+
+      {/* Schedule & Timing Selector Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justify: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
+        paddingTop: '0.5rem',
+        borderTop: '1px dashed rgba(0, 0, 0, 0.08)',
+        fontSize: '0.78rem'
+      }}>
+        {/* Morning, Afternoon, Evening, Night Schedule Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Schedule:</span>
+          
+          <button
+            type="button"
+            onClick={() => handleToggleSchedule('morning')}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: currentSchedule.morning ? '1px solid var(--primary, #157388)' : '1px solid var(--border)',
+              background: currentSchedule.morning ? 'rgba(21, 115, 136, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+              color: currentSchedule.morning ? 'var(--primary, #157388)' : 'var(--text-secondary)',
+              fontWeight: currentSchedule.morning ? 700 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Morning
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleToggleSchedule('afternoon')}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: currentSchedule.afternoon ? '1px solid #f59e0b' : '1px solid var(--border)',
+              background: currentSchedule.afternoon ? 'rgba(245, 158, 11, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+              color: currentSchedule.afternoon ? '#f59e0b' : 'var(--text-secondary)',
+              fontWeight: currentSchedule.afternoon ? 700 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Afternoon
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleToggleSchedule('evening')}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: currentSchedule.evening ? '1px solid #8b5cf6' : '1px solid var(--border)',
+              background: currentSchedule.evening ? 'rgba(139, 92, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+              color: currentSchedule.evening ? '#a855f7' : 'var(--text-secondary)',
+              fontWeight: currentSchedule.evening ? 700 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Evening
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleToggleSchedule('night')}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: currentSchedule.night ? '1px solid #3b82f6' : '1px solid var(--border)',
+              background: currentSchedule.night ? 'rgba(59, 130, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+              color: currentSchedule.night ? '#3b82f6' : 'var(--text-secondary)',
+              fontWeight: currentSchedule.night ? 700 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Night
+          </button>
+        </div>
+
+        {/* Meal Timing Chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Meal:</span>
+          {[
+            { label: 'After Food' },
+            { label: 'Before Food' },
+            { label: 'With Food' },
+            { label: 'SOS' }
+          ].map(t => {
+            const isSelected = currentSchedule.timing === t.label;
+            return (
+              <button
+                key={t.label}
+                type="button"
+                onClick={() => handleSelectTiming(t.label)}
+                style={{
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  border: isSelected ? '1px solid var(--success, #10b981)' : '1px solid var(--border)',
+                  background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                  color: isSelected ? 'var(--success, #10b981)' : 'var(--text-muted)',
+                  fontWeight: isSelected ? 700 : 400,
+                  fontSize: '0.74rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSelectSuggestion(s);
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Syrup Volume Quick-Select Chips (if Syrup mode) */}
+        {med.isSyrup && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', width: '100%', marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+            <span style={{ color: '#0f766e', fontWeight: 700, marginRight: '0.2rem' }}>Vol (ml):</span>
+            {['2.5ml', '5ml', '7.5ml', '10ml', '15ml'].map(vol => (
+              <button
+                key={vol}
+                type="button"
+                onClick={() => {
+                  let current = med.dosage || '';
+                  if (/\b\d+(?:\.\d+)?\s*ml\b/i.test(current)) {
+                    current = current.replace(/\b\d+(?:\.\d+)?\s*ml\b/i, vol);
+                  } else {
+                    current = `${vol} ${current}`.trim();
+                  }
+                  const parsed = parseDosageToSchedule(current);
+                  onChange(idx, { dosage: current, schedule: parsed });
                 }}
                 style={{
-                  padding: '0.65rem 0.85rem',
-                  cursor: 'pointer',
-                  borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                  fontSize: '0.85rem',
-                  background: '#ffffff',
-                  transition: 'background 0.15s ease'
+                  padding: '0.15rem 0.45rem',
+                  borderRadius: '4px',
+                  border: (med.dosage || '').includes(vol) ? '1px solid #0f766e' : '1px solid var(--border)',
+                  background: (med.dosage || '').includes(vol) ? 'rgba(15, 118, 110, 0.15)' : 'transparent',
+                  color: (med.dosage || '').includes(vol) ? '#0f766e' : 'var(--text-secondary)',
+                  fontWeight: (med.dosage || '').includes(vol) ? 700 : 500,
+                  fontSize: '0.72rem',
+                  cursor: 'pointer'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
               >
-                <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
-              </div>
+                {vol}
+              </button>
             ))}
           </div>
         )}
       </div>
-
-      <input 
-        type="text" 
-        className="form-input" 
-        placeholder="Dosage (e.g. 500mg - 1-0-1)"
-        value={med.dosage}
-        onChange={(e) => onChange(idx, 'dosage', e.target.value)}
-        required
-      />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input 
-          type="number" 
-          className="form-input" 
-          style={{ paddingRight: '0.5rem' }}
-          value={med.duration}
-          onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
-          required
-        />
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
-      </div>
-
-      <button 
-        type="button" 
-        className="btn-logout" 
-        onClick={() => onRemove(idx)}
-        disabled={!canRemove}
-        style={{ margin: '0 auto' }}
-      >
-        <Trash2 size={18} />
-      </button>
     </div>
   );
 };
 
-const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard }) => {
+const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor }) => {
   const [activePatient, setActivePatient] = useState(null);
+  const [reassignModalPatient, setReassignModalPatient] = useState(null);
+  const [targetDoctorId, setTargetDoctorId] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [expandHistory, setExpandHistory] = useState(false);
   const [showAllHistoryModal, setShowAllHistoryModal] = useState(false);
@@ -211,6 +579,82 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     setTimeout(() => {
       setToast(null);
     }, 4000);
+  };
+
+  const handleReassignPatient = async (patient, targetDocId, reasonInput = '') => {
+    if (!targetDocId || Number(targetDocId) === Number(patient.assignedDoctorId)) return;
+    const targetDoc = doctors.find(d => Number(d.id) === Number(targetDocId));
+    const targetDocName = targetDoc ? targetDoc.name : 'Selected Doctor';
+
+    const prevDoc = doctors.find(d => Number(d.id) === Number(patient.assignedDoctorId));
+    const prevDocName = prevDoc ? prevDoc.name : 'Dr. Sarah';
+
+    const currentUser = (doctors && doctors.find(d => d.email && d.email.toLowerCase() === (doctorEmail || '').toLowerCase())) || {};
+    const changedByName = currentUser.name || (userRole === 'admin' ? 'System Admin' : prevDocName);
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+    const fullDateTime = `${dateStr}, ${timeStr}`;
+
+    const historyLog = {
+      id: `reassign_${Date.now()}`,
+      type: 'Doctor Reassignment',
+      desk: 'Doctor Reassignment',
+      previousDoctor: prevDocName,
+      newDoctor: targetDocName,
+      previousStatus: `Assigned: ${prevDocName}`,
+      newStatus: `Assigned: ${targetDocName}`,
+      dateTime: fullDateTime,
+      timestamp: fullDateTime,
+      changedBy: changedByName,
+      reason: reasonInput || reassignReason || 'Reassigned from consultation desk',
+      notes: `Reassigned from ${prevDocName} to ${targetDocName}`
+    };
+
+    let existingLogs = [];
+    if (patient && patient.trackingHistory) {
+      if (Array.isArray(patient.trackingHistory)) {
+        existingLogs = patient.trackingHistory;
+      } else if (typeof patient.trackingHistory === 'string') {
+        try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
+      }
+    }
+    const updatedHistory = [historyLog, ...existingLogs];
+
+    let success = false;
+    if (onReassignDoctor) {
+      success = await onReassignDoctor(patient.id, targetDocId, {
+        reason: reasonInput || reassignReason || '',
+        changedBy: changedByName
+      });
+    }
+
+    if (!success) {
+      try {
+        const response = await fetch(`${API_BASE}/api/patients/${patient.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignedDoctorId: parseInt(targetDocId),
+            previousDoctor: prevDocName,
+            trackingHistory: updatedHistory
+          })
+        });
+        if (response.ok) success = true;
+      } catch (err) {
+        console.error("Error reassigning patient:", err);
+      }
+    }
+
+    if (success) {
+      showToast(`Patient ${patient.name} reassigned to ${targetDocName} successfully!`);
+      if (activePatient && (activePatient.id === patient.id || String(activePatient.id) === String(patient.id))) {
+        setActivePatient(null);
+      }
+    } else {
+      alert("Failed to reassign patient. Please try again.");
+    }
   };
   
   // Diagnosis and Clinical states
@@ -409,7 +853,23 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   };
 
   const handleAddMedicine = () => {
-    setMedicines([...medicines, { name: '', dosage: '', duration: 10 }]);
+    setMedicines([...medicines, { name: '', dosage: '', duration: 10, category: 'tablets', route: 'Oral (Tab)' }]);
+  };
+
+  const handleAddSyrup = () => {
+    setMedicines([...medicines, { name: '', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', isSyrup: true, route: 'Oral (Syrup)' }]);
+  };
+
+  const handleAddInjection = () => {
+    setMedicines([...medicines, { name: '', dosage: '1g IV Stat', duration: 1, category: 'injection', route: 'IV' }]);
+  };
+
+  const handleAddNebulization = () => {
+    setMedicines([...medicines, { name: '', dosage: '1 Respule (1-0-1)', duration: 3, category: 'nebulization', route: 'Inhalation' }]);
+  };
+
+  const handleAddOthers = () => {
+    setMedicines([...medicines, { name: '', dosage: 'Apply twice daily', duration: 5, category: 'others', route: 'Topical' }]);
   };
 
   const handleRemoveMedicine = (idx) => {
@@ -587,6 +1047,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
+                          type="button"
                           className="btn btn-secondary btn-ward-action"
                           style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
                           onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
@@ -595,6 +1056,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           <Bed size={12} /> Ward
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-reassign-action"
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--primary)',
+                          borderColor: 'rgba(99, 102, 241, 0.4)',
+                          background: 'rgba(99, 102, 241, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 600,
+                          borderRadius: '6px'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReassignModalPatient(p);
+                          setTargetDoctorId('');
+                        }}
+                        title="Reassign patient to another doctor"
+                      >
+                        <UserPlus size={12} /> Reassign
+                      </button>
                       <button className="btn btn-primary btn-consult-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
                     </div>
                   </div>
@@ -617,7 +1103,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   <div 
                     key={p.id} 
                     className="stat-card review-queue-card" 
-                    style={{ cursor: 'pointer', borderLeft: '4px solid var(--warning)', padding: '1rem 1.25rem' }}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid var(--primary)', padding: '1rem 1.25rem' }}
                     onClick={() => handleSelectPatient(p)}
                   >
                     <div style={{ flexGrow: 1 }}>
@@ -625,9 +1111,9 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
                         <span style={{
                           fontSize: '0.7rem',
-                          color: '#b45309',
-                          background: '#fef3c7',
-                          border: '1px solid #fde68a',
+                          color: '#0f766e',
+                          background: 'rgba(15, 118, 110, 0.1)',
+                          border: '1px solid rgba(15, 118, 110, 0.25)',
                           padding: '0.15rem 0.55rem',
                           borderRadius: '6px',
                           fontWeight: 700,
@@ -639,12 +1125,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         </span>
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                        {p.age} Yrs • {p.gender} • ID: #{p.id} • Medication: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{p.issuedMedication || 'Dispensed'}</span>
+                        {p.age} Yrs • {p.gender} • ID: #{p.id}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
+                          type="button"
                           className="btn btn-secondary btn-ward-action"
                           style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
                           onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
@@ -653,6 +1140,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           <Bed size={12} /> Ward
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-reassign-action"
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--primary)',
+                          borderColor: 'rgba(99, 102, 241, 0.4)',
+                          background: 'rgba(99, 102, 241, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 600,
+                          borderRadius: '6px'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReassignModalPatient(p);
+                          setTargetDoctorId('');
+                        }}
+                        title="Reassign patient to another doctor"
+                      >
+                        <UserPlus size={12} /> Reassign
+                      </button>
                       <button className="btn btn-warning btn-review-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
                     </div>
                   </div>
@@ -746,16 +1258,41 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       ID: #{activePatient.id} • {activePatient.gender} • {activePatient.age} Yrs • Contact: {activePatient.contact}
                     </p>
                   </div>
-                  <div style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    color: 'var(--success)',
-                    fontWeight: 800,
-                    fontSize: '1.2rem',
-                    padding: '0.4rem 0.85rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(16, 185, 129, 0.3)'
-                  }}>
-                    Token #{activePatient.tokenNumber || '--'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '0.4rem 0.85rem',
+                        fontSize: '0.85rem',
+                        color: 'var(--primary)',
+                        borderColor: 'rgba(99, 102, 241, 0.4)',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontWeight: 700,
+                        borderRadius: '8px'
+                      }}
+                      onClick={() => {
+                        setReassignModalPatient(activePatient);
+                        setTargetDoctorId('');
+                      }}
+                      title="Reassign active patient to another doctor"
+                    >
+                      <UserPlus size={14} /> Reassign Doctor
+                    </button>
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: 'var(--success)',
+                      fontWeight: 800,
+                      fontSize: '1.2rem',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}>
+                      Token #{activePatient.tokenNumber || '--'}
+                    </div>
                   </div>
                 </div>
 
@@ -1292,16 +1829,90 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     </div>
                   ) : (
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <label className="form-label" style={{ marginBottom: 0 }}>Digital Prescription</label>
-                        <button 
-                          type="button" 
-                          className="btn btn-secondary" 
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                          onClick={handleAddMedicine}
-                        >
-                          <Plus size={14} /> Add Medicine
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                            onClick={handleAddMedicine}
+                          >
+                            <Plus size={13} /> Tablets
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            style={{
+                              padding: '0.35rem 0.6rem',
+                              fontSize: '0.78rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(15, 118, 110, 0.1)',
+                              color: '#0f766e',
+                              border: '1.5px solid rgba(15, 118, 110, 0.3)',
+                              fontWeight: 700
+                            }}
+                            onClick={handleAddSyrup}
+                          >
+                            <Plus size={13} /> Syrup
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            style={{
+                              padding: '0.35rem 0.6rem',
+                              fontSize: '0.78rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(225, 29, 72, 0.1)',
+                              color: '#e11d48',
+                              border: '1.5px solid rgba(225, 29, 72, 0.3)',
+                              fontWeight: 700
+                            }}
+                            onClick={handleAddInjection}
+                          >
+                            <Plus size={13} /> Injection
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            style={{
+                              padding: '0.35rem 0.6rem',
+                              fontSize: '0.78rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(147, 51, 234, 0.1)',
+                              color: '#9333ea',
+                              border: '1.5px solid rgba(147, 51, 234, 0.3)',
+                              fontWeight: 700
+                            }}
+                            onClick={handleAddNebulization}
+                          >
+                            <Plus size={13} /> Nebulization
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary" 
+                            style={{
+                              padding: '0.35rem 0.6rem',
+                              fontSize: '0.78rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              color: '#d97706',
+                              border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                              fontWeight: 700
+                            }}
+                            onClick={handleAddOthers}
+                          >
+                            <Plus size={13} /> Others
+                          </button>
+                        </div>
                       </div>
 
                       {medicines.map((med, idx) => (
@@ -1928,6 +2539,35 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   <button 
                     type="button"
                     className="btn btn-secondary"
+                    style={{
+                      flexGrow: 1,
+                      borderColor: 'var(--primary)',
+                      color: 'var(--primary)',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem'
+                    }}
+                    onClick={() => {
+                      if (sharePatient) {
+                        setActivePatient(sharePatient);
+                        setMedicines(sharePatient.prescription && sharePatient.prescription.length > 0 
+                          ? JSON.parse(JSON.stringify(sharePatient.prescription))
+                          : [{ name: '', dosage: '', duration: 10 }]);
+                        setDiagnosis(sharePatient.diagnosis || '');
+                        setPrescriptionMode('form');
+                        setSharePatient(null);
+                        setIsHistoryPreview(false);
+                        showToast('Prescription loaded into form. You can add, edit, or remove medicines now.', 'info');
+                      }
+                    }}
+                  >
+                    <Plus size={16} /> Edit / Add Medicines
+                  </button>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
                     style={{ flexGrow: 1 }}
                     onClick={() => {
                       setSharePatient(null);
@@ -2081,6 +2721,212 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             />
           </div>
         </div>
+      )}
+
+      {/* Reassign Doctor Modal */}
+      {reassignModalPatient && createPortal(
+        <div className="modal-overlay fade-in" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '1rem'
+        }} onClick={() => setReassignModalPatient(null)}>
+          <div className="card fade-in" style={{
+            maxWidth: '480px',
+            width: '100%',
+            background: 'var(--bg-card, #1e293b)',
+            border: '1px solid var(--border, rgba(255,255,255,0.1))',
+            borderRadius: '16px',
+            padding: '1.75rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+              <div>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  <UserPlus size={22} style={{ color: 'var(--primary)' }} />
+                  Reassign Doctor
+                </h3>
+                <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Select a doctor to transfer patient consultation
+                </p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setReassignModalPatient(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', padding: '0.2rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Patient Info Summary Badge */}
+            <div style={{
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.2)',
+              borderRadius: '10px',
+              padding: '0.85rem 1rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              justify: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                  {reassignModalPatient.name}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                  {reassignModalPatient.age} Yrs • {reassignModalPatient.gender} • ID: #{reassignModalPatient.id}
+                </div>
+              </div>
+              <span style={{
+                background: 'rgba(59, 130, 246, 0.2)',
+                color: 'var(--primary)',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+                padding: '0.25rem 0.6rem',
+                borderRadius: '6px'
+              }}>
+                Token #{reassignModalPatient.tokenNumber || '--'}
+              </span>
+            </div>
+
+            {/* Doctor Selection Options List */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.6rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Select Doctor:
+              </label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                {doctors.map(doc => {
+                  const isCurrent = Number(doc.id) === Number(reassignModalPatient.assignedDoctorId);
+                  const isSelected = Number(doc.id) === Number(targetDoctorId);
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={() => {
+                        if (!isCurrent) setTargetDoctorId(doc.id);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justify: 'space-between',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '10px',
+                        border: isSelected 
+                          ? '2px solid var(--primary)' 
+                          : isCurrent 
+                          ? '1px solid rgba(255, 255, 255, 0.08)' 
+                          : '1px solid var(--border)',
+                        background: isSelected 
+                          ? 'rgba(99, 102, 241, 0.15)' 
+                          : isCurrent 
+                          ? 'rgba(255, 255, 255, 0.02)' 
+                          : 'var(--bg-dark, rgba(0,0,0,0.2))',
+                        cursor: isCurrent ? 'default' : 'pointer',
+                        opacity: isCurrent ? 0.6 : 1,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                          color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justify: 'center',
+                          fontWeight: 700,
+                          fontSize: '0.85rem'
+                        }}>
+                          {doc.name.replace('Dr.', '').trim().charAt(0)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                            {doc.name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {doc.specialty || 'General Practice'}
+                          </div>
+                        </div>
+                      </div>
+                      {isCurrent ? (
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                          Current Doctor
+                        </span>
+                      ) : isSelected ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <UserCheck size={14} /> Selected
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reason for Reassignment (Optional) */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>
+                Reason for Reassignment (Optional):
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Specialist consultation needed, Doctor unavailable, Patient request..."
+                value={reassignReason}
+                onChange={(e) => setReassignReason(e.target.value)}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { setReassignModalPatient(null); setReassignReason(''); }}
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!targetDoctorId || Number(targetDoctorId) === Number(reassignModalPatient.assignedDoctorId)}
+                onClick={async () => {
+                  await handleReassignPatient(reassignModalPatient, targetDoctorId, reassignReason);
+                  setReassignModalPatient(null);
+                  setReassignReason('');
+                }}
+                style={{
+                  padding: '0.5rem 1.4rem',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  opacity: (!targetDoctorId || Number(targetDoctorId) === Number(reassignModalPatient.assignedDoctorId)) ? 0.5 : 1,
+                  cursor: (!targetDoctorId || Number(targetDoctorId) === Number(reassignModalPatient.assignedDoctorId)) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <UserCheck size={16} /> Save & Reassign
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Custom Toast Notification - Root Level (Shows at bottom) */}

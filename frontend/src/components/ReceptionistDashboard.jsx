@@ -627,21 +627,6 @@ const ReceptionistDashboard = ({
             <div className="stat-label">Payments Collected</div>
           </div>
         </div>
-
-        <div 
-          className="stat-card" 
-          style={{ cursor: 'pointer', border: '1.5px solid var(--primary, #157388)', background: 'rgba(21, 115, 136, 0.04)', transition: 'all 0.2s' }}
-          onClick={() => setShowHousekeepingModal(true)}
-          title="Click to manage Housekeeping & Plants Checklist"
-        >
-          <div className="stat-icon primary" style={{ background: '#fef2f2', color: '#dc2626' }}>
-            <Sparkles size={24} />
-          </div>
-          <div>
-            <div className="stat-value" style={{ fontSize: '1.05rem', color: 'var(--primary)' }}>Checklist & Plants</div>
-            <div className="stat-label" style={{ fontWeight: 600, color: '#dc2626' }}>🧹 Housekeeping Logs</div>
-          </div>
-        </div>
       </div>
 
       <div className="grid-2">
@@ -895,9 +880,19 @@ const ReceptionistDashboard = ({
                       onChange={(e) => {
                         const val = e.target.value;
                         setDob(val);
-                        const calcAge = calculateAgeFromDob(val);
-                        if (calcAge) {
-                          setAge(calcAge.replace(/[^0-9]/g, ''));
+                        setChildBirthDate(val);
+                        if (val) {
+                          const birthDate = new Date(val);
+                          const today = new Date();
+                          if (!isNaN(birthDate.getTime())) {
+                            let years = today.getFullYear() - birthDate.getFullYear();
+                            const monthDiff = today.getMonth() - birthDate.getMonth();
+                            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                              years--;
+                            }
+                            const finalYears = years < 0 ? 0 : years;
+                            setAge(String(finalYears));
+                          }
                         }
                       }}
                     />
@@ -1053,23 +1048,11 @@ const ReceptionistDashboard = ({
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="e.g. 38 weeks"
+                          placeholder="e.g. 38 - 40 weeks (Full Term)"
                           value={childGa}
                           onChange={(e) => setChildGa(e.target.value)}
                         />
                       </div>
-                      <div className="form-group">
-                        <label className="form-label">Birth Date</label>
-                        <input
-                          type="date"
-                          className="form-input"
-                          value={childBirthDate}
-                          onChange={(e) => setChildBirthDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">Birth Weight</label>
                         <input
@@ -1080,6 +1063,9 @@ const ReceptionistDashboard = ({
                           onChange={(e) => setChildBirthWeight(e.target.value)}
                         />
                       </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">Place of Birth</label>
                         <input
@@ -1090,9 +1076,6 @@ const ReceptionistDashboard = ({
                           onChange={(e) => setChildPlaceOfBirth(e.target.value)}
                         />
                       </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">Delivery Type</label>
                         <select
@@ -1104,6 +1087,8 @@ const ReceptionistDashboard = ({
                           <option value="LSCS">Lower Segment Cesarean Section (LSCS)</option>
                         </select>
                       </div>
+                    </div>
+                    <div style={{ marginTop: '0.5rem' }}>
                       <div className="form-group">
                         <label className="form-label">History of NICU Admission</label>
                         <select
@@ -1111,7 +1096,7 @@ const ReceptionistDashboard = ({
                           value={childNicuHistory}
                           onChange={(e) => setChildNicuHistory(e.target.value)}
                         >
-                          <option value="No">No History</option>
+                          <option value="No">No (Healthy Birth)</option>
                           <option value="Yes">Yes (Admitted to NICU)</option>
                         </select>
                       </div>
@@ -2292,209 +2277,6 @@ const ReceptionistDashboard = ({
               alt="Prescription Preview"
               style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block', borderRadius: '8px' }}
             />
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Housekeeping & Plants Checklist Modal */}
-      {showHousekeepingModal && createPortal(
-        <div className="modal-overlay" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 999999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1.5rem'
-        }}>
-          <div className="card fade-in" style={{
-            width: '100%',
-            maxWidth: '1050px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            background: 'var(--card-bg, #ffffff)',
-            borderRadius: '16px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-            padding: '1.75rem',
-            position: 'relative'
-          }}>
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ background: '#fef2f2', color: '#dc2626', padding: '0.4rem 0.6rem', borderRadius: '8px' }}>
-                  <Sparkles size={22} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main, #1e293b)', fontWeight: 800 }}>
-                    Housekeeping & Plants Checklist
-                  </h3>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #64748b)' }}>
-                    Manage room cleaning schedules, plant watering logs, and sanitization notes.
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ borderRadius: '50%', width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}
-                onClick={() => setShowHousekeepingModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Content Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.9fr', gap: '1.5rem', alignItems: 'start' }}>
-              {/* Housekeeping Cleaning Schedule Table */}
-              <div style={{ background: 'rgba(248, 250, 252, 0.6)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
-                <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Sparkles size={18} /> Housekeeping Cleaning Schedule ({hkLogs.length})
-                </h4>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1.5px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Date</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Area / Place</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Cleaned Status</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Watered Plants</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Notes</th>
-                        <th style={{ textAlign: 'center', padding: '0.5rem' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {hkLogs.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                            No housekeeping logs registered yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        hkLogs.map(log => (
-                          <tr key={log.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                            <td style={{ padding: '0.6rem 0.5rem', whiteSpace: 'nowrap', fontWeight: 600 }}>{log.date}</td>
-                            <td style={{ padding: '0.6rem 0.5rem', fontWeight: 700, color: 'var(--primary)' }}>{log.placeName}</td>
-                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                              {log.isCleaned ? (
-                                <span style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.72rem' }}>
-                                  ✓ Cleaned
-                                </span>
-                              ) : (
-                                <span style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.72rem' }}>
-                                  Pending
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                              {log.isPlantsWatered ? (
-                                <span style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                                  🌱 Watered
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>-</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '0.6rem 0.5rem', color: 'var(--text-secondary)' }}>{log.notes || '-'}</td>
-                            <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteHkCheck(log.id)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.2rem' }}
-                                title="Delete Record"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Register Housekeeping Check Form */}
-              <div style={{ background: 'var(--bg-dark, #f8fafc)', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
-                <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                  Register Housekeeping Check
-                </h4>
-
-                <form onSubmit={handleAddHkCheck}>
-                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Place / Room Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Reception Lobby, Room 101, Pharmacy Block"
-                      value={hkPlaceName}
-                      onChange={(e) => setHkPlaceName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Date</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={hkDate}
-                      onChange={(e) => setHkDate(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
-                      <input
-                        type="checkbox"
-                        checked={hkCleaned}
-                        onChange={(e) => setHkCleaned(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                      />
-                      Mark as fully Cleaned
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
-                      <input
-                        type="checkbox"
-                        checked={hkWatered}
-                        onChange={(e) => setHkWatered(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: '#166534' }}
-                      />
-                      🌱 Watered Plants
-                    </label>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Outflow Notes</label>
-                    <textarea
-                      className="form-input"
-                      rows={3}
-                      placeholder="e.g. Cleaned at 10 AM, sanitization complete"
-                      value={hkNotes}
-                      onChange={(e) => setHkNotes(e.target.value)}
-                      style={{ fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={hkLoading}
-                    style={{ width: '100%', padding: '0.65rem', background: '#dc2626', borderColor: '#dc2626', color: '#ffffff', fontWeight: 700 }}
-                  >
-                    {hkLoading ? 'Saving...' : 'Log Housekeeping check'}
-                  </button>
-                </form>
-              </div>
-            </div>
           </div>
         </div>,
         document.body
