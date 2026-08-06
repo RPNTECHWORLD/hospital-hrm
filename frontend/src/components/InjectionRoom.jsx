@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Clock, Search, AlertCircle, Syringe, Plus, Edit3, Trash2, CheckCircle2, XCircle, UserCheck, Flame } from 'lucide-react';
+import { ShieldCheck, Clock, Search, AlertCircle, Syringe, Plus, Edit3, Trash2, CheckCircle2, XCircle, UserCheck } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const ROUTE_OPTIONS = ['IV', 'IM', 'SC', 'ID', 'IV Infusion'];
+const ROUTE_OPTIONS = ['IV', 'IM'];
 const FREQUENCY_OPTIONS = [
   'STAT (Single / Immediate)',
   'NORMAL',
@@ -57,7 +57,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
     fetchInjections(true);
     const interval = setInterval(() => {
       fetchInjections(false);
-    }, 3000); // Poll database for real-time updates
+    }, 10000); // Poll database every 10s for real-time updates
 
     return () => clearInterval(interval);
   }, []);
@@ -222,7 +222,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
       {/* Overview Stat Cards */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
-          <div className="stat-icon warning">
+          <div className="stat-icon primary">
             <Clock size={24} />
           </div>
           <div>
@@ -360,7 +360,6 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                             color: '#dc2626',
                             border: '1px solid #fca5a5'
                           }}>
-                            <Flame size={13} />
                             {freqName}
                           </span>
                         ) : (
@@ -382,7 +381,15 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
 
                       {/* Status */}
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <span className={`badge ${inj.status === 'Administered' ? 'badge-success' : inj.status === 'Cancelled' ? 'badge-danger' : 'badge-pending'}`} style={{ fontWeight: 600 }}>
+                        <span
+                          className={`badge ${inj.status === 'Administered' ? 'badge-success' : inj.status === 'Cancelled' ? 'badge-danger' : ''}`}
+                          style={{
+                            fontWeight: 600,
+                            background: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'rgba(21, 115, 136, 0.1)',
+                            color: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'var(--primary, #157388)',
+                            border: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : '1px solid rgba(21, 115, 136, 0.2)'
+                          }}
+                        >
                           {inj.status === 'Administered' ? 'Given ✅' : inj.status}
                         </span>
                       </td>

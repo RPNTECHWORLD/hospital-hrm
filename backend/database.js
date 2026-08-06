@@ -566,87 +566,94 @@ export const deleteAllPatients = async () => {
 };
 
 export const getPatients = async () => {
-  const patients = await dbAll(`SELECT * FROM patients`);
-  const result = [];
-  for (const pat of patients) {
-    const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [pat.id]);
-    const history = historyRows.map(h => ({
-      visitId: h.visitId,
-      date: h.date,
-      doctorName: h.doctorName,
-      diagnosis: h.diagnosis,
-      prescription: h.prescription ? JSON.parse(h.prescription) : [],
-      prescriptionImg: h.prescriptionImg || null,
-      issuedMedication: h.issuedMedication,
-      paymentStatus: h.paymentStatus,
-      status: h.status
-    }));
+  const [patients, allHistoryRows] = await Promise.all([
+    dbAll(`SELECT * FROM patients`),
+    dbAll(`SELECT * FROM patient_history`)
+  ]);
 
-    result.push({
-      id: pat.id,
-      name: pat.name,
-      age: pat.age,
-      gender: pat.gender,
-      contact: pat.contact,
-      address: pat.address,
-      assignedDoctorId: pat.assignedDoctorId,
-      status: pat.status,
-      diagnosis: pat.diagnosis,
-      prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
-      issuedMedication: pat.issuedMedication,
-      paymentStatus: pat.paymentStatus,
-      wardBedId: pat.wardBedId,
-      bedAdmissionPending: pat.bedAdmissionPending || 0,
-      fatherOrHusbandName: pat.fatherOrHusbandName || '',
-      motherOrGuardianName: pat.motherOrGuardianName || '',
-      alternatePhone: pat.alternatePhone || '',
-      tokenNumber: pat.tokenNumber || null,
-      registrationDate: pat.registrationDate || '',
-      prescriptionImg: pat.prescriptionImg || null,
-      height: pat.height || '',
-      weight: pat.weight || '',
-      bp: pat.bp || '',
-      hr: pat.hr || '',
-      spo2: pat.spo2 || '',
-      grbs: pat.grbs || '',
-      temp: pat.temp || '',
-      complaints: pat.complaints || '',
-      pastHistory: pat.pastHistory || '',
-      examination: pat.examination || '',
-      investigation: pat.investigation || '',
-      bmi: pat.bmi || '',
-      paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
-      feeBreakdown: pat.feeBreakdown || '',
-      isChild: pat.isChild || 0,
-      childGa: pat.childGa || '',
-      childBirthDate: pat.childBirthDate || '',
-      childBirthWeight: pat.childBirthWeight || '',
-      childPlaceOfBirth: pat.childPlaceOfBirth || '',
-      childDeliveryType: pat.childDeliveryType || '',
-      childNicuHistory: pat.childNicuHistory || '',
-      specialInvestigation: pat.specialInvestigation || 0,
-      specialInvestigationNotes: pat.specialInvestigationNotes || '',
-      dob: pat.dob || '',
-      respiratoryRate: pat.respiratoryrate || pat.respiratoryRate || '',
-      painScale: pat.painscale || pat.painScale || '',
-      headCircumference: pat.headcircumference || pat.headCircumference || '',
-      avpu: pat.avpu || '',
-      pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
-      injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
-      previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
-      trackingHistory: (() => {
-        const raw = pat.trackinghistory || pat.trackingHistory;
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (typeof raw === 'string') {
-          try { return JSON.parse(raw); } catch (e) { return []; }
-        }
-        return [];
-      })(),
-      history: history
-    });
+  const historyByPatient = {};
+  if (Array.isArray(allHistoryRows)) {
+    for (const h of allHistoryRows) {
+      if (!historyByPatient[h.patientId]) {
+        historyByPatient[h.patientId] = [];
+      }
+      historyByPatient[h.patientId].push({
+        visitId: h.visitId,
+        date: h.date,
+        doctorName: h.doctorName,
+        diagnosis: h.diagnosis,
+        prescription: h.prescription ? JSON.parse(h.prescription) : [],
+        prescriptionImg: h.prescriptionImg || null,
+        issuedMedication: h.issuedMedication,
+        paymentStatus: h.paymentStatus,
+        status: h.status
+      });
+    }
   }
-  return result;
+
+  return (patients || []).map(pat => ({
+    id: pat.id,
+    name: pat.name,
+    age: pat.age,
+    gender: pat.gender,
+    contact: pat.contact,
+    address: pat.address,
+    assignedDoctorId: pat.assignedDoctorId,
+    status: pat.status,
+    diagnosis: pat.diagnosis,
+    prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
+    issuedMedication: pat.issuedMedication,
+    paymentStatus: pat.paymentStatus,
+    wardBedId: pat.wardBedId,
+    bedAdmissionPending: pat.bedAdmissionPending || 0,
+    fatherOrHusbandName: pat.fatherOrHusbandName || '',
+    motherOrGuardianName: pat.motherOrGuardianName || '',
+    alternatePhone: pat.alternatePhone || '',
+    tokenNumber: pat.tokenNumber || null,
+    registrationDate: pat.registrationDate || '',
+    prescriptionImg: pat.prescriptionImg || null,
+    height: pat.height || '',
+    weight: pat.weight || '',
+    bp: pat.bp || '',
+    hr: pat.hr || '',
+    spo2: pat.spo2 || '',
+    grbs: pat.grbs || '',
+    temp: pat.temp || '',
+    complaints: pat.complaints || '',
+    pastHistory: pat.pastHistory || '',
+    examination: pat.examination || '',
+    investigation: pat.investigation || '',
+    bmi: pat.bmi || '',
+    paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
+    feeBreakdown: pat.feeBreakdown || '',
+    isChild: pat.isChild || 0,
+    childGa: pat.childGa || '',
+    childBirthDate: pat.childBirthDate || '',
+    childBirthWeight: pat.childBirthWeight || '',
+    childPlaceOfBirth: pat.childPlaceOfBirth || '',
+    childDeliveryType: pat.childDeliveryType || '',
+    childNicuHistory: pat.childNicuHistory || '',
+    specialInvestigation: pat.specialInvestigation || 0,
+    specialInvestigationNotes: pat.specialInvestigationNotes || '',
+    dob: pat.dob || '',
+    respiratoryRate: pat.respiratoryrate || pat.respiratoryRate || '',
+    painScale: pat.painscale || pat.painScale || '',
+    headCircumference: pat.headcircumference || pat.headCircumference || '',
+    avpu: pat.avpu || '',
+    pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
+    injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
+    previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
+    trackingHistory: (() => {
+      const raw = pat.trackinghistory || pat.trackingHistory;
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return []; }
+      }
+      return [];
+    })(),
+    history: historyByPatient[pat.id] || []
+  }));
 };
 
 export const getPatientById = async (id) => {

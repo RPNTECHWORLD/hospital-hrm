@@ -492,31 +492,8 @@ const AdminPatientRecords = ({
                           const reassignLog = trackingLogs.find(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
 
                           return (
-                            <div>
-                              {reassignLog && (
-                                <div
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    color: '#0284c7',
-                                    fontWeight: 700,
-                                    marginBottom: '0.15rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.2rem',
-                                    background: 'rgba(2, 132, 199, 0.08)',
-                                    border: '1px solid rgba(2, 132, 199, 0.25)',
-                                    padding: '0.1rem 0.4rem',
-                                    borderRadius: '4px',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                  title={`Reassigned by ${reassignLog.changedBy || 'Doctor'} on ${reassignLog.dateTime || reassignLog.timestamp || ''}${reassignLog.reason ? ` (Reason: ${reassignLog.reason})` : ''}`}
-                                >
-                                  🔄 Reassigned by {reassignLog.changedBy || reassignLog.previousDoctor || 'Admin'}
-                                </div>
-                              )}
-                              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {assignedDoc ? assignedDoc.name : 'Unassigned'}
-                              </div>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {assignedDoc ? assignedDoc.name : 'Unassigned'}
                             </div>
                           );
                         })()}

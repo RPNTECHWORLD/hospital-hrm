@@ -61,6 +61,71 @@ const formatMedUnitQty = (medicine = {}, calculatedQty = 1, days = 1) => {
   return `${calculatedQty} Tabs`;
 };
 
+const extractInjectionsFromPrescription = (prescription = []) => {
+  if (!Array.isArray(prescription) || prescription.length === 0) return [];
+
+  const found = [];
+
+  prescription.forEach(med => {
+    if (!med || !med.name) return;
+    const nameStr = med.name.trim();
+    const nameLower = nameStr.toLowerCase();
+    const catLower = (med.category || '').toLowerCase();
+    const routeLower = (med.route || '').toLowerCase();
+    const dosageStr = (med.dosage || '').trim();
+    const dosageLower = dosageStr.toLowerCase();
+
+    const isInj =
+      catLower === 'injection' ||
+      nameLower.startsWith('inj') ||
+      nameLower.includes('inj.') ||
+      nameLower.includes('injection') ||
+      ['iv', 'im', 'sc', 'id', 'iv infusion'].includes(routeLower) ||
+      nameLower.includes(' iv') ||
+      nameLower.includes(' im');
+
+    if (isInj) {
+      // Extract dose from dosage or name
+      let dose = '';
+      const doseMatch = (dosageStr + ' ' + nameStr).match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i);
+      if (doseMatch) {
+        dose = doseMatch[0];
+      } else if (dosageStr && !dosageLower.includes('after food') && !dosageLower.includes('before food')) {
+        dose = dosageStr;
+      } else {
+        dose = '1 Dose';
+      }
+
+      // Route extraction
+      let route = 'IV';
+      const fullText = (routeLower + ' ' + nameLower + ' ' + dosageLower).toUpperCase();
+      if (fullText.includes('IV INFUSION')) route = 'IV Infusion';
+      else if (fullText.includes('IM')) route = 'IM';
+      else if (fullText.includes('IV')) route = 'IV';
+      else if (fullText.includes('SC')) route = 'SC';
+      else if (med.route) route = med.route.toUpperCase();
+
+      // Frequency / STAT logic
+      let frequency = 'STAT (Single / Immediate)';
+      let isStat = true;
+      if (dosageLower.includes('normal') || dosageLower.includes('1-0-1') || dosageLower.includes('1-1-1') || (med.duration && med.duration > 1 && !dosageLower.includes('stat'))) {
+        frequency = 'NORMAL';
+        isStat = false;
+      }
+
+      found.push({
+        name: nameStr,
+        dosage: dose,
+        route: route,
+        frequency: frequency,
+        isStat: isStat
+      });
+    }
+  });
+
+  return found;
+};
+
 const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
 
@@ -77,14 +142,27 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   // Injection states
   const [requiresInjection, setRequiresInjection] = useState(false);
   const [injections, setInjections] = useState([
-    { name: 'Inj. Ceftriaxone', dosage: '1.5g', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
+    { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
   ]);
 
   React.useEffect(() => {
-    setRequiresInjection(false);
-    setInjections([
-      { name: 'Inj. Ceftriaxone', dosage: '1.5g', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
-    ]);
+    if (activePatient && activePatient.prescription) {
+      const parsedInj = extractInjectionsFromPrescription(activePatient.prescription);
+      if (parsedInj.length > 0) {
+        setRequiresInjection(true);
+        setInjections(parsedInj);
+      } else {
+        setRequiresInjection(false);
+        setInjections([
+          { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
+        ]);
+      }
+    } else {
+      setRequiresInjection(false);
+      setInjections([
+        { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
+      ]);
+    }
   }, [activePatient]);
 
   const handleAddInjectionRow = () => {

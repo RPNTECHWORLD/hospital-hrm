@@ -504,8 +504,8 @@ h6 {
 }
 
 .badge-pending {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning);
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
 }
 
 .badge-active {
@@ -530,9 +530,7 @@ h6 {
   align-items: center;
   justify-content: center;
   padding: 2rem 1.5rem;
-  background: 
-    linear-gradient(135deg, rgba(6, 25, 31, 0.76) 0%, rgba(9, 44, 52, 0.70) 50%, rgba(6, 19, 24, 0.82) 100%),
-    url('/hospital_login_bg.png') center center / cover no-repeat;
+  background: linear-gradient(135deg, #06191f 0%, #092c34 50%, #061318 100%);
   position: relative;
   overflow: hidden;
 }
@@ -1659,9 +1657,9 @@ h6 {
 
 .badge-pharmacy,
 .badge-atpharmacy {
-  background: rgba(13, 148, 136, 0.15);
-  color: #0d9488;
-  border: none;
+  background: rgba(234, 88, 12, 0.15);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.3);
 }
 
 .badge-reviewing {
@@ -1708,9 +1706,9 @@ h6 {
 }
 
 .badge-pending {
-  background: rgba(245, 158, 11, 0.15) !important;
-  color: #d97706 !important;
-  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  background: rgba(2, 132, 199, 0.14) !important;
+  color: #0284c7 !important;
+  border: 1px solid rgba(2, 132, 199, 0.3) !important;
   padding: 0.3rem 0.75rem !important;
   border-radius: 20px !important;
   font-weight: 600 !important;
@@ -1952,11 +1950,11 @@ h6 {
 }
 
 [data-theme="dark"] .badge-pharmacy {
-  background: rgba(45, 212, 191, 0.22) !important;
-  color: #2dd4bf !important;
-  border: 1.5px solid rgba(45, 212, 191, 0.55) !important;
+  background: rgba(249, 115, 22, 0.22) !important;
+  color: #fb923c !important;
+  border: 1.5px solid rgba(249, 115, 22, 0.55) !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 8px rgba(45, 212, 191, 0.25) !important;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.25) !important;
 }
 
 [data-theme="dark"] .badge-completed {
@@ -1976,11 +1974,11 @@ h6 {
 }
 
 [data-theme="dark"] .badge-pending {
-  background: rgba(251, 191, 36, 0.22) !important;
-  color: #fbbf24 !important;
-  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+  background: rgba(56, 189, 248, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.55) !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.25) !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.25) !important;
 }
 
 [data-theme="dark"] .badge-reviewing {

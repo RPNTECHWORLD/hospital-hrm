@@ -254,18 +254,25 @@ function App() {
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
           const patientsData = await patientsRes.value.json();
-          setPatients(prev => JSON.stringify(prev) !== JSON.stringify(patientsData) ? patientsData : prev);
+          setPatients(prev => {
+            if (!prev || prev.length !== patientsData.length) return patientsData;
+            const changed = prev.some((p, i) => {
+              const n = patientsData[i];
+              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId;
+            });
+            return changed ? patientsData : prev;
+          });
         }
         if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
           const doctorsData = await doctorsRes.value.json();
           if (Array.isArray(doctorsData) && doctorsData.length > 0) {
-            setDoctorsList(prev => JSON.stringify(prev) !== JSON.stringify(doctorsData) ? doctorsData : prev);
+            setDoctorsList(prev => (prev.length !== doctorsData.length ? doctorsData : prev));
           }
         }
         if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
           const staffData = await staffRes.value.json();
           if (Array.isArray(staffData) && staffData.length > 0) {
-            setStaffList(prev => JSON.stringify(prev) !== JSON.stringify(staffData) ? staffData : prev);
+            setStaffList(prev => (prev.length !== staffData.length ? staffData : prev));
           }
         }
       } catch (err) {
@@ -275,7 +282,7 @@ function App() {
 
     if (user) {
       loadInitialData();
-      const interval = setInterval(pollData, 5000);
+      const interval = setInterval(pollData, 10000);
       return () => clearInterval(interval);
     }
   }, [user]);

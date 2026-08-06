@@ -379,39 +379,25 @@ const ReceptionistDashboard = ({
   const [specialInvestigation, setSpecialInvestigation] = useState(false);
   const [specialInvestigationNotes, setSpecialInvestigationNotes] = useState('');
 
-  // Vitals validation helpers
-  const isValidWeight = (val) => !!val.trim() && /^\d+(\.\d+)?$/.test(val.trim());
-  const isValidBp = (val) => !!val.trim() && /^\d{2,3}(\/\d{2,3})?$/.test(val.trim());
-  const isValidHr = (val) => !!val.trim() && /^\d{2,3}$/.test(val.trim());
-  const isValidTemp = (val) => !!val.trim() && /^\d{2,3}(\.\d+)?$/.test(val.trim());
-  const isValidHeight = (val) => !val.trim() || /^\d+(\.\d+)?$/.test(val.trim());
-  const isValidSpo2 = (val) => !val.trim() || /^\d{1,3}$/.test(val.trim());
-  const isValidGrbs = (val) => !val.trim() || /^\d{1,4}(\.\d+)?$/.test(val.trim());
-  const isValidRr = (val) => !val.trim() || /^\d{1,3}$/.test(val.trim());
-  const isValidHeadCirc = (val) => !val.trim() || /^\d{1,3}(\.\d+)?$/.test(val.trim());
+  // Vitals validation helpers (All optional)
+  const isValidWeight = (val) => !val || !val.trim() || /^\d+(\.\d+)?$/.test(val.trim());
+  const isValidBp = (val) => !val || !val.trim() || /^\d{2,3}(\/\d{2,3})?$/.test(val.trim());
+  const isValidHr = (val) => !val || !val.trim() || /^\d{2,3}$/.test(val.trim());
+  const isValidTemp = (val) => !val || !val.trim() || /^\d{2,3}(\.\d+)?$/.test(val.trim());
+  const isValidHeight = (val) => !val || !val.trim() || /^\d+(\.\d+)?$/.test(val.trim());
+  const isValidSpo2 = (val) => !val || !val.trim() || /^\d{1,3}$/.test(val.trim());
+  const isValidGrbs = (val) => !val || !val.trim() || /^\d{1,4}(\.\d+)?$/.test(val.trim());
+  const isValidRr = (val) => !val || !val.trim() || /^\d{1,3}$/.test(val.trim());
+  const isValidHeadCirc = (val) => !val || !val.trim() || /^\d{1,3}(\.\d+)?$/.test(val.trim());
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setFormSubmitted(true);
 
-    const cleanContact = contact.replace(/\D/g, '');
     const isNameValid = !!name.trim();
-    const isAgeValid = receptionistTab === 'child' || !!age;
-    const isContactValid = cleanContact.length === 10;
     const isDoctorValid = !!assignedDoctorId;
-    const isWeightVal = isValidWeight(weight);
-    const isBpVal = isValidBp(bp);
-    const isHrVal = isValidHr(hr);
-    const isTempVal = isValidTemp(temp);
-    const isHeightVal = isValidHeight(height);
-    const isSpo2Val = isValidSpo2(spo2);
-    const isGrbsVal = isValidGrbs(grbs);
-    const isRrVal = isValidRr(respiratoryRate);
-    const isHeadCircVal = isValidHeadCirc(headCircumference);
 
-    if (!isNameValid || !isAgeValid || !isContactValid || !isDoctorValid ||
-      !isWeightVal || !isBpVal || !isHrVal || !isTempVal ||
-      !isHeightVal || !isSpo2Val || !isGrbsVal || !isRrVal || !isHeadCircVal) {
+    if (!isNameValid || !isDoctorValid) {
       return;
     }
 
@@ -422,7 +408,8 @@ const ReceptionistDashboard = ({
       }
     }
 
-    const fullContact = `${countryCode} ${cleanContact}`;
+    const cleanContact = contact ? contact.replace(/\D/g, '') : '';
+    const fullContact = cleanContact ? `${countryCode} ${cleanContact}` : '';
     const fullAltPhone = alternatePhone ? `${altCountryCode} ${alternatePhone.replace(/\D/g, '')}` : '';
 
     let calculatedAge = parseInt(age);
@@ -1107,7 +1094,7 @@ const ReceptionistDashboard = ({
                 <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <h4 style={{ color: 'var(--primary)', fontSize: '0.9rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Patient Vitals / Triage (Mandatory Fields *)
+                      Patient Vitals / Triage (Optional)
                     </h4>
                   </div>
 
@@ -1129,7 +1116,7 @@ const ReceptionistDashboard = ({
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Weight (Wt in kg) *</label>
+                      <label className="form-label">Weight (Wt in kg)</label>
                       <input
                         type="text"
                         className="form-input"
@@ -1137,13 +1124,7 @@ const ReceptionistDashboard = ({
                         placeholder="Weight (e.g. 65)"
                         value={weight}
                         onChange={(e) => setWeight(e.target.value)}
-                        required
                       />
-                      {formSubmitted && !weight.trim() && (
-                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
-                          Please fill out this field
-                        </span>
-                      )}
                       {formSubmitted && weight.trim() && !isValidWeight(weight) && (
                         <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
                           Please fill correct value
@@ -1165,7 +1146,7 @@ const ReceptionistDashboard = ({
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
-                      <label className="form-label">Blood Pressure (BP) *</label>
+                      <label className="form-label">Blood Pressure (BP)</label>
                       <input
                         type="text"
                         className="form-input"
@@ -1173,13 +1154,7 @@ const ReceptionistDashboard = ({
                         placeholder="e.g. 120/80"
                         value={bp}
                         onChange={(e) => setBp(e.target.value)}
-                        required
                       />
-                      {formSubmitted && !bp.trim() && (
-                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
-                          Please fill out this field
-                        </span>
-                      )}
                       {formSubmitted && bp.trim() && !isValidBp(bp) && (
                         <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
                           Please fill correct answer
@@ -1187,7 +1162,7 @@ const ReceptionistDashboard = ({
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Heart Rate / Pulse (HR) *</label>
+                      <label className="form-label">Heart Rate / Pulse (HR)</label>
                       <input
                         type="text"
                         className="form-input"
@@ -1195,13 +1170,7 @@ const ReceptionistDashboard = ({
                         placeholder="Pulse (e.g. 72)"
                         value={hr}
                         onChange={(e) => setHr(e.target.value)}
-                        required
                       />
-                      {formSubmitted && !hr.trim() && (
-                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
-                          Please fill out this field
-                        </span>
-                      )}
                       {formSubmitted && hr.trim() && !isValidHr(hr) && (
                         <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
                           Please fill correct answer
@@ -1209,7 +1178,7 @@ const ReceptionistDashboard = ({
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label">TEMP (°F) *</label>
+                      <label className="form-label">TEMP (°F)</label>
                       <input
                         type="text"
                         className="form-input"
@@ -1217,13 +1186,7 @@ const ReceptionistDashboard = ({
                         placeholder="Temp (e.g. 98.4)"
                         value={temp}
                         onChange={(e) => setTemp(e.target.value)}
-                        required
                       />
-                      {formSubmitted && !temp.trim() && (
-                        <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
-                          Please fill out this field
-                        </span>
-                      )}
                       {formSubmitted && temp.trim() && !isValidTemp(temp) && (
                         <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
                           Please fill correct answer

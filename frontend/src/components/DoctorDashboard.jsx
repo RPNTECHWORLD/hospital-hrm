@@ -202,6 +202,25 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   }, []);
 
   const handleSelectSuggestion = (selectedMed) => {
+    if (med.category === 'injection' || selectedMed.category === 'injection') {
+      const doseMatch = ((selectedMed.dosage || '') + ' ' + (selectedMed.name || '')).match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i);
+      const dose = doseMatch ? doseMatch[0] : (selectedMed.dosage || '1g');
+      const route = selectedMed.route || (selectedMed.name.toLowerCase().includes('im') ? 'IM' : 'IV');
+      const freq = selectedMed.dosage?.toLowerCase().includes('stat') ? 'STAT (Single / Immediate)' : 'STAT (Single / Immediate)';
+
+      onChange(idx, {
+        name: selectedMed.name,
+        injDose: dose,
+        route: route,
+        frequency: freq,
+        dosage: `${dose} ${route} Stat`,
+        duration: selectedMed.duration || 1,
+        category: 'injection'
+      });
+      setShowSuggestions(false);
+      return;
+    }
+
     const parsed = parseDosageToSchedule(selectedMed.dosage || '');
     onChange(idx, {
       name: selectedMed.name,
@@ -272,290 +291,456 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
       marginBottom: '1rem',
       position: 'relative'
     }}>
-      {/* Primary Row: Name, Dosage input, Duration, Trash */}
-      <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative', marginBottom: '0.65rem' }}>
-        <div ref={wrapperRef} style={{ position: 'relative' }}>
-          {med.category && (
+      {/* Primary Row: Name, Dosage / Injection inputs, Duration, Trash */}
+      {med.category === 'injection' ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(140px, 1.5fr) minmax(90px, 1fr) minmax(80px, 1fr) minmax(130px, 1.2fr) minmax(70px, 0.8fr) auto',
+          gap: '0.5rem',
+          alignItems: 'center',
+          position: 'relative',
+          overflow: 'visible'
+        }}>
+          <div ref={wrapperRef} style={{ position: 'relative' }}>
             <span style={{
               position: 'absolute',
               top: '-18px',
               left: '2px',
               fontSize: '0.65rem',
               fontWeight: 800,
-              color: med.category === 'injection' ? '#e11d48' : med.category === 'nebulization' ? '#9333ea' : med.category === 'others' ? '#d97706' : med.category === 'syrup' ? '#0f766e' : 'var(--primary)',
-              background: med.category === 'injection' ? 'rgba(225, 29, 72, 0.12)' : med.category === 'nebulization' ? 'rgba(147, 51, 234, 0.12)' : med.category === 'others' ? 'rgba(245, 158, 11, 0.12)' : med.category === 'syrup' ? 'rgba(15, 118, 110, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+              color: '#e11d48',
+              background: 'rgba(225, 29, 72, 0.12)',
               border: '1px solid currentColor',
               padding: '0.05rem 0.4rem',
               borderRadius: '4px',
               letterSpacing: '0.04em',
               textTransform: 'uppercase'
             }}>
-              {med.category}
+              INJECTION
             </span>
-          )}
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Injection Name (e.g. Inj. Ceftriaxone)"
+              value={med.name}
+              onChange={handleInputChange}
+              onFocus={() => {
+                if (med.name && med.name.trim().length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+              required
+              autoComplete="off"
+            />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: '#ffffff',
+                border: '1px solid var(--primary, #157388)',
+                borderRadius: '8px',
+                boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
+                zIndex: 99999,
+                maxHeight: '230px',
+                overflowY: 'auto'
+              }}>
+                {suggestions.map((s, sIdx) => (
+                  <div
+                    key={sIdx}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelectSuggestion(s);
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelectSuggestion(s);
+                    }}
+                    style={{
+                      padding: '0.65rem 0.85rem',
+                      cursor: 'pointer',
+                      borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                      fontSize: '0.85rem',
+                      background: '#ffffff',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                  >
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+                    {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <input 
             type="text" 
             className="form-input" 
-            placeholder={med.isSyrup ? "Syrup Name (e.g. Benadryl 100ml)" : "Medicine Name (e.g. Paracetamol)"}
-            value={med.name}
-            onChange={handleInputChange}
-            onFocus={() => {
-              if (med.name && med.name.trim().length > 0) {
-                setShowSuggestions(true);
-              }
+            placeholder="Dose (e.g. 1.5g / 40mg)"
+            value={med.injDose !== undefined ? med.injDose : (med.dosage ? (med.dosage.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i)?.[0] || med.dosage.split(' ')[0]) : '')}
+            onChange={(e) => {
+              const newDose = e.target.value;
+              const route = med.route || 'IV';
+              const freq = med.frequency || 'STAT (Single / Immediate)';
+              onChange(idx, {
+                injDose: newDose,
+                dosage: `${newDose} ${route} ${freq.includes('STAT') ? 'Stat' : freq}`.trim()
+              });
             }}
             required
-            autoComplete="off"
           />
 
-          {showSuggestions && suggestions.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: 'calc(100% + 4px)',
-              left: 0,
-              right: 0,
-              background: '#ffffff',
-              border: '1px solid var(--primary, #157388)',
-              borderRadius: '8px',
-              boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
-              zIndex: 99999,
-              maxHeight: '230px',
-              overflowY: 'auto'
-            }}>
-              {suggestions.map((s, sIdx) => (
-                <div
-                  key={sIdx}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSelectSuggestion(s);
+          <select
+            className="form-input"
+            value={med.route || 'IV'}
+            onChange={(e) => {
+              const newRoute = e.target.value;
+              const dose = med.injDose !== undefined ? med.injDose : (med.dosage ? (med.dosage.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i)?.[0] || med.dosage.split(' ')[0]) : '');
+              const freq = med.frequency || 'STAT (Single / Immediate)';
+              onChange(idx, {
+                route: newRoute,
+                dosage: `${dose} ${newRoute} ${freq.includes('STAT') ? 'Stat' : freq}`.trim()
+              });
+            }}
+          >
+            <option value="IV">IV</option>
+            <option value="IM">IM</option>
+          </select>
+
+          <select
+            className="form-input"
+            value={med.frequency || 'STAT (Single / Immediate)'}
+            onChange={(e) => {
+              const newFreq = e.target.value;
+              const dose = med.injDose !== undefined ? med.injDose : (med.dosage ? (med.dosage.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i)?.[0] || med.dosage.split(' ')[0]) : '');
+              const route = med.route || 'IV';
+              onChange(idx, {
+                frequency: newFreq,
+                dosage: `${dose} ${route} ${newFreq.includes('STAT') ? 'Stat' : newFreq}`.trim()
+              });
+            }}
+          >
+            <option value="STAT (Single / Immediate)">STAT (Single / Immediate)</option>
+            <option value="NORMAL">NORMAL</option>
+          </select>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <input 
+              type="number" 
+              className="form-input" 
+              style={{ paddingRight: '0.3rem' }}
+              value={med.duration || 1}
+              onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
+              required
+              min="1"
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Days</span>
+          </div>
+
+          <button 
+            type="button" 
+            className="btn-logout" 
+            onClick={() => onRemove(idx)}
+            disabled={!canRemove}
+            style={{ margin: '0 auto' }}
+            title="Remove Medicine"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      ) : (
+        <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative', marginBottom: '0.65rem' }}>
+          <div ref={wrapperRef} style={{ position: 'relative' }}>
+            {med.category && (
+              <span style={{
+                position: 'absolute',
+                top: '-18px',
+                left: '2px',
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                color: med.category === 'nebulization' ? '#9333ea' : med.category === 'others' ? '#d97706' : med.category === 'syrup' ? '#0f766e' : 'var(--primary)',
+                background: med.category === 'nebulization' ? 'rgba(147, 51, 234, 0.12)' : med.category === 'others' ? 'rgba(245, 158, 11, 0.12)' : med.category === 'syrup' ? 'rgba(15, 118, 110, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid currentColor',
+                padding: '0.05rem 0.4rem',
+                borderRadius: '4px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}>
+                {med.category}
+              </span>
+            )}
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder={med.isSyrup ? "Syrup Name (e.g. Benadryl 100ml)" : "Medicine Name (e.g. Paracetamol)"}
+              value={med.name}
+              onChange={handleInputChange}
+              onFocus={() => {
+                if (med.name && med.name.trim().length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+              required
+              autoComplete="off"
+            />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: '#ffffff',
+                border: '1px solid var(--primary, #157388)',
+                borderRadius: '8px',
+                boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
+                zIndex: 99999,
+                maxHeight: '230px',
+                overflowY: 'auto'
+              }}>
+                {suggestions.map((s, sIdx) => (
+                  <div
+                    key={sIdx}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelectSuggestion(s);
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelectSuggestion(s);
+                    }}
+                    style={{
+                      padding: '0.65rem 0.85rem',
+                      cursor: 'pointer',
+                      borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                      fontSize: '0.85rem',
+                      background: '#ffffff',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                  >
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+                    {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <input 
+            type="text" 
+            className="form-input" 
+            placeholder={med.isSyrup ? "Dosage (e.g. 5ml - 1-0-1 - After Food)" : "Dosage (e.g. 1-0-1 - After Food)"}
+            value={med.dosage}
+            onChange={(e) => {
+              const val = e.target.value;
+              const parsed = parseDosageToSchedule(val);
+              onChange(idx, { dosage: val, schedule: parsed });
+            }}
+            required
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input 
+              type="number" 
+              className="form-input" 
+              style={{ paddingRight: '0.5rem' }}
+              value={med.duration}
+              onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
+              required
+              min="1"
+            />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
+          </div>
+
+          <button 
+            type="button" 
+            className="btn-logout" 
+            onClick={() => onRemove(idx)}
+            disabled={!canRemove}
+            style={{ margin: '0 auto' }}
+            title="Remove Medicine"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Schedule & Timing Selector Bar (Only for non-injection medicines) */}
+      {med.category !== 'injection' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+          paddingTop: '0.5rem',
+          borderTop: '1px dashed rgba(0, 0, 0, 0.08)',
+          fontSize: '0.78rem'
+        }}>
+          {/* Morning, Afternoon, Evening, Night Schedule Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Schedule:</span>
+            
+            <button
+              type="button"
+              onClick={() => handleToggleSchedule('morning')}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: currentSchedule.morning ? '1px solid var(--primary, #157388)' : '1px solid var(--border)',
+                background: currentSchedule.morning ? 'rgba(21, 115, 136, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+                color: currentSchedule.morning ? 'var(--primary, #157388)' : 'var(--text-secondary)',
+                fontWeight: currentSchedule.morning ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Morning
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleToggleSchedule('afternoon')}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: currentSchedule.afternoon ? '1px solid #f59e0b' : '1px solid var(--border)',
+                background: currentSchedule.afternoon ? 'rgba(245, 158, 11, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+                color: currentSchedule.afternoon ? '#f59e0b' : 'var(--text-secondary)',
+                fontWeight: currentSchedule.afternoon ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Afternoon
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleToggleSchedule('evening')}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: currentSchedule.evening ? '1px solid #8b5cf6' : '1px solid var(--border)',
+                background: currentSchedule.evening ? 'rgba(139, 92, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+                color: currentSchedule.evening ? '#a855f7' : 'var(--text-secondary)',
+                fontWeight: currentSchedule.evening ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Evening
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleToggleSchedule('night')}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: currentSchedule.night ? '1px solid #3b82f6' : '1px solid var(--border)',
+                background: currentSchedule.night ? 'rgba(59, 130, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
+                color: currentSchedule.night ? '#3b82f6' : 'var(--text-secondary)',
+                fontWeight: currentSchedule.night ? 700 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Night
+            </button>
+          </div>
+
+          {/* Meal Timing Chips */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Meal:</span>
+            {[
+              { label: 'After Food' },
+              { label: 'Before Food' },
+              { label: 'With Food' },
+              { label: 'SOS' }
+            ].map(t => {
+              const isSelected = currentSchedule.timing === t.label;
+              return (
+                <button
+                  key={t.label}
+                  type="button"
+                  onClick={() => handleSelectTiming(t.label)}
+                  style={{
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '6px',
+                    border: isSelected ? '1px solid var(--success, #10b981)' : '1px solid var(--border)',
+                    background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                    color: isSelected ? 'var(--success, #10b981)' : 'var(--text-muted)',
+                    fontWeight: isSelected ? 700 : 400,
+                    fontSize: '0.74rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSelectSuggestion(s);
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Syrup Volume Quick-Select Chips (if Syrup mode) */}
+          {med.isSyrup && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', width: '100%', marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+              <span style={{ color: '#0f766e', fontWeight: 700, marginRight: '0.2rem' }}>Vol (ml):</span>
+              {['2.5ml', '5ml', '7.5ml', '10ml', '15ml'].map(vol => (
+                <button
+                  key={vol}
+                  type="button"
+                  onClick={() => {
+                    let current = med.dosage || '';
+                    if (/\b\d+(?:\.\d+)?\s*ml\b/i.test(current)) {
+                      current = current.replace(/\b\d+(?:\.\d+)?\s*ml\b/i, vol);
+                    } else {
+                      current = `${vol} ${current}`.trim();
+                    }
+                    const parsed = parseDosageToSchedule(current);
+                    onChange(idx, { dosage: current, schedule: parsed });
                   }}
                   style={{
-                    padding: '0.65rem 0.85rem',
-                    cursor: 'pointer',
-                    borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                    fontSize: '0.85rem',
-                    background: '#ffffff',
-                    transition: 'background 0.15s ease'
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '4px',
+                    border: (med.dosage || '').includes(vol) ? '1px solid #0f766e' : '1px solid var(--border)',
+                    background: (med.dosage || '').includes(vol) ? 'rgba(15, 118, 110, 0.15)' : 'transparent',
+                    color: (med.dosage || '').includes(vol) ? '#0f766e' : 'var(--text-secondary)',
+                    fontWeight: (med.dosage || '').includes(vol) ? 700 : 500,
+                    fontSize: '0.72rem',
+                    cursor: 'pointer'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
                 >
-                  <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
-                  {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
-                </div>
+                  {vol}
+                </button>
               ))}
             </div>
           )}
         </div>
-
-        <input 
-          type="text" 
-          className="form-input" 
-          placeholder={med.isSyrup ? "Dosage (e.g. 5ml - 1-0-1 - After Food)" : "Dosage (e.g. 1-0-1 - After Food)"}
-          value={med.dosage}
-          onChange={(e) => {
-            const val = e.target.value;
-            const parsed = parseDosageToSchedule(val);
-            onChange(idx, { dosage: val, schedule: parsed });
-          }}
-          required
-        />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input 
-            type="number" 
-            className="form-input" 
-            style={{ paddingRight: '0.5rem' }}
-            value={med.duration}
-            onChange={(e) => onChange(idx, 'duration', parseInt(e.target.value) || 1)}
-            required
-            min="1"
-          />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Days</span>
-        </div>
-
-        <button 
-          type="button" 
-          className="btn-logout" 
-          onClick={() => onRemove(idx)}
-          disabled={!canRemove}
-          style={{ margin: '0 auto' }}
-          title="Remove Medicine"
-        >
-          <Trash2 size={18} />
-        </button>
-      </div>
-
-      {/* Schedule & Timing Selector Bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justify: 'space-between',
-        flexWrap: 'wrap',
-        gap: '0.5rem',
-        paddingTop: '0.5rem',
-        borderTop: '1px dashed rgba(0, 0, 0, 0.08)',
-        fontSize: '0.78rem'
-      }}>
-        {/* Morning, Afternoon, Evening, Night Schedule Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Schedule:</span>
-          
-          <button
-            type="button"
-            onClick={() => handleToggleSchedule('morning')}
-            style={{
-              padding: '0.25rem 0.55rem',
-              borderRadius: '6px',
-              border: currentSchedule.morning ? '1px solid var(--primary, #157388)' : '1px solid var(--border)',
-              background: currentSchedule.morning ? 'rgba(21, 115, 136, 0.18)' : 'rgba(0, 0, 0, 0.02)',
-              color: currentSchedule.morning ? 'var(--primary, #157388)' : 'var(--text-secondary)',
-              fontWeight: currentSchedule.morning ? 700 : 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Morning
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleToggleSchedule('afternoon')}
-            style={{
-              padding: '0.25rem 0.55rem',
-              borderRadius: '6px',
-              border: currentSchedule.afternoon ? '1px solid #f59e0b' : '1px solid var(--border)',
-              background: currentSchedule.afternoon ? 'rgba(245, 158, 11, 0.18)' : 'rgba(0, 0, 0, 0.02)',
-              color: currentSchedule.afternoon ? '#f59e0b' : 'var(--text-secondary)',
-              fontWeight: currentSchedule.afternoon ? 700 : 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Afternoon
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleToggleSchedule('evening')}
-            style={{
-              padding: '0.25rem 0.55rem',
-              borderRadius: '6px',
-              border: currentSchedule.evening ? '1px solid #8b5cf6' : '1px solid var(--border)',
-              background: currentSchedule.evening ? 'rgba(139, 92, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
-              color: currentSchedule.evening ? '#a855f7' : 'var(--text-secondary)',
-              fontWeight: currentSchedule.evening ? 700 : 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Evening
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleToggleSchedule('night')}
-            style={{
-              padding: '0.25rem 0.55rem',
-              borderRadius: '6px',
-              border: currentSchedule.night ? '1px solid #3b82f6' : '1px solid var(--border)',
-              background: currentSchedule.night ? 'rgba(59, 130, 246, 0.18)' : 'rgba(0, 0, 0, 0.02)',
-              color: currentSchedule.night ? '#3b82f6' : 'var(--text-secondary)',
-              fontWeight: currentSchedule.night ? 700 : 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Night
-          </button>
-        </div>
-
-        {/* Meal Timing Chips */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.2rem' }}>Meal:</span>
-          {[
-            { label: 'After Food' },
-            { label: 'Before Food' },
-            { label: 'With Food' },
-            { label: 'SOS' }
-          ].map(t => {
-            const isSelected = currentSchedule.timing === t.label;
-            return (
-              <button
-                key={t.label}
-                type="button"
-                onClick={() => handleSelectTiming(t.label)}
-                style={{
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '6px',
-                  border: isSelected ? '1px solid var(--success, #10b981)' : '1px solid var(--border)',
-                  background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                  color: isSelected ? 'var(--success, #10b981)' : 'var(--text-muted)',
-                  fontWeight: isSelected ? 700 : 400,
-                  fontSize: '0.74rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Syrup Volume Quick-Select Chips (if Syrup mode) */}
-        {med.isSyrup && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', width: '100%', marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
-            <span style={{ color: '#0f766e', fontWeight: 700, marginRight: '0.2rem' }}>Vol (ml):</span>
-            {['2.5ml', '5ml', '7.5ml', '10ml', '15ml'].map(vol => (
-              <button
-                key={vol}
-                type="button"
-                onClick={() => {
-                  let current = med.dosage || '';
-                  if (/\b\d+(?:\.\d+)?\s*ml\b/i.test(current)) {
-                    current = current.replace(/\b\d+(?:\.\d+)?\s*ml\b/i, vol);
-                  } else {
-                    current = `${vol} ${current}`.trim();
-                  }
-                  const parsed = parseDosageToSchedule(current);
-                  onChange(idx, { dosage: current, schedule: parsed });
-                }}
-                style={{
-                  padding: '0.15rem 0.45rem',
-                  borderRadius: '4px',
-                  border: (med.dosage || '').includes(vol) ? '1px solid #0f766e' : '1px solid var(--border)',
-                  background: (med.dosage || '').includes(vol) ? 'rgba(15, 118, 110, 0.15)' : 'transparent',
-                  color: (med.dosage || '').includes(vol) ? '#0f766e' : 'var(--text-secondary)',
-                  fontWeight: (med.dosage || '').includes(vol) ? 700 : 500,
-                  fontSize: '0.72rem',
-                  cursor: 'pointer'
-                }}
-              >
-                {vol}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };
@@ -681,6 +866,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [recommendAdmission, setRecommendAdmission] = useState(false);
   const [targetBedId, setTargetBedId] = useState('');
   const [sharePatient, setSharePatient] = useState(null);
+  const [previousStateBeforeEdit, setPreviousStateBeforeEdit] = useState(null);
+
+  const handleCancelConsultation = () => {
+    if (previousStateBeforeEdit) {
+      setActivePatient(previousStateBeforeEdit.activePatient);
+      if (previousStateBeforeEdit.activePatient) {
+        setDiagnosis(previousStateBeforeEdit.diagnosis || '');
+        setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
+        setComplaints(previousStateBeforeEdit.complaints || '');
+        setPastHistory(previousStateBeforeEdit.pastHistory || '');
+        setExamination(previousStateBeforeEdit.examination || '');
+        setInvestigation(previousStateBeforeEdit.investigation || '');
+        setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
+        setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
+        setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
+        setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
+      }
+      if (previousStateBeforeEdit.showAllHistoryModal) {
+        setShowAllHistoryModal(true);
+      }
+      setPreviousStateBeforeEdit(null);
+    } else {
+      setActivePatient(null);
+    }
+  };
 
   useEffect(() => {
     if (activePatient) {
@@ -861,7 +1071,15 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   };
 
   const handleAddInjection = () => {
-    setMedicines([...medicines, { name: '', dosage: '1g IV Stat', duration: 1, category: 'injection', route: 'IV' }]);
+    setMedicines([...medicines, {
+      name: '',
+      injDose: '1g',
+      route: 'IV',
+      frequency: 'STAT (Single / Immediate)',
+      dosage: '1g IV Stat',
+      duration: 1,
+      category: 'injection'
+    }]);
   };
 
   const handleAddNebulization = () => {
@@ -943,11 +1161,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     e.preventDefault();
     if (!activePatient) return;
 
+    const patientName = activePatient.name;
     onSubmitReview(activePatient.id, {
       followUpNotes: '',
       nextVisitDate: ''
     });
 
+    showToast(`Consultation Review Completed for ${patientName}! ✅`, 'success');
     setActivePatient(null);
   };
 
@@ -1954,7 +2174,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         <Bed size={15} /> Admit to Ward
                       </button>
                     )}
-                    <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)}>
+                    <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
                       Cancel
                     </button>
                   </div>
@@ -2092,7 +2312,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         <Bed size={15} /> Admit to Ward
                       </button>
                     )}
-                    <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)}>
+                    <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
                       Cancel
                     </button>
                   </div>
@@ -2544,22 +2764,54 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       borderColor: 'var(--primary)',
                       color: 'var(--primary)',
                       fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
                       gap: '0.35rem'
                     }}
                     onClick={() => {
                       if (sharePatient) {
-                        setActivePatient(sharePatient);
-                        setMedicines(sharePatient.prescription && sharePatient.prescription.length > 0 
-                          ? JSON.parse(JSON.stringify(sharePatient.prescription))
+                        setPreviousStateBeforeEdit({
+                          activePatient,
+                          showAllHistoryModal,
+                          diagnosis,
+                          medicines,
+                          complaints,
+                          pastHistory,
+                          examination,
+                          investigation,
+                          followUpNotes,
+                          nextVisitDate,
+                          prescriptionMode,
+                          canvasDataUrl
+                        });
+
+                        const existingPatient = patients.find(p => p.id === sharePatient.id || String(p.id) === String(sharePatient.id));
+                        const targetPatient = {
+                          ...(existingPatient || sharePatient),
+                          status: 'Consulting',
+                          diagnosis: sharePatient.diagnosis || (existingPatient?.diagnosis) || '',
+                          prescription: (sharePatient.prescription && sharePatient.prescription.length > 0)
+                            ? sharePatient.prescription
+                            : (existingPatient?.prescription || [])
+                        };
+
+                        setActivePatient(targetPatient);
+                        setMedicines((targetPatient.prescription && targetPatient.prescription.length > 0)
+                          ? JSON.parse(JSON.stringify(targetPatient.prescription))
                           : [{ name: '', dosage: '', duration: 10 }]);
-                        setDiagnosis(sharePatient.diagnosis || '');
-                        setPrescriptionMode('form');
+                        setDiagnosis(targetPatient.diagnosis || '');
+                        setComplaints(sharePatient.complaints || targetPatient.complaints || '');
+                        setPastHistory(sharePatient.pastHistory || targetPatient.pastHistory || '');
+                        setExamination(sharePatient.examination || targetPatient.examination || '');
+                        setInvestigation(sharePatient.investigation || targetPatient.investigation || '');
+                        setFollowUpNotes(sharePatient.followUpNotes || targetPatient.followUpNotes || '');
+                        setNextVisitDate(sharePatient.nextVisitDate || targetPatient.nextVisitDate || '');
+                        setPrescriptionMode(sharePatient.prescriptionImg ? 'drawing' : 'form');
+                        setCanvasDataUrl(sharePatient.prescriptionImg || null);
+
                         setSharePatient(null);
                         setIsHistoryPreview(false);
-                        showToast('Prescription loaded into form. You can add, edit, or remove medicines now.', 'info');
+                        setShowAllHistoryModal(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        showToast('Prescription loaded into Doctor Consultation form. You can add, edit, or remove medicines now.', 'info');
                       }
                     }}
                   >
@@ -2587,8 +2839,29 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       const success = await onSubmitPrescription(activePatient.id, sharePatient);
                       if (success) {
                         setSharePatient(null);
-                        setActivePatient(null);
                         showToast(`Prescription successfully sent to Pharmacy!`, 'success');
+                        
+                        if (previousStateBeforeEdit) {
+                          setActivePatient(previousStateBeforeEdit.activePatient);
+                          if (previousStateBeforeEdit.activePatient) {
+                            setDiagnosis(previousStateBeforeEdit.diagnosis || '');
+                            setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
+                            setComplaints(previousStateBeforeEdit.complaints || '');
+                            setPastHistory(previousStateBeforeEdit.pastHistory || '');
+                            setExamination(previousStateBeforeEdit.examination || '');
+                            setInvestigation(previousStateBeforeEdit.investigation || '');
+                            setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
+                            setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
+                            setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
+                            setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
+                          }
+                          if (previousStateBeforeEdit.showAllHistoryModal) {
+                            setShowAllHistoryModal(true);
+                          }
+                          setPreviousStateBeforeEdit(null);
+                        } else {
+                          setActivePatient(null);
+                        }
                       } else {
                         showToast(`Failed to send prescription. Please try again!`, 'danger');
                       }

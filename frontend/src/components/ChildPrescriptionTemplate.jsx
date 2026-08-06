@@ -105,14 +105,13 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Date */}
           <div style={{
             position: 'absolute',
-            top: '30.5%',
+            top: '28.8%',
             left: '13.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
             color: '#007C91',
-            letterSpacing: '0.02em',
-            transform: 'translateY(1px)'
+            letterSpacing: '0.02em'
           }}>
             {formattedDate}
           </div>
@@ -120,14 +119,13 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Patient ID */}
           <div style={{
             position: 'absolute',
-            top: '30.5%',
+            top: '28.8%',
             left: '73.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
             color: '#007C91',
-            letterSpacing: '0.02em',
-            transform: 'translateY(1px)'
+            letterSpacing: '0.02em'
           }}>
             {patientId}
           </div>
@@ -136,7 +134,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Patient Name */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '16.0%',
             fontSize: '0.68rem',
             lineHeight: 1,
@@ -146,8 +144,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             maxWidth: '105px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            transform: 'translateY(1px)'
+            textOverflow: 'ellipsis'
           }}>
             {name}
           </div>
@@ -155,7 +152,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Age */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '37.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
@@ -163,8 +160,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             color: '#0f172a',
             maxWidth: '45px',
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            transform: 'translateY(1px)'
+            overflow: 'hidden'
           }}>
             {age}
           </div>
@@ -172,7 +168,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Gender */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '50.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
@@ -181,8 +177,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             textTransform: 'capitalize',
             maxWidth: '45px',
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            transform: 'translateY(1px)'
+            overflow: 'hidden'
           }}>
             {gender}
           </div>
@@ -190,7 +185,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Height (HT) */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '61.2%',
             fontSize: '0.67rem',
             lineHeight: 1,
@@ -198,8 +193,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             color: '#0f172a',
             maxWidth: '45px',
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            transform: 'translateY(1px)'
+            overflow: 'hidden'
           }}>
             {height}
           </div>
@@ -207,7 +201,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Weight (WT) */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '71.5%',
             fontSize: '0.67rem',
             lineHeight: 1,
@@ -215,8 +209,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             color: '#0f172a',
             maxWidth: '45px',
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            transform: 'translateY(1px)'
+            overflow: 'hidden'
           }}>
             {weight}
           </div>
@@ -224,7 +217,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* Phone (Ph) */}
           <div style={{
             position: 'absolute',
-            top: '35.3%',
+            top: '33.4%',
             left: '81.8%',
             fontSize: '0.65rem',
             lineHeight: 1,
@@ -233,8 +226,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
             maxWidth: '82px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            letterSpacing: '-0.03em',
-            transform: 'translateY(1px)'
+            letterSpacing: '-0.03em'
           }}>
             {phone}
           </div>
@@ -243,13 +235,12 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* BP */}
           <div style={{
             position: 'absolute',
-            top: '40.3%',
-            left: '7.8%',
+            top: '37.9%',
+            left: '8.2%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
-            color: '#0f172a',
-            transform: 'translateY(1px)'
+            color: '#0f172a'
           }}>
             {bp}
           </div>
@@ -257,13 +248,12 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* HR */}
           <div style={{
             position: 'absolute',
-            top: '40.3%',
-            left: '23.8%',
+            top: '37.9%',
+            left: '23.2%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
-            color: '#0f172a',
-            transform: 'translateY(1px)'
+            color: '#0f172a'
           }}>
             {hr}
           </div>
@@ -271,13 +261,12 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* SpO2 */}
           <div style={{
             position: 'absolute',
-            top: '40.3%',
-            left: '40.5%',
+            top: '37.9%',
+            left: '39.8%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
-            color: '#0f172a',
-            transform: 'translateY(1px)'
+            color: '#0f172a'
           }}>
             {spo2}
           </div>
@@ -285,13 +274,12 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* GRBS / Sugar */}
           <div style={{
             position: 'absolute',
-            top: '40.3%',
-            left: '64.0%',
+            top: '37.9%',
+            left: '64.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
-            color: '#0f172a',
-            transform: 'translateY(1px)'
+            color: '#0f172a'
           }}>
             {grbs}
           </div>
@@ -299,13 +287,12 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           {/* TEMP */}
           <div style={{
             position: 'absolute',
-            top: '40.3%',
-            left: '83.2%',
+            top: '37.9%',
+            left: '83.5%',
             fontSize: '0.68rem',
             lineHeight: 1,
             fontWeight: 800,
-            color: '#0f172a',
-            transform: 'translateY(1px)'
+            color: '#0f172a'
           }}>
             {temp}
           </div>
@@ -314,7 +301,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
         {/* ===== 3. MAIN PRESCRIPTION CONTENT AREA (Medicines Table / Canvas Drawing) ===== */}
         <div style={{
           position: 'absolute',
-          top: '44.8%',
+          top: '43.0%',
           left: '11.5%',
           right: '4.5%',
           bottom: '20.0%',
