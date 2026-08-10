@@ -157,20 +157,24 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
         }}
       >
         {displayedDoctors.map(doctor => {
-          // Filter patients assigned to this doctor for Today
+          // Filter patients assigned to this doctor
           const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-          const docPatients = patients.filter(p =>
-            p.assignedDoctorId === doctor.id &&
-            p.status !== 'Inactive' &&
-            p.registrationDate === todayStr
-          );
+          const docPatients = patients.filter(p => {
+            const matchesDoc = Number(p.assignedDoctorId) === Number(doctor.id) || String(p.assignedDoctorId) === String(doctor.id);
+            if (!matchesDoc || p.status === 'Inactive') return false;
+
+            const isToday = p.registrationDate === todayStr || (p.registrationDate && new Date(p.registrationDate).toDateString() === new Date().toDateString());
+            const isActiveQueue = ['In Queue', 'Registered', 'Consulting', 'Waiting'].includes(p.status);
+
+            return isActiveQueue || isToday;
+          });
 
           // Now Consulting patient
           const nowConsulting = docPatients.find(p => p.status === 'Consulting');
 
-          // Up Next patients (status is In Queue, sorted by Token Number)
+          // Up Next patients (status is In Queue, Registered, or Waiting, sorted by Token Number)
           const upNext = docPatients
-            .filter(p => ['In Queue', 'Registered'].includes(p.status))
+            .filter(p => ['In Queue', 'Registered', 'Waiting'].includes(p.status))
             .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
           return (

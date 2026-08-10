@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart2, Users, Activity, CheckCircle, DollarSign, Stethoscope, TrendingUp, PieChart } from 'lucide-react';
+import { BarChart2, Users, Activity, CheckCircle, DollarSign, Stethoscope, TrendingUp, PieChart, MapPin } from 'lucide-react';
 
 /* ── SVG Donut Chart ─────────────────────────────────────────────── */
 const DonutChart = ({ segments, size = 150, strokeWidth = 28, label, sublabel }) => {
@@ -198,6 +198,52 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
   staffList.forEach(s => { roleMap[s.role] = (roleMap[s.role] || 0) + 1; });
   const roleSeg = Object.entries(roleMap).map(([r, v]) => ({ label: r.charAt(0).toUpperCase() + r.slice(1), value: v, color: ROLE_CLR[r] || '#94a3b8' }));
 
+  /* Geographic / Pincode Distribution (Normalized & Grouped) */
+  const locationGroupMap = {};
+
+  patients.forEach(p => {
+    const addr = (p.address || '').trim();
+    if (!addr) {
+      const key = 'Not Specified';
+      locationGroupMap[key] = (locationGroupMap[key] || 0) + 1;
+      return;
+    }
+
+    const pinMatch = addr.match(/\b(6\d{5})\b/);
+    const pin = pinMatch ? pinMatch[1] : null;
+
+    let placeName = '';
+    if (addr.includes(' | ')) {
+      const parts = addr.split(' | ').map(s => s.trim()).filter(Boolean);
+      placeName = parts[0] || parts[1] || 'Tamil Nadu Region';
+    } else {
+      const cleanAddr = addr.replace(/,\s*/g, ' ').trim();
+      const words = cleanAddr.split(/\s+/);
+      placeName = words.length > 2 ? words.slice(-2).join(' ') : cleanAddr;
+    }
+
+    // Standardize Case (e.g. "chidambaram" -> "Chidambaram")
+    placeName = placeName.replace(/town|city/gi, '').trim();
+    placeName = placeName ? placeName.charAt(0).toUpperCase() + placeName.slice(1).toLowerCase() : 'Tamil Nadu';
+
+    const key = pin ? `${placeName} (${pin})` : placeName;
+    locationGroupMap[key] = (locationGroupMap[key] || 0) + 1;
+  });
+
+  const LOC_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#0ea5e9', '#6366f1', '#14b8a6', '#f97316', '#a855f7'];
+
+  const sortedLocations = Object.entries(locationGroupMap)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const totalPatientsCount = patients.length || 1;
+  const locationSegments = sortedLocations.slice(0, 6).map((loc, i) => ({
+    label: loc.label,
+    value: loc.value,
+    color: LOC_COLORS[i % LOC_COLORS.length],
+    pct: Math.round((loc.value / totalPatientsCount) * 100)
+  }));
+
   return (
     <div className="fade-in">
       {/* Header */}
@@ -263,6 +309,89 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
         <ChCard title="Staff and Doctor Roles" Icon={PieChart}>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <DonutChart segments={roleSeg} size={152} strokeWidth={26} label={staffList.length + doctors.length} sublabel="Total Staff" />
+          </div>
+        </ChCard>
+      </div>
+
+      {/* Geographic / Pincode Distribution Chart Card - Donut Wheel + Location Heat Cards Model */}
+      <div style={{ marginBottom: '1.2rem' }}>
+        <ChCard title="Patient Geographic & Pincode Heatmap Analytics" Icon={MapPin}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.75rem', alignItems: 'center' }}>
+
+            {/* Left: Donut Share Wheel */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.4)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <MapPin size={18} /> Regional Patient Share (%)
+              </div>
+              <DonutChart segments={locationSegments} size={165} strokeWidth={26} label={patients.length} sublabel="Total Patients" />
+            </div>
+
+            {/* Right: Interactive Location Heat Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📍 TOP PATIENT LOCATIONS & PINCODES</span>
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>● Normalized & Grouped</span>
+              </div>
+
+              {locationSegments.map((loc, idx) => {
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: `1.5px solid ${loc.color}35`,
+                      borderRadius: '12px',
+                      padding: '0.85rem 1.15rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      boxShadow: `0 4px 15px ${loc.color}10`,
+                      transition: 'all 0.25s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                        <span style={{
+                          width: '10px', height: '10px', borderRadius: '50%',
+                          background: loc.color, display: 'inline-block', flexShrink: 0
+                        }} />
+                        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                          {loc.label}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{
+                          background: loc.color, color: '#ffffff',
+                          fontWeight: 900, fontSize: '0.82rem',
+                          padding: '0.2rem 0.65rem', borderRadius: '12px'
+                        }}>
+                          {loc.value} Patients ({loc.pct}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${loc.pct}%`, minWidth: '8px', height: '100%',
+                        background: `linear-gradient(90deg, ${loc.color}, ${loc.color}dd)`,
+                        borderRadius: '6px', transition: 'width 0.6s ease'
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </ChCard>
       </div>

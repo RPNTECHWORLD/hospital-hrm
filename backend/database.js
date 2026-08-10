@@ -7,28 +7,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbJsonPath = path.join(__dirname, 'db.json');
 
-// Load environment variables from .env.local
-try {
-  const envPath = path.join(__dirname, '.env.local');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf-8');
-    envContent.split(/\r?\n/).forEach(line => {
-      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-      if (match) {
-        const key = match[1];
-        let val = match[2] || '';
-        if (val.startsWith('"') && val.endsWith('"')) {
-          val = val.substring(1, val.length - 1);
-        } else if (val.startsWith("'") && val.endsWith("'")) {
-          val = val.substring(1, val.length - 1);
+// Load environment variables from .env and .env.local
+['.env', '.env.local'].forEach(envFile => {
+  try {
+    const envPath = path.join(__dirname, envFile);
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      envContent.split(/\r?\n/).forEach(line => {
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+        if (match) {
+          const key = match[1];
+          let val = match[2] || '';
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.substring(1, val.length - 1);
+          } else if (val.startsWith("'") && val.endsWith("'")) {
+            val = val.substring(1, val.length - 1);
+          }
+          process.env[key] = val.trim();
         }
-        process.env[key] = val;
-      }
-    });
+      });
+    }
+  } catch (e) {
+    console.log(`No ${envFile} file loaded:`, e.message);
   }
-} catch (e) {
-  console.log("No .env.local file loaded:", e.message);
-}
+});
 
 let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
 

@@ -1,7 +1,84 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout } from 'lucide-react';
+import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout } from 'lucide-react';
 const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// Tamil Nadu locations dataset with focus on Kollidam & surrounding areas
+const TN_LOCATIONS = [
+  // Kollidam & Surrounding Areas (Main Focus)
+  { area: 'Kollidam', city: 'Kollidam', pincode: '609102' },
+  { area: 'Kollidam Bazaar', city: 'Kollidam', pincode: '609102' },
+  { area: 'Anaikaranchatram', city: 'Kollidam', pincode: '609102' },
+  { area: 'Kollidam Dam', city: 'Kollidam', pincode: '609102' },
+  { area: 'Kollidam Old Bus Stand', city: 'Kollidam', pincode: '609102' },
+  { area: 'Achalpuram', city: 'Sirkazhi', pincode: '609101' },
+  { area: 'Sirkazhi / Sirkali', city: 'Sirkazhi', pincode: '609110' },
+  { area: 'Sirkazhi Town', city: 'Sirkazhi', pincode: '609110' },
+  { area: 'Thirunagari', city: 'Sirkazhi', pincode: '609106' },
+  { area: 'Thirumullaivasal', city: 'Sirkazhi', pincode: '609113' },
+  { area: 'Poompuhar', city: 'Sirkazhi', pincode: '609105' },
+  { area: 'Vaitheeswarankoil', city: 'Vaitheeswarankoil', pincode: '609117' },
+  { area: 'Chidambaram', city: 'Chidambaram', pincode: '608001' },
+  { area: 'Annamalai Nagar', city: 'Chidambaram', pincode: '608002' },
+  { area: 'Bhuvanagiri', city: 'Chidambaram', pincode: '608601' },
+  { area: 'Kattumannarkoil', city: 'Kattumannarkoil', pincode: '608301' },
+  { area: 'Mayiladuthurai', city: 'Mayiladuthurai', pincode: '609001' },
+  { area: 'Kuttalam', city: 'Mayiladuthurai', pincode: '609801' },
+  { area: 'Tharangambadi (Tranquebar)', city: 'Mayiladuthurai', pincode: '609313' },
+  { area: 'Semenar Koil', city: 'Mayiladuthurai', pincode: '609309' },
+  { area: 'Kumbakonam', city: 'Kumbakonam', pincode: '612001' },
+  { area: 'Swamimalai', city: 'Kumbakonam', pincode: '612302' },
+  { area: 'Papanasam', city: 'Kumbakonam', pincode: '614205' },
+  { area: 'Thanjavur', city: 'Thanjavur', pincode: '613001' },
+  { area: 'Vallam', city: 'Thanjavur', pincode: '613403' },
+  { area: 'Cuddalore', city: 'Cuddalore', pincode: '607001' },
+  { area: 'Cuddalore OT', city: 'Cuddalore', pincode: '607003' },
+  { area: 'Neyveli', city: 'Neyveli', pincode: '607801' },
+  { area: 'Panruti', city: 'Cuddalore', pincode: '607106' },
+  { area: 'Virudhachalam', city: 'Virudhachalam', pincode: '606001' },
+  { area: 'Nagapattinam', city: 'Nagapattinam', pincode: '611001' },
+  { area: 'Velankanni', city: 'Nagapattinam', pincode: '611111' },
+  { area: 'Nagore', city: 'Nagapattinam', pincode: '611002' },
+  { area: 'Vedaranyam', city: 'Nagapattinam', pincode: '614810' },
+  { area: 'Tiruvarur', city: 'Tiruvarur', pincode: '610001' },
+  { area: 'Mannargudi', city: 'Tiruvarur', pincode: '614001' },
+
+  // Major Tamil Nadu Cities & Districts
+  { area: 'Trichy / Tiruchirappalli', city: 'Trichy', pincode: '620001' },
+  { area: 'Srirangam', city: 'Trichy', pincode: '620006' },
+  { area: 'Thillai Nagar', city: 'Trichy', pincode: '620018' },
+  { area: 'Chennai Central', city: 'Chennai', pincode: '600001' },
+  { area: 'Chennai - T. Nagar', city: 'Chennai', pincode: '600017' },
+  { area: 'Chennai - Guindy', city: 'Chennai', pincode: '600032' },
+  { area: 'Chennai - Anna Nagar', city: 'Chennai', pincode: '600040' },
+  { area: 'Chennai - Tambaram', city: 'Chennai', pincode: '600045' },
+  { area: 'Madurai', city: 'Madurai', pincode: '625001' },
+  { area: 'Madurai - KK Nagar', city: 'Madurai', pincode: '625020' },
+  { area: 'Coimbatore', city: 'Coimbatore', pincode: '641001' },
+  { area: 'Coimbatore - Gandhipuram', city: 'Coimbatore', pincode: '641012' },
+  { area: 'Salem', city: 'Salem', pincode: '636001' },
+  { area: 'Tirunelveli', city: 'Tirunelveli', pincode: '627001' },
+  { area: 'Erode', city: 'Erode', pincode: '638001' },
+  { area: 'Vellore', city: 'Vellore', pincode: '632001' },
+  { area: 'Tiruppur', city: 'Tiruppur', pincode: '641601' },
+  { area: 'Dindigul', city: 'Dindigul', pincode: '624001' },
+  { area: 'Karur', city: 'Karur', pincode: '639001' },
+  { area: 'Kanchipuram', city: 'Kanchipuram', pincode: '631501' },
+  { area: 'Villupuram', city: 'Villupuram', pincode: '605602' },
+  { area: 'Ramanathapuram', city: 'Ramanathapuram', pincode: '623501' },
+  { area: 'Pudukkottai', city: 'Pudukkottai', pincode: '622001' },
+  { area: 'Tiruvannamalai', city: 'Tiruvannamalai', pincode: '606601' },
+  { area: 'Thoothukudi (Tuticorin)', city: 'Thoothukudi', pincode: '628001' },
+  { area: 'Nagercoil', city: 'Kanyakumari', pincode: '629001' },
+  { area: 'Ariyalur', city: 'Ariyalur', pincode: '621701' },
+  { area: 'Perambalur', city: 'Perambalur', pincode: '621212' },
+  { area: 'Namakkal', city: 'Namakkal', pincode: '637001' },
+  { area: 'Dharmapuri', city: 'Dharmapuri', pincode: '636701' },
+  { area: 'Krishnagiri', city: 'Krishnagiri', pincode: '635001' },
+  { area: 'Theni', city: 'Theni', pincode: '625531' },
+  { area: 'Virudhunagar', city: 'Virudhunagar', pincode: '626001' },
+  { area: 'Tenkasi', city: 'Tenkasi', pincode: '627811' }
+];
 
 const ReceptionistDashboard = ({
   patients,
@@ -213,6 +290,8 @@ const ReceptionistDashboard = ({
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
+  const [showStreetSuggestions, setShowStreetSuggestions] = useState(false);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
   const [previewImage, setPreviewImage] = useState(null);
 
@@ -989,28 +1068,120 @@ const ReceptionistDashboard = ({
                   </div>
                 </div>
 
-                {/* Address Fields */}
+                {/* Address Fields with Location Auto-suggest */}
                 <div style={{ margin: '0.25rem 0 0' }}>
                   <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Address</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
+                    {/* Street / Area Field with Suggestions */}
+                    <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Street / Area"
+                        placeholder="Street / Area (e.g. Kollidam)"
                         value={street}
-                        onChange={(e) => setStreet(e.target.value)}
+                        onChange={(e) => {
+                          setStreet(e.target.value);
+                          setShowStreetSuggestions(true);
+                        }}
+                        onFocus={() => setShowStreetSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowStreetSuggestions(false), 200)}
                       />
+                      {showStreetSuggestions && street.trim().length > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                          background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border)',
+                          borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                          maxHeight: '220px', overflowY: 'auto', marginTop: '4px'
+                        }}>
+                          {TN_LOCATIONS.filter(loc =>
+                            loc.area.toLowerCase().includes(street.toLowerCase()) ||
+                            loc.city.toLowerCase().includes(street.toLowerCase()) ||
+                            loc.pincode.includes(street.trim())
+                          ).slice(0, 10).map((loc, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: '0.6rem 0.85rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid rgba(0,0,0,0.04)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.85rem'
+                              }}
+                              onMouseDown={() => {
+                                setStreet(loc.area);
+                                setCity(loc.city);
+                                setPincode(loc.pincode);
+                                setShowStreetSuggestions(false);
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>📍 {loc.area}</span>
+                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.4rem', fontSize: '0.78rem' }}>({loc.city})</span>
+                              </div>
+                              <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.78rem' }}>{loc.pincode}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="form-group" style={{ margin: 0 }}>
+
+                    {/* City / Town Field with Suggestions */}
+                    <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                       <input
                         type="text"
                         className="form-input"
                         placeholder="City / Town"
                         value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        onChange={(e) => {
+                          setCity(e.target.value);
+                          setShowCitySuggestions(true);
+                        }}
+                        onFocus={() => setShowCitySuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
                       />
+                      {showCitySuggestions && city.trim().length > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                          background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border)',
+                          borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                          maxHeight: '220px', overflowY: 'auto', marginTop: '4px'
+                        }}>
+                          {TN_LOCATIONS.filter(loc =>
+                            loc.city.toLowerCase().includes(city.toLowerCase()) ||
+                            loc.area.toLowerCase().includes(city.toLowerCase())
+                          ).slice(0, 10).map((loc, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: '0.6rem 0.85rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid rgba(0,0,0,0.04)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.85rem'
+                              }}
+                              onMouseDown={() => {
+                                setCity(loc.city);
+                                if (!street) setStreet(loc.area);
+                                setPincode(loc.pincode);
+                                setShowCitySuggestions(false);
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>🏙️ {loc.city}</span>
+                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.4rem', fontSize: '0.78rem' }}>({loc.area})</span>
+                              </div>
+                              <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.78rem' }}>{loc.pincode}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
+                    {/* Pincode Field */}
                     <div className="form-group" style={{ margin: 0 }}>
                       <input
                         type="text"
@@ -1597,6 +1768,7 @@ const ReceptionistDashboard = ({
                     <th>Assigned Doctor</th>
                     <th>Queue Status</th>
                     <th>Payment</th>
+                    <th style={{ textAlign: 'center' }}>Ward Bed</th>
                     <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
@@ -1709,18 +1881,50 @@ const ReceptionistDashboard = ({
                             )}
                           </div>
                         </td>
+                        {/* Ward Bed Column */}
+                        <td style={{ textAlign: 'center' }}>
+                          {onAdmitToWard && !patient.wardBedId && patient.status !== 'Completed' ? (
+                            <button
+                              className="btn-logout"
+                              onClick={() => onAdmitToWard(patient)}
+                              title="Admit to Ward Room"
+                              style={{
+                                cursor: 'pointer',
+                                color: '#0f766e',
+                                background: 'rgba(15,118,110,0.1)',
+                                borderRadius: '6px',
+                                padding: '0.3rem 0.55rem',
+                                border: '1px solid rgba(15,118,110,0.25)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                fontWeight: 600,
+                                fontSize: '0.8rem'
+                              }}
+                            >
+                              <Bed size={15} /> Ward
+                            </button>
+                          ) : patient.wardBedId ? (
+                            <span style={{
+                              fontSize: '0.78rem',
+                              color: patient.bedAdmissionPending ? 'var(--warning)' : '#0f766e',
+                              fontWeight: 700,
+                              background: patient.bedAdmissionPending ? 'rgba(245, 158, 11, 0.1)' : 'rgba(15, 118, 110, 0.1)',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (patient.bedAdmissionPending ? 'rgba(245, 158, 11, 0.3)' : 'rgba(15, 118, 110, 0.3)'),
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}>
+                              🛏️ {patient.wardBedId} {patient.bedAdmissionPending ? '(Pending)' : ''}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>--</span>
+                          )}
+                        </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                            {onAdmitToWard && !patient.wardBedId && patient.status !== 'Completed' && (
-                              <button
-                                className="btn-logout"
-                                onClick={() => onAdmitToWard(patient)}
-                                title="Admit to Ward Room"
-                                style={{ cursor: 'pointer', color: '#0f766e', background: 'rgba(15,118,110,0.08)', borderRadius: '6px', padding: '0.3rem 0.5rem', border: '1px solid rgba(15,118,110,0.2)' }}
-                              >
-                                <Bed size={16} />
-                              </button>
-                            )}
                             <button
                               className="btn-logout"
                               onClick={() => {

@@ -193,9 +193,25 @@ function App() {
     setWardAdmitBedId('');
   };
 
+  const handleRequestWardAdmit = async (patientId, bedId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wardBedId: bedId, bedAdmissionPending: 1 })
+      });
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+      }
+    } catch (err) {
+      console.error("Error requesting ward admission:", err);
+    }
+  };
+
   const handleConfirmWardAdmit = async () => {
     if (!wardAdmitPatient || !wardAdmitBedId) return;
-    await handleAssignBed(wardAdmitPatient.id, wardAdmitBedId);
+    await handleRequestWardAdmit(wardAdmitPatient.id, wardAdmitBedId);
     setWardAdmitPatient(null);
     setWardAdmitBedId('');
   };
@@ -1221,15 +1237,15 @@ function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
                     <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <Activity size={14} style={{ color: '#6366f1' }} />
-                      <div><strong>{patients.filter(p => p.status === 'Registered').length} Patients</strong> waiting in Queue</div>
+                      <div><strong>{patients.filter(p => ['In Queue', 'Registered'].includes(p.status)).length} Patients</strong> waiting in Queue</div>
                     </div>
                     <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <Pill size={14} style={{ color: '#f59e0b' }} />
-                      <div><strong>{patients.filter(p => p.status === 'At Pharmacy').length} Prescriptions</strong> pending dispatch</div>
+                      <div><strong>{patients.filter(p => ['At Pharmacy', 'Pending Pharmacy'].includes(p.status)).length} Prescriptions</strong> pending dispatch</div>
                     </div>
                     <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <Bed size={14} style={{ color: '#ef4444' }} />
-                      <div><strong>{patients.filter(p => p.bedAdmissionPending === 1).length} Bed Admission</strong> requests</div>
+                      <div><strong>{patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length} Bed Admission</strong> requests</div>
                     </div>
                   </div>
                 </div>

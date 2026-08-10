@@ -192,12 +192,12 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
 
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const pendingPrescriptions = (patients || []).filter(p =>
-    (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy') &&
-    (p.registrationDate === todayStr || p.wardBedId)
+    p.status !== 'Inactive' &&
+    (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy')
   );
   const completedIssues = (patients || []).filter(p =>
     ['Reviewing', 'Completed'].includes(p.status) &&
-    (p.registrationDate === todayStr || p.wardBedId)
+    (p.registrationDate === todayStr || p.wardBedId || (p.history && p.history.length > 0))
   ).length;
 
   const docName = activePatient

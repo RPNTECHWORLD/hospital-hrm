@@ -439,7 +439,7 @@ initDB().then(() => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }).catch(err => {
-  console.error("Failed to initialize SQLite database:", err.message);
+  console.error("Failed to initialize database:", err.message || err);
 });
 
 export default app;
