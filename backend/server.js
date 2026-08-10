@@ -46,6 +46,25 @@ app.use(cors());
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
 
+// Database Auto-Initialization Middleware for Vercel Serverless & Localhost
+let isDbInitialized = false;
+let dbInitPromise = null;
+
+app.use(async (req, res, next) => {
+  if (!isDbInitialized) {
+    if (!dbInitPromise) {
+      dbInitPromise = initDB().then(() => {
+        isDbInitialized = true;
+      }).catch(err => {
+        console.error("Database initialization error in middleware:", err.message || err);
+        dbInitPromise = null;
+      });
+    }
+    await dbInitPromise;
+  }
+  next();
+});
+
 // Auth API - Login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password, role } = req.body;
@@ -433,14 +452,16 @@ app.put('/api/injections/patient/:patientId/complete', async (req, res) => {
   }
 });
 
-// Init database tables and start listening
-initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+// Init database tables and start listening if running outside Vercel
+if (!process.env.VERCEL) {
+  initDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }).catch(err => {
+    console.error("Failed to initialize database:", err.message || err);
   });
-}).catch(err => {
-  console.error("Failed to initialize database:", err.message || err);
-});
+}
 
 export default app;
 // Reload trigger: IM & STAT default fallback update
