@@ -239,7 +239,7 @@ function App() {
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
           const patientsData = await patientsRes.value.json();
-          if (Array.isArray(patientsData)) setPatients(patientsData);
+          if (Array.isArray(patientsData)) setPatients(normalizeTokensForPatients(patientsData));
         }
         if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
           const doctorsData = await doctorsRes.value.json();
@@ -269,12 +269,13 @@ function App() {
         ]);
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
-          const patientsData = await patientsRes.value.json();
+          const rawPatientsData = await patientsRes.value.json();
+          const patientsData = normalizeTokensForPatients(rawPatientsData);
           setPatients(prev => {
             if (!prev || prev.length !== patientsData.length) return patientsData;
             const changed = prev.some((p, i) => {
               const n = patientsData[i];
-              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId;
+              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId || p.tokenNumber !== n.tokenNumber;
             });
             return changed ? patientsData : prev;
           });
@@ -406,20 +407,81 @@ function App() {
     }
   };
 
+  // Helper to compare dates robustly across different string formats
+  const isSameDayStr = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+    const dateA = new Date(d1);
+    const dateB = new Date(d2);
+    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+      return dateA.getFullYear() === dateB.getFullYear() &&
+             dateA.getMonth() === dateB.getMonth() &&
+             dateA.getDate() === dateB.getDate();
+    }
+    return false;
+  };
+
+  // Helper function to deduplicate and normalize token numbers per doctor per day
+  const normalizeTokensForPatients = (patientList) => {
+    if (!Array.isArray(patientList)) return patientList;
+    const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+
+    // Group active patients by doctor and registration day
+    const docDayGroups = {};
+    patientList.forEach(p => {
+      if (p.status === 'Inactive' || !p.assignedDoctorId) return;
+      const docId = parseInt(p.assignedDoctorId);
+      const regDate = p.registrationDate || todayStr;
+      const dateKey = `${docId}_${new Date(regDate).toDateString()}`;
+      if (!docDayGroups[dateKey]) docDayGroups[dateKey] = [];
+      docDayGroups[dateKey].push(p);
+    });
+
+    const updatedPatients = [...patientList];
+
+    Object.values(docDayGroups).forEach(group => {
+      // Check if there are any duplicate token numbers or 0/null tokens
+      const tokens = group.map(p => parseInt(p.tokenNumber) || 0);
+      const hasDuplicates = new Set(tokens).size !== tokens.length || tokens.includes(0);
+
+      if (hasDuplicates) {
+        // Sort group by patient numerical ID to keep consistent registration order
+        group.sort((a, b) => {
+          const numA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+          const numB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
+          return numA - numB;
+        });
+
+        // Re-assign unique sequential 1, 2, 3... tokens
+        group.forEach((p, index) => {
+          const expectedToken = index + 1;
+          const targetIndex = updatedPatients.findIndex(x => x.id === p.id);
+          if (targetIndex !== -1 && updatedPatients[targetIndex].tokenNumber !== expectedToken) {
+            updatedPatients[targetIndex] = { ...updatedPatients[targetIndex], tokenNumber: expectedToken };
+          }
+        });
+      }
+    });
+
+    return updatedPatients;
+  };
+
   // Receptionist Actions
   const handleRegisterPatient = async (newPatientData) => {
     try {
       const docId = parseInt(newPatientData.assignedDoctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
 
-      // Filter patients assigned to this doctor registered today
+      // Filter active patients assigned to this doctor currently in queue/consulting or registered today
       const activeForDocToday = patients.filter(p =>
-        p.assignedDoctorId === docId &&
-        p.registrationDate === todayStr
+        parseInt(p.assignedDoctorId) === docId &&
+        p.status !== 'Inactive' &&
+        p.status !== 'Completed' &&
+        p.status !== 'Discharged'
       );
 
       const nextToken = activeForDocToday.length > 0
-        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1
+        ? Math.max(...activeForDocToday.map(p => parseInt(p.tokenNumber) || 0)) + 1
         : 1;
 
       const patientWithToken = {
@@ -435,7 +497,7 @@ function App() {
       });
       if (response.ok) {
         const newPatient = await response.json();
-        setPatients([...patients, newPatient]);
+        setPatients(prev => normalizeTokensForPatients([...prev, newPatient]));
         return newPatient;
       }
     } catch (err) {
@@ -479,14 +541,16 @@ function App() {
       const docIdInt = parseInt(doctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
 
-      // Filter patients assigned to this doctor registered today
+      // Filter active patients assigned to this doctor currently in queue/consulting or registered today
       const activeForDocToday = patients.filter(p =>
-        p.assignedDoctorId === docIdInt &&
-        p.registrationDate === todayStr
+        parseInt(p.assignedDoctorId) === docIdInt &&
+        p.status !== 'Inactive' &&
+        p.status !== 'Completed' &&
+        p.status !== 'Discharged'
       );
 
       const nextToken = activeForDocToday.length > 0
-        ? Math.max(...activeForDocToday.map(p => p.tokenNumber || 0)) + 1
+        ? Math.max(...activeForDocToday.map(p => parseInt(p.tokenNumber) || 0)) + 1
         : 1;
 
       const updatedPatientData = {
@@ -513,7 +577,7 @@ function App() {
 
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => normalizeTokensForPatients(prev.map(p => p.id === patientId ? updatedPatient : p)));
         return updatedPatient;
       }
     } catch (err) {
