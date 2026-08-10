@@ -600,20 +600,20 @@ export const getPatients = async () => {
     gender: pat.gender,
     contact: pat.contact,
     address: pat.address,
-    assignedDoctorId: pat.assignedDoctorId,
+    assignedDoctorId: pat.assigneddoctorid !== undefined && pat.assigneddoctorid !== null ? parseInt(pat.assigneddoctorid) : (pat.assignedDoctorId !== undefined && pat.assignedDoctorId !== null ? parseInt(pat.assignedDoctorId) : null),
     status: pat.status,
     diagnosis: pat.diagnosis,
-    prescription: pat.prescription ? JSON.parse(pat.prescription) : null,
-    issuedMedication: pat.issuedMedication,
-    paymentStatus: pat.paymentStatus,
-    wardBedId: pat.wardBedId,
-    bedAdmissionPending: pat.bedAdmissionPending || 0,
-    fatherOrHusbandName: pat.fatherOrHusbandName || '',
-    motherOrGuardianName: pat.motherOrGuardianName || '',
-    alternatePhone: pat.alternatePhone || '',
-    tokenNumber: pat.tokenNumber || null,
-    registrationDate: pat.registrationDate || '',
-    prescriptionImg: pat.prescriptionImg || null,
+    prescription: pat.prescription ? (typeof pat.prescription === 'string' ? JSON.parse(pat.prescription) : pat.prescription) : null,
+    issuedMedication: pat.issuedMedication || pat.issuedmedication || null,
+    paymentStatus: pat.paymentstatus || pat.paymentStatus || 'Unpaid',
+    wardBedId: pat.wardbedid || pat.wardBedId || null,
+    bedAdmissionPending: pat.bedadmissionpending !== undefined ? parseInt(pat.bedadmissionpending) : (pat.bedAdmissionPending || 0),
+    fatherOrHusbandName: pat.fatherorhusbandname || pat.fatherOrHusbandName || '',
+    motherOrGuardianName: pat.motherorguardianname || pat.motherOrGuardianName || '',
+    alternatePhone: pat.alternatephone || pat.alternatePhone || '',
+    tokenNumber: pat.tokennumber !== undefined && pat.tokennumber !== null ? parseInt(pat.tokennumber) : (pat.tokenNumber || null),
+    registrationDate: pat.registrationdate || pat.registrationDate || '',
+    prescriptionImg: pat.prescriptionimg || pat.prescriptionImg || null,
     height: pat.height || '',
     weight: pat.weight || '',
     bp: pat.bp || '',
@@ -622,21 +622,21 @@ export const getPatients = async () => {
     grbs: pat.grbs || '',
     temp: pat.temp || '',
     complaints: pat.complaints || '',
-    pastHistory: pat.pastHistory || '',
+    pastHistory: pat.pasthistory || pat.pastHistory || '',
     examination: pat.examination || '',
     investigation: pat.investigation || '',
     bmi: pat.bmi || '',
-    paidAmount: pat.paidAmount ? parseFloat(pat.paidAmount) : 0,
-    feeBreakdown: pat.feeBreakdown || '',
-    isChild: pat.isChild || 0,
-    childGa: pat.childGa || '',
-    childBirthDate: pat.childBirthDate || '',
-    childBirthWeight: pat.childBirthWeight || '',
-    childPlaceOfBirth: pat.childPlaceOfBirth || '',
-    childDeliveryType: pat.childDeliveryType || '',
-    childNicuHistory: pat.childNicuHistory || '',
-    specialInvestigation: pat.specialInvestigation || 0,
-    specialInvestigationNotes: pat.specialInvestigationNotes || '',
+    paidAmount: pat.paidamount ? parseFloat(pat.paidamount) : (pat.paidAmount ? parseFloat(pat.paidAmount) : 0),
+    feeBreakdown: pat.feebreakdown || pat.feeBreakdown || '',
+    isChild: pat.ischild !== undefined ? parseInt(pat.ischild) : (pat.isChild || 0),
+    childGa: pat.childga || pat.childGa || '',
+    childBirthDate: pat.childbirthdate || pat.childBirthDate || '',
+    childBirthWeight: pat.childbirthweight || pat.childBirthWeight || '',
+    childPlaceOfBirth: pat.childplaceofbirth || pat.childPlaceOfBirth || '',
+    childDeliveryType: pat.childdeliverytype || pat.childDeliveryType || '',
+    childNicuHistory: pat.childnicuhistory || pat.childNicuHistory || '',
+    specialInvestigation: pat.specialinvestigation !== undefined ? parseInt(pat.specialinvestigation) : (pat.specialInvestigation || 0),
+    specialInvestigationNotes: pat.specialinvestigationnotes || pat.specialInvestigationNotes || '',
     dob: pat.dob || '',
     respiratoryRate: pat.respiratoryrate || pat.respiratoryRate || '',
     painScale: pat.painscale || pat.painScale || '',
@@ -863,6 +863,33 @@ export const updatePatient = async (id, data) => {
   const fields = [];
   const params = [];
 
+  const pgColumnMap = {
+    assignedDoctorId: 'assigneddoctorid',
+    paymentStatus: 'paymentstatus',
+    wardBedId: 'wardbedid',
+    bedAdmissionPending: 'bedadmissionpending',
+    fatherOrHusbandName: 'fatherorhusbandname',
+    motherOrGuardianName: 'motherorguardianname',
+    alternatePhone: 'alternatephone',
+    tokenNumber: 'tokennumber',
+    registrationDate: 'registrationdate',
+    prescriptionImg: 'prescriptionimg',
+    pastHistory: 'pasthistory',
+    paidAmount: 'paidamount',
+    feeBreakdown: 'feebreakdown',
+    isChild: 'ischild',
+    childGa: 'childga',
+    childBirthDate: 'childbirthdate',
+    childBirthWeight: 'childbirthweight',
+    childPlaceOfBirth: 'childplaceofbirth',
+    childDeliveryType: 'childdeliverytype',
+    childNicuHistory: 'childnicuhistory',
+    specialInvestigation: 'specialinvestigation',
+    specialInvestigationNotes: 'specialinvestigationnotes',
+    trackingHistory: 'trackinghistory',
+    previousDoctor: 'previousdoctor'
+  };
+
   const keys = [
     'name', 'age', 'gender', 'contact', 'address',
     'assignedDoctorId', 'status', 'diagnosis',
@@ -876,7 +903,8 @@ export const updatePatient = async (id, data) => {
 
   for (const k of keys) {
     if (data[k] !== undefined) {
-      fields.push(`${k} = ?`);
+      const colName = pgColumnMap[k] || k;
+      fields.push(`"${colName}" = ?`);
       if (k === 'prescription' || k === 'trackingHistory') {
         params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
@@ -913,64 +941,7 @@ export const updatePatient = async (id, data) => {
     }
   }
 
-  const updated = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
-  const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [id]);
-  const history = historyRows.map(h => ({
-    visitId: h.visitId,
-    date: h.date,
-    doctorName: h.doctorName,
-    diagnosis: h.diagnosis,
-    prescription: h.prescription ? JSON.parse(h.prescription) : [],
-    prescriptionImg: h.prescriptionImg || null,
-    issuedMedication: h.issuedMedication,
-    paymentStatus: h.paymentStatus,
-    status: h.status
-  }));
-
-  return {
-    id: updated.id,
-    name: updated.name,
-    age: updated.age,
-    gender: updated.gender,
-    contact: updated.contact,
-    address: updated.address,
-    assignedDoctorId: updated.assignedDoctorId,
-    status: updated.status,
-    diagnosis: updated.diagnosis,
-    prescription: updated.prescription ? JSON.parse(updated.prescription) : null,
-    issuedMedication: updated.issuedMedication,
-    paymentStatus: updated.paymentStatus,
-    wardBedId: updated.wardBedId,
-    bedAdmissionPending: updated.bedAdmissionPending || 0,
-    fatherOrHusbandName: updated.fatherOrHusbandName || '',
-    motherOrGuardianName: updated.motherOrGuardianName || '',
-    alternatePhone: updated.alternatePhone || '',
-    tokenNumber: updated.tokenNumber || null,
-    registrationDate: updated.registrationDate || '',
-    prescriptionImg: updated.prescriptionImg || null,
-    height: updated.height || '',
-    weight: updated.weight || '',
-    bp: updated.bp || '',
-    hr: updated.hr || '',
-    spo2: updated.spo2 || '',
-    grbs: updated.grbs || '',
-    temp: updated.temp || '',
-    complaints: updated.complaints || '',
-    pastHistory: updated.pastHistory || '',
-    examination: updated.examination || '',
-    investigation: updated.investigation || '',
-    bmi: updated.bmi || '',
-    paidAmount: updated.paidAmount ? parseFloat(updated.paidAmount) : 0,
-    feeBreakdown: updated.feeBreakdown || '',
-    isChild: updated.isChild || 0,
-    childGa: updated.childGa || '',
-    childBirthDate: updated.childBirthDate || '',
-    childBirthWeight: updated.childBirthWeight || '',
-    childPlaceOfBirth: updated.childPlaceOfBirth || '',
-    childDeliveryType: updated.childDeliveryType || '',
-    childNicuHistory: updated.childNicuHistory || '',
-    history: history
-  };
+  return await getPatientById(id);
 };
 
 // Staff Attendance
