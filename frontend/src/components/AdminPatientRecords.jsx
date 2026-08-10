@@ -450,12 +450,15 @@ const AdminPatientRecords = ({
                             }
                           }
                           const reassignLog = trackingLogs.find(log => log && (log.type === 'Doctor Reassignment' || log.previousDoctor || log.newDoctor));
+                          const historyDoc = (p.history && Array.isArray(p.history) && p.history.length > 0)
+                            ? p.history[p.history.length - 1].doctorName
+                            : null;
 
                           const prevDocName = p.previousDoctor || (reassignLog ? (
                             (reassignLog.previousDoctor && reassignLog.previousDoctor !== 'Unassigned')
                               ? reassignLog.previousDoctor
                               : (reassignLog.changedBy && reassignLog.changedBy !== 'System Admin' ? reassignLog.changedBy : null)
-                          ) : null);
+                          ) : null) || historyDoc;
 
                           if (prevDocName && prevDocName !== 'Unassigned') {
                             return (

@@ -553,9 +553,13 @@ function App() {
         ? Math.max(...activeForDocToday.map(p => parseInt(p.tokenNumber) || 0)) + 1
         : 1;
 
+      const prevDocObj = doctors.find(d => parseInt(d.id) === parseInt(patient.assignedDoctorId));
+      const prevDocName = prevDocObj ? prevDocObj.name : (patient.previousDoctor || null);
+
       const updatedPatientData = {
         ...patient,
         assignedDoctorId: docIdInt,
+        previousDoctor: prevDocName,
         status: 'In Queue',
         diagnosis: '',
         prescription: null,
