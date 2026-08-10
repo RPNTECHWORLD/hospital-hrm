@@ -554,7 +554,8 @@ function App() {
         : 1;
 
       const prevDocObj = doctors.find(d => parseInt(d.id) === parseInt(patient.assignedDoctorId));
-      const prevDocName = prevDocObj ? prevDocObj.name : (patient.previousDoctor || null);
+      const isDoctorChanged = prevDocObj && parseInt(prevDocObj.id) !== docIdInt;
+      const prevDocName = isDoctorChanged ? prevDocObj.name : (patient.previousDoctor || null);
 
       const updatedPatientData = {
         ...patient,
