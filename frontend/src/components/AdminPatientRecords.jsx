@@ -454,7 +454,7 @@ const AdminPatientRecords = ({
                             ? p.history[p.history.length - 1].doctorName
                             : null;
 
-                          const currentAssignedDoc = doctorsList.find(d => parseInt(d.id) === parseInt(p.assignedDoctorId));
+                          const currentAssignedDoc = (doctors || []).find(d => parseInt(d.id) === parseInt(p.assignedDoctorId));
                           const currentDocName = currentAssignedDoc ? currentAssignedDoc.name : (p.assignedDoctorName || '');
 
                           const prevDocName = p.previousDoctor || (reassignLog ? (
