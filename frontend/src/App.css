@@ -1027,9 +1027,12 @@ h6 {
 
   /* Main viewport overrides */
   .main-content {
-    padding: 1.25rem;
+    padding: 1rem;
+    max-width: 100% !important;
+    width: 100% !important;
     max-height: none;
     overflow-y: visible;
+    overflow-x: hidden;
   }
 
   .dashboard-header {
@@ -1057,6 +1060,155 @@ h6 {
     gap: 0.75rem;
   }
 
+  /* Doctor Dashboard Queue Cards Mobile Overrides */
+  .review-queue-card,
+  .consultation-queue-card,
+  .pending-queue-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .review-queue-card > div:first-child,
+  .consultation-queue-card > div:first-child,
+  .pending-queue-card > div:first-child {
+    width: 100% !important;
+  }
+
+  .doc-card-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 0.45rem !important;
+    margin-top: 0.25rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .doc-active-patient-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .doc-active-patient-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+    margin-top: 0.25rem !important;
+  }
+
+  .doc-rx-modal-footer {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  .doc-rx-modal-footer .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .doc-mode-switcher-grid {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .doc-mode-switcher-grid .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.65rem !important;
+  }
+
+  .doc-consult-submit-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .doc-consult-submit-actions .btn,
+  .doc-consult-submit-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Receptionist Patient Registration Mobile Overrides */
+  .reg-dob-age-gender-grid,
+  .reg-contact-alt-grid,
+  .reg-address-grid,
+  .reg-vitals-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Pharmacy Dashboard Mobile Overrides */
+  .pharmacy-add-med-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .pharmacy-inbox-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .btn-pharmacy-dispense {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .pharmacy-rx-header-actions {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  .pharmacy-rx-header-actions > div {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .pharmacy-inj-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .pharmacy-submit-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Mobile View Prescription Paper Scaled Wrapper (Fits 100% Mobile Screen Width) */
+  .rx-paper-container {
+    width: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 0 !important;
+  }
+
+  .prescription-paper,
+  .vijaya-rx-paper,
+  .child-rx-paper {
+    width: 700px !important;
+    min-width: 700px !important;
+    max-width: 700px !important;
+    zoom: 0.46 !important;
+    margin: 0 auto !important;
+  }
+
+  /* Utility Logs Mobile Overrides */
+  .utility-tabs-nav {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .utility-tabs-nav .btn {
+    flex: 1 1 auto !important;
+    text-align: center !important;
+    font-size: 0.8rem !important;
+    padding: 0.5rem 0.75rem !important;
+    justify-content: center !important;
+  }
+
   .stat-icon {
     width: 44px;
     height: 44px;
@@ -1080,6 +1232,15 @@ h6 {
   }
 
   /* Table responsive styling overrides */
+  .table-responsive,
+  .table-wrapper,
+  div:has(> table) {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .custom-table th {
     padding: 0.75rem 1rem;
     font-size: 0.75rem;
@@ -1135,13 +1296,61 @@ h6 {
   }
 }
 
+@media (max-width: 576px) {
+  .prescription-paper,
+  .vijaya-rx-paper,
+  .child-rx-paper {
+    zoom: 0.42 !important;
+  }
+
+  .logo-text-mobile {
+    font-size: 1rem;
+  }
+  .mobile-header {
+    padding: 0 0.75rem;
+    width: 100%;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .header-title {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.5rem;
+  }
+  .stat-card {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  .card {
+    padding: 0.85rem;
+  }
+  .pharmacy-inj-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 480px) {
   .modal-overlay {
-    padding: 1rem;
+    padding: 0.5rem;
   }
 
   .modal-content {
-    max-height: 95vh;
+    max-height: 98vh;
+    padding: 1rem;
   }
 }
 
@@ -1455,6 +1664,16 @@ h6 {
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .pharmacy-inj-container {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+}
+
+[data-theme="dark"] .pharmacy-inj-row {
+  background: #0b1329 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 [data-theme="dark"] .stat-card h3,
@@ -2146,11 +2365,155 @@ h6 {
   border: 2px solid #e2e8f0;
 }
 
+/* TV Queue Display Mobile Responsiveness */
+@media (max-width: 991px) {
+  .tv-container {
+    padding: 1rem !important;
+  }
+  .tv-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+    padding-bottom: 1rem !important;
+  }
+  .tv-header-right {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+  }
+  .tv-title {
+    font-size: 1.25rem !important;
+  }
+  .tv-boards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+  .tv-doctor-card {
+    padding: 1.15rem !important;
+    border-radius: 16px !important;
+  }
+  .tv-doctor-name {
+    font-size: 1.35rem !important;
+  }
+  .tv-now-consulting-box {
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+  .tv-token-badge {
+    font-size: 1.75rem !important;
+    padding: 0.4rem 1rem !important;
+    min-width: 65px !important;
+  }
+  .tv-patient-name {
+    font-size: 1.25rem !important;
+  }
+  .tv-awaiting-box {
+    padding: 1.5rem 0.75rem !important;
+    font-size: 1.05rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .tv-title {
+    font-size: 1.1rem !important;
+  }
+  .tv-token-badge {
+    font-size: 1.5rem !important;
+    padding: 0.35rem 0.85rem !important;
+  }
+  .tv-patient-name {
+    font-size: 1.15rem !important;
+  }
+}
+
 .table-container::-webkit-scrollbar-thumb:hover {
   background: #0f4c5c;
+}
+
+/* 🔒 Lock Login Page UI - Always maintains exact design regardless of Light/Dark Theme */
+.login-container,
+[data-theme="dark"] .login-container {
+  background: linear-gradient(135deg, #06191f 0%, #092c34 50%, #061318 100%) !important;
+  color: #0f172a !important;
+}
+
+.login-wrapper,
+[data-theme="dark"] .login-wrapper {
+  background: rgba(255, 255, 255, 0.52) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.45), 0 0 30px rgba(21, 115, 136, 0.2) !important;
+}
+
+.login-card,
+[data-theme="dark"] .login-card {
+  background: rgba(255, 255, 255, 0.45) !important;
+  color: #0f172a !important;
+}
+
+.login-card h1,
+[data-theme="dark"] .login-card h1 {
+  color: #0f172a !important;
+}
+
+.login-card label,
+[data-theme="dark"] .login-card label,
+.login-card p,
+[data-theme="dark"] .login-card p {
+  color: #475569 !important;
+}
+
+.login-card .form-input,
+[data-theme="dark"] .login-card .form-input,
+.login-card select,
+[data-theme="dark"] .login-card select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+.login-card .form-input:focus,
+[data-theme="dark"] .login-card .form-input:focus,
+.login-card select:focus,
+[data-theme="dark"] .login-card select:focus {
+  border-color: #157388 !important;
+  box-shadow: 0 0 0 3px rgba(21, 115, 136, 0.2) !important;
+}
+
+.login-card .login-input-icon,
+[data-theme="dark"] .login-card .login-input-icon,
+.login-card .login-password-toggle,
+[data-theme="dark"] .login-card .login-password-toggle {
+  color: #64748b !important;
 }
 
 .table-container {
   scrollbar-width: thin;
   scrollbar-color: var(--primary) #e2e8f0;
+}
+
+@media print {
+  .rx-paper-container {
+    overflow: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+
+  .prescription-paper,
+  .vijaya-rx-paper,
+  .child-rx-paper {
+    min-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    zoom: 1 !important;
+    -webkit-transform: none !important;
+    transform: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
 }

@@ -1281,7 +1281,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         {p.status === 'Consulting' && <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontWeight: 600 }}>• Consulting</span>}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
                           type="button"
@@ -1365,7 +1365,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         {p.age} Yrs • {p.gender} • ID: #{p.id}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       {onAdmitToWard && !p.wardBedId && (
                         <button
                           type="button"
@@ -1414,7 +1414,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
         <div className="card fade-in">
           <div>
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div className="doc-active-patient-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   {Number(activePatient.specialInvestigation) === 1 && (
                     <div 
                       title="Click to mark special investigation as reviewed / clear flag"
@@ -1495,7 +1495,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       ID: #{activePatient.id} • {activePatient.gender} • {activePatient.age} Yrs • Contact: {activePatient.contact}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="doc-active-patient-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -2039,7 +2039,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   {/* Prescription entry mode selector */}
                   <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                     <label className="form-label">Prescription Entry Mode</label>
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    <div className="doc-mode-switcher-grid" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
                       <button
                         type="button"
                         className={`btn ${prescriptionMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
@@ -2165,7 +2165,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                  <div className="doc-consult-submit-actions" style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                     <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
                       <Send size={16} /> Send to Pharmacy
                     </button>
@@ -2753,7 +2753,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             </div>
 
             {/* Modal Actions Footer */}
-            <div style={{
+            <div className="doc-rx-modal-footer" style={{
               padding: '1rem 1.5rem',
               borderTop: '1px solid var(--border)',
               background: '#f8fafc',

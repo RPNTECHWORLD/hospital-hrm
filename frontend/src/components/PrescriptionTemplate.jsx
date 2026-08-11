@@ -66,7 +66,7 @@ const PrescriptionTemplate = ({ patient }) => {
   const temp = patient.temp || patient.temperature ? (String(patient.temp || patient.temperature).includes('°') ? (patient.temp || patient.temperature) : `${patient.temp || patient.temperature} °F`) : '--';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div className="rx-paper-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {/* Toggle Controls (Hidden during printing) */}
       <div className="no-print" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.85rem' }}>
         <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#334155' }}>
@@ -339,8 +339,8 @@ const PrescriptionTemplate = ({ patient }) => {
           <div style={{
             position: 'absolute',
             top: '48.0%',
-            left: '3.2%',
-            right: '3.2%',
+            left: '4.5%',
+            right: '4.5%',
             bottom: '20.0%',
             overflow: 'hidden',
             pointerEvents: 'auto'
@@ -360,14 +360,14 @@ const PrescriptionTemplate = ({ patient }) => {
                 />
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', tableLayout: 'fixed' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #008099', background: 'rgba(224, 242, 254, 0.75)', textAlign: 'left' }}>
-                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '32%' }}>Medicine Name & Strength</th>
-                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '15%' }}>Route</th>
-                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '23%' }}>Dosage / Frequency</th>
+                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '28%' }}>Medicine Name & Strength</th>
+                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '13%' }}>Route</th>
+                    <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '21%' }}>Dosage / Frequency</th>
                     <th style={{ padding: '0.45rem 0.5rem', color: '#008099', width: '15%' }}>Instructions</th>
-                    <th style={{ padding: '0.45rem 0.5rem', textAlign: 'right', width: '15%', color: '#008099' }}>Duration & Qty</th>
+                    <th style={{ padding: '0.45rem 0.5rem', textAlign: 'center', width: '23%', color: '#008099' }}>Duration & Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -379,7 +379,7 @@ const PrescriptionTemplate = ({ patient }) => {
 
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(248,250,252,0.9)' }}>
-                        <td style={{ padding: '0.45rem 0.5rem', fontWeight: 700, color: '#0f172a' }}>
+                        <td style={{ padding: '0.45rem 0.5rem', fontWeight: 700, color: '#0f172a', wordBreak: 'break-word' }}>
                           {m.name}
                           {strength && !m.name.toLowerCase().includes(strength.toLowerCase()) ? (
                             <span style={{ fontSize: '0.72rem', color: '#008099', fontWeight: 600, marginLeft: '0.25rem' }}>({strength})</span>
@@ -388,7 +388,7 @@ const PrescriptionTemplate = ({ patient }) => {
                         <td style={{ padding: '0.45rem 0.5rem', color: '#475569', fontSize: '0.74rem' }}>{route}</td>
                         <td style={{ padding: '0.45rem 0.5rem', color: '#334155', fontWeight: 600 }}>{m.dosage}</td>
                         <td style={{ padding: '0.45rem 0.5rem', color: '#059669', fontWeight: 600, fontSize: '0.74rem' }}>{instructions}</td>
-                        <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '0.45rem 0.5rem', textAlign: 'center', verticalAlign: 'middle' }}>
                           <span style={{ fontSize: '0.82rem', fontWeight: 900, color: '#e11d48', display: 'block', lineHeight: 1.25 }}>
                             {m.duration} Days
                           </span>

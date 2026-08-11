@@ -306,6 +306,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
+    setCurrentStaffView('');
     if (userData.role === 'admin') {
       setAdminActiveView('admin');
     }
@@ -315,6 +316,7 @@ function App() {
     setUser(null);
     setPatients([]);
     setAdminActiveView('admin');
+    setCurrentStaffView('');
     sessionStorage.removeItem('hms_user');
   };
 

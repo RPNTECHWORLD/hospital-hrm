@@ -142,6 +142,12 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   const [selectedHistIdx, setSelectedHistIdx] = useState(0);
   const [previewImage, setPreviewImage] = useState(null);
 
+  // Add Medicine Form state
+  const [showAddMedForm, setShowAddMedForm] = useState(false);
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('1-0-1 - After Food');
+  const [newMedDuration, setNewMedDuration] = useState('5');
+
   // Injection states
   const [requiresInjection, setRequiresInjection] = useState(false);
   const [injections, setInjections] = useState([
@@ -213,6 +219,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     setIssueType('full');
     setShowPrevRx(false);
     setSelectedHistIdx(0);
+    setShowAddMedForm(false);
+    setNewMedName('');
+    setNewMedDosage('1-0-1 - After Food');
+    setNewMedDuration('5');
     const initialDaysMap = {};
     if (patient.prescription && patient.prescription.length > 0) {
       patient.prescription.forEach((m, idx) => {
@@ -241,14 +251,26 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     }));
   };
 
-  const handlePharmacyAddMed = () => {
+  const handleConfirmAddMedicine = () => {
     if (!activePatient) return;
-    const newMed = { name: 'New Medicine / Substitute', dosage: '1-0-1 - After Food', duration: 5 };
+    if (!newMedName.trim()) {
+      alert('Please enter medicine or substitute name');
+      return;
+    }
+    const newMed = {
+      name: newMedName.trim(),
+      dosage: newMedDosage.trim() || '1-0-1 - After Food',
+      duration: parseInt(newMedDuration) || 5
+    };
     const updatedRx = [...(activePatient.prescription || []), newMed];
     setActivePatient(prev => ({
       ...prev,
       prescription: updatedRx
     }));
+    setNewMedName('');
+    setNewMedDosage('1-0-1 - After Food');
+    setNewMedDuration('5');
+    setShowAddMedForm(false);
   };
 
   const handlePharmacyMedChange = (index, field, value) => {
@@ -418,7 +440,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
               </div>
 
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div className="pharmacy-rx-header-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <label className="form-label" style={{ marginBottom: 0 }}>Digital Prescription Details</label>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
@@ -720,24 +742,109 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                     </table>
                   </div>
 
-                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{
-                        padding: '0.35rem 0.75rem',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        color: 'var(--primary)',
-                        borderColor: 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem'
-                      }}
-                      onClick={handlePharmacyAddMed}
-                    >
-                      <Plus size={14} /> Add Medicine / Substitute
-                    </button>
+                  <div style={{ marginTop: '0.75rem' }}>
+                    {showAddMedForm ? (
+                      <div style={{
+                        padding: '0.85rem 1rem',
+                        background: 'rgba(99, 102, 241, 0.05)',
+                        border: '1.5px solid rgba(99, 102, 241, 0.25)',
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.82rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Plus size={14} /> Add Medicine / Substitute
+                        </div>
+                        <div className="pharmacy-add-med-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                              Medicine / Substitute Name *
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Type medicine name (e.g. Zerodol P)"
+                              value={newMedName}
+                              onChange={(e) => setNewMedName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleConfirmAddMedicine();
+                                }
+                              }}
+                              autoFocus
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                              Dosage / Timing
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. 1-0-1 - After Food"
+                              value={newMedDosage}
+                              onChange={(e) => setNewMedDosage(e.target.value)}
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
+                              Duration (Days)
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              className="form-input"
+                              placeholder="Days"
+                              value={newMedDuration}
+                              onChange={(e) => setNewMedDuration(e.target.value)}
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                              onClick={handleConfirmAddMedicine}
+                            >
+                              Add to List
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.78rem' }}
+                              onClick={() => {
+                                setShowAddMedForm(false);
+                                setNewMedName('');
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '0.35rem 0.75rem',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: 'var(--primary)',
+                            borderColor: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                          }}
+                          onClick={() => setShowAddMedForm(true)}
+                        >
+                          <Plus size={14} /> Add Medicine / Substitute
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -796,7 +903,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                 )}
 
                 {/* Injection Prescription Section */}
-                <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(21, 115, 136, 0.05)', borderRadius: '8px', border: '1px solid rgba(21, 115, 136, 0.15)' }}>
+                <div className="form-group pharmacy-inj-container" style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(21, 115, 136, 0.05)', borderRadius: '8px', border: '1px solid rgba(21, 115, 136, 0.15)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -810,7 +917,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                   {requiresInjection && (
                     <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {injections.map((inj, index) => (
-                        <div key={index} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 1fr auto', gap: '0.5rem', alignItems: 'flex-end', background: '#ffffff', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <div key={index} className="pharmacy-inj-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 1fr auto', gap: '0.5rem', alignItems: 'flex-end', background: 'var(--bg-dark)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                           <div>
                             <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.2rem' }}>
                               Injection Name {injections.length > 1 ? `#${index + 1}` : ''}
@@ -905,7 +1012,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <div className="pharmacy-submit-actions" style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                   <button
                     type="button"
                     className="btn btn-primary"

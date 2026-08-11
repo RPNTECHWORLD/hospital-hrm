@@ -11,7 +11,7 @@ const UtilityLogs = ({ userRole }) => {
   const [housekeepingLogs, setHousekeepingLogs] = useState([]);
   const [newPlace, setNewPlace] = useState('');
   const [hkNotes, setHkNotes] = useState('');
-  const [hkDate, setHkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [hkDate, setHkDate] = useState('');
   const [hkCleaned, setHkCleaned] = useState(false);
   const [hkWatered, setHkWatered] = useState(false);
 
@@ -30,9 +30,10 @@ const UtilityLogs = ({ userRole }) => {
 
   // Bio-Waste States
   const [wasteLogs, setWasteLogs] = useState([]);
+  const [wasteDate, setWasteDate] = useState('');
   const [wasteType, setWasteType] = useState('Yellow Bag (Anatomical)');
   const [wasteWeight, setWasteWeight] = useState('');
-  const [wasteAgency, setWasteAgency] = useState('MediWaste Disposal Ltd');
+  const [wasteAgency, setWasteAgency] = useState('');
   const [wasteAmount, setWasteAmount] = useState('');
   const [scanPreview, setScanPreview] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -114,6 +115,20 @@ const UtilityLogs = ({ userRole }) => {
     }
   };
 
+  const handleDeleteHousekeeping = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this housekeeping log?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/housekeeping/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Attendance handlers
   const handleMarkAttendance = async (e) => {
     e.preventDefault();
@@ -158,19 +173,35 @@ const UtilityLogs = ({ userRole }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: new Date().toLocaleDateString(),
+          date: wasteDate || new Date().toISOString().split('T')[0],
           wasteType,
           weight: parseFloat(wasteWeight),
-          agencyName: wasteAgency,
+          agencyName: wasteAgency || 'MediWaste Disposal Ltd',
           billAmount: parseFloat(wasteAmount) || 0,
           billAttachment: scanPreview || ''
         })
       });
 
       if (response.ok) {
+        setWasteDate('');
         setWasteWeight('');
+        setWasteAgency('');
         setWasteAmount('');
         setScanPreview(null);
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteWasteLog = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this waste log?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/waste/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
         fetchData();
       }
     } catch (err) {
@@ -181,7 +212,7 @@ const UtilityLogs = ({ userRole }) => {
   return (
     <div className="fade-in">
       {userRole !== 'receptionist' && (
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="utility-tabs-nav" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
           <button className={`btn ${activeTab === 'housekeeping' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('housekeeping')}>
             🧹 Housekeeping & Plants Checklist
           </button>
@@ -216,6 +247,7 @@ const UtilityLogs = ({ userRole }) => {
                       <th>Cleaned Status</th>
                       <th>Watered Plants</th>
                       <th>Clinical Notes</th>
+                      <th style={{ textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -234,6 +266,26 @@ const UtilityLogs = ({ userRole }) => {
                           </span>
                         </td>
                         <td style={{ fontSize: '0.85rem' }}>{log.notes || '--'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHousekeeping(log.id)}
+                            title="Delete Record"
+                            style={{
+                              background: 'rgba(225, 29, 72, 0.08)',
+                              border: '1px solid rgba(225, 29, 72, 0.2)',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              padding: '0.25rem 0.4rem',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

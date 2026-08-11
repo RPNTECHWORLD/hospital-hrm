@@ -46,7 +46,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
   const temp = patient.temp || patient.temperature ? (String(patient.temp || patient.temperature).includes('°') ? (patient.temp || patient.temperature) : `${patient.temp || patient.temperature} °F`) : '--';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div className="rx-paper-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {/* Toggle Controls (Hidden during printing) */}
       <div className="no-print" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.85rem' }}>
         <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#334155' }}>

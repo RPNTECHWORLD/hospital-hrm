@@ -949,7 +949,7 @@ const ReceptionistDashboard = ({
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '1rem' }}>
+                <div className="reg-dob-age-gender-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Date of Birth (DOB)</label>
                     <input
@@ -1010,7 +1010,7 @@ const ReceptionistDashboard = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="reg-contact-alt-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Contact Number</label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1085,7 +1085,7 @@ const ReceptionistDashboard = ({
                 {/* Address Fields with Location Auto-suggest */}
                 <div style={{ margin: '0.25rem 0 0' }}>
                   <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Address</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div className="reg-address-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
                     {/* Street / Area Field with Suggestions */}
                     <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                       <input
@@ -1283,7 +1283,7 @@ const ReceptionistDashboard = ({
                     </h4>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                  <div className="reg-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label">Height (Ht in cm)</label>
                       <input
@@ -1329,7 +1329,7 @@ const ReceptionistDashboard = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
+                  <div className="reg-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
                       <label className="form-label">Blood Pressure (BP)</label>
                       <input
@@ -1380,7 +1380,7 @@ const ReceptionistDashboard = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div className="reg-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
                       <label className="form-label">SPO2 (%)</label>
                       <input
@@ -1431,7 +1431,7 @@ const ReceptionistDashboard = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div className="reg-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.75rem' }}>
                     <div className="form-group">
                       <label className="form-label">Pain Scale (0-10)</label>
                       <select

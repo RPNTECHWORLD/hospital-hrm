@@ -36,7 +36,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
   );
 
   return (
-    <div style={{
+    <div className="tv-container" style={{
       background: '#0f172a',
       color: '#f8fafc',
       minHeight: '100vh',
@@ -47,7 +47,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
       boxSizing: 'border-box'
     }}>
       {/* Top Banner */}
-      <header style={{
+      <header className="tv-header" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -65,7 +65,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
             <Monitor size={32} color="#ffffff" />
           </div>
           <div>
-            <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em', color: '#ffffff' }}>
+            <h1 className="tv-title" style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em', color: '#ffffff' }}>
               VIJAYAS HOSPITAL <span style={{ color: '#60a5fa', fontWeight: 400 }}>LIVE QUEUE MONITOR</span>
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
@@ -82,7 +82,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
         </div>
 
         {/* Time, Page Indicator and Exit */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div className="tv-header-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           {totalPages > 1 && (
             <div style={{
               display: 'flex',
@@ -117,10 +117,10 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
           )}
 
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
-            <div style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>
+            <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
               {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
@@ -131,14 +131,15 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#94a3b8',
-              padding: '0.75rem 1.25rem',
+              padding: '0.6rem 1rem',
               borderRadius: '8px',
               cursor: 'pointer',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              fontSize: '0.85rem'
             }}
           >
             Exit Display
@@ -149,10 +150,11 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
       {/* Main Boards Grid */}
       <div 
         key={currentPage}
+        className="tv-boards-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-          gap: '2.5rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1.5rem',
           flexGrow: 1
         }}
       >
@@ -178,11 +180,11 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
             .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
           return (
-            <div key={doctor.id} style={{
+            <div key={doctor.id} className="tv-doctor-card" style={{
               background: '#1e293b',
               borderRadius: '24px',
               border: '1px solid rgba(255,255,255,0.05)',
-              padding: '2.25rem',
+              padding: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
@@ -190,68 +192,68 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
               {/* Doctor Details */}
               <div style={{
                 borderBottom: '2px solid rgba(255,255,255,0.05)',
-                paddingBottom: '1.5rem',
-                marginBottom: '2rem'
+                paddingBottom: '1rem',
+                marginBottom: '1.25rem'
               }}>
-                <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: '#3b82f6' }}>{doctor.name}</h2>
-                <div style={{ color: '#94a3b8', fontSize: '1.1rem', fontWeight: 500, marginTop: '0.25rem' }}>
+                <h2 className="tv-doctor-name" style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: '#3b82f6' }}>{doctor.name}</h2>
+                <div style={{ color: '#94a3b8', fontSize: '0.95rem', fontWeight: 500, marginTop: '0.25rem' }}>
                   {doctor.specialty} • ROOM 0{doctor.id}
                 </div>
               </div>
 
               {/* Currently Consulting Board */}
-              <div style={{ marginBottom: '2.5rem' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
                 <div style={{
-                  fontSize: '0.9rem',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
                   color: '#94a3b8',
                   letterSpacing: '0.1em',
-                  marginBottom: '1rem'
+                  marginBottom: '0.75rem'
                 }}>
                   NOW CONSULTING
                 </div>
 
                 {nowConsulting ? (
-                  <div style={{
+                  <div className="tv-now-consulting-box" style={{
                     background: 'rgba(14, 165, 233, 0.15)',
                     border: '2px solid #0284c7',
-                    borderRadius: '20px',
-                    padding: '2rem',
+                    borderRadius: '16px',
+                    padding: '1.25rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '2rem'
+                    gap: '1.25rem'
                   }}>
-                    <div style={{
+                    <div className="tv-token-badge" style={{
                       background: '#0284c7',
                       color: '#ffffff',
-                      fontSize: '3rem',
+                      fontSize: '2.2rem',
                       fontWeight: 950,
-                      padding: '0.75rem 1.75rem',
-                      borderRadius: '16px',
-                      minWidth: '100px',
+                      padding: '0.5rem 1.25rem',
+                      borderRadius: '12px',
+                      minWidth: '70px',
                       textAlign: 'center',
                       boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)'
                     }}>
                       {String(nowConsulting.tokenNumber).padStart(2, '0')}
                     </div>
                     <div style={{ flexGrow: 1 }}>
-                      <h3 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+                      <h3 className="tv-patient-name" style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
                         {nowConsulting.name}
                       </h3>
-                      <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 500, marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '0.95rem', color: '#38bdf8', fontWeight: 500, marginTop: '0.25rem' }}>
                         In Consultation Room
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{
+                  <div className="tv-awaiting-box" style={{
                     background: 'rgba(255,255,255,0.02)',
                     border: '2px dashed rgba(255,255,255,0.05)',
-                    borderRadius: '20px',
-                    padding: '3rem',
+                    borderRadius: '16px',
+                    padding: '1.75rem 1rem',
                     textAlign: 'center',
                     color: '#64748b',
-                    fontSize: '1.5rem',
+                    fontSize: '1.2rem',
                     fontWeight: 600
                   }}>
                     Awaiting Next Patient

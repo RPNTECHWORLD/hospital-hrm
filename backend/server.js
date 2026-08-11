@@ -67,39 +67,26 @@ app.use(async (req, res, next) => {
 
 // Auth API - Login
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password, role } = req.body;
-
   try {
-    // If role is admin and details match system admin
-    if (role === 'admin') {
-      const staffList = await getStaff();
-      const admin = staffList.find(s => s.role === 'admin' && s.email === email);
-      if (admin && (admin.password === password || password === 'password123')) {
-        return res.json({
-          email: admin.email,
-          name: admin.name,
-          role: 'admin'
-        });
-      }
+    const { email, password } = req.body;
+    const emailClean = String(email || '').trim().toLowerCase();
+    const passClean = String(password || '').trim();
+
+    // 1. Check Doctors
+    const doctorsList = await getDoctors();
+    const doctor = doctorsList.find(d => d.email && d.email.toLowerCase() === emailClean);
+    if (doctor && (doctor.password === passClean || passClean === 'password123')) {
+      return res.json({
+        email: doctor.email,
+        name: doctor.name,
+        role: 'doctor'
+      });
     }
 
-    // If role is doctor
-    if (role === 'doctor') {
-      const doctorsList = await getDoctors();
-      const doctor = doctorsList.find(d => d.email === email);
-      if (doctor && (doctor.password === password || password === 'password123')) {
-        return res.json({
-          email: doctor.email,
-          name: doctor.name,
-          role: 'doctor'
-        });
-      }
-    }
-
-    // If role is other staff
+    // 2. Check Admin & Staff
     const staffList = await getStaff();
-    const staffMember = staffList.find(s => s.email === email && s.role === role);
-    if (staffMember && (staffMember.password === password || password === 'password123')) {
+    const staffMember = staffList.find(s => s.email && s.email.toLowerCase() === emailClean);
+    if (staffMember && (staffMember.password === passClean || passClean === 'password123')) {
       return res.json({
         email: staffMember.email,
         name: staffMember.name,
@@ -107,7 +94,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    return res.status(401).json({ message: 'Invalid email, password or role selection' });
+    return res.status(401).json({ message: 'Invalid email or password selection' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
