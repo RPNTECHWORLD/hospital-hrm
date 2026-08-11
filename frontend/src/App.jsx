@@ -1289,39 +1289,52 @@ function App() {
 
             {/* Notification Center */}
             <div style={{ position: 'relative' }}>
-              <button className="header-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications Center">
-                <Bell size={15} />
-                {patients.filter(p => ['Registered', 'Consulting', 'At Pharmacy'].includes(p.status)).length > 0 && (
-                  <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }} />
-                )}
-              </button>
+              {(() => {
+                const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+                const todayPatients = patients.filter(p => p.status !== 'Inactive' && isSameDayStr(p.registrationDate, todayStr));
+                const queueWaitingCount = todayPatients.filter(p => ['In Queue', 'Registered'].includes(p.status)).length;
+                const pharmacyPendingCount = patients.filter(p => p.status !== 'Inactive' && ['At Pharmacy', 'Pending Pharmacy'].includes(p.status)).length;
+                const wardPendingCount = patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length;
+                const hasActiveAlerts = queueWaitingCount > 0 || pharmacyPendingCount > 0 || wardPendingCount > 0;
 
-              {showNotifications && (
-                <div style={{
-                  position: 'absolute', right: 0, top: '120%', width: '320px', background: 'var(--bg-card)',
-                  border: '1px solid var(--border)', borderRadius: '14px', boxShadow: 'var(--shadow-lg)',
-                  padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>Live Notifications</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>● Active</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
-                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <Activity size={14} style={{ color: '#6366f1' }} />
-                      <div><strong>{patients.filter(p => ['In Queue', 'Registered'].includes(p.status)).length} Patients</strong> waiting in Queue</div>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <Pill size={14} style={{ color: '#f59e0b' }} />
-                      <div><strong>{patients.filter(p => ['At Pharmacy', 'Pending Pharmacy'].includes(p.status)).length} Prescriptions</strong> pending dispatch</div>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <Bed size={14} style={{ color: '#ef4444' }} />
-                      <div><strong>{patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length} Bed Admission</strong> requests</div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                return (
+                  <>
+                    <button className="header-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications Center">
+                      <Bell size={15} />
+                      {hasActiveAlerts && (
+                        <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }} />
+                      )}
+                    </button>
+
+                    {showNotifications && (
+                      <div style={{
+                        position: 'absolute', right: 0, top: '120%', width: '320px', background: 'var(--bg-card)',
+                        border: '1px solid var(--border)', borderRadius: '14px', boxShadow: 'var(--shadow-lg)',
+                        padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>Live Notifications</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>● Active</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <Activity size={14} style={{ color: '#6366f1' }} />
+                            <div><strong>{queueWaitingCount} Patients</strong> waiting in Queue</div>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <Pill size={14} style={{ color: '#f59e0b' }} />
+                            <div><strong>{pharmacyPendingCount} Prescriptions</strong> pending dispatch</div>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <Bed size={14} style={{ color: '#ef4444' }} />
+                            <div><strong>{wardPendingCount} Bed Admission</strong> requests</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </header>

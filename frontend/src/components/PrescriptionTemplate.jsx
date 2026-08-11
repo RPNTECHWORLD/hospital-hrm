@@ -339,8 +339,8 @@ const PrescriptionTemplate = ({ patient }) => {
           <div style={{
             position: 'absolute',
             top: '48.0%',
-            left: '11.5%',
-            right: '5.0%',
+            left: '3.2%',
+            right: '3.2%',
             bottom: '20.0%',
             overflow: 'hidden',
             pointerEvents: 'auto'

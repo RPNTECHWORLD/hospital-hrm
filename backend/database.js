@@ -40,9 +40,18 @@ if (connectionString.includes('sslmode=')) {
 
 const pool = new pg.Pool({
   connectionString,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
   ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech')
     ? { rejectUnauthorized: false }
     : false
+});
+
+// Handle idle client errors so Supabase connection resets (ECONNRESET) don't crash the server
+pool.on('error', (err) => {
+  console.error('PostgreSQL Pool idle client error (handled):', err.message);
 });
 
 // Helper to convert SQLite ? to Postgres $1, $2, etc.
@@ -1038,12 +1047,34 @@ export const addInjection = async (inj) => {
   const route = inj.route || 'IM';
   const frequency = inj.frequency || (inj.isStat ? 'STAT (Single / Immediate)' : 'NORMAL');
   const isStat = inj.isStat !== undefined ? (inj.isStat ? 1 : 0) : (frequency.includes('STAT') ? 1 : 0);
+  const patientIdStr = String(inj.patientId || '').trim();
+  const nameStr = String(inj.injectionName || '').trim();
+  const dosageStr = String(inj.dosage || '').trim();
+  const routeStr = String(route).trim();
+  const freqStr = String(frequency).trim();
+
+  // Check if identical injection entry already exists for this patient (Patient + Medicine + Dose + Route + Frequency all match)
+  const existing = await dbGet(
+    `SELECT * FROM injections_log 
+     WHERE LOWER(TRIM(patientId)) = LOWER(?) 
+       AND LOWER(TRIM(injectionName)) = LOWER(?) 
+       AND LOWER(TRIM(dosage)) = LOWER(?) 
+       AND LOWER(TRIM(route)) = LOWER(?) 
+       AND LOWER(TRIM(frequency)) = LOWER(?)`,
+    [patientIdStr, nameStr, dosageStr, routeStr, freqStr]
+  );
+
+  if (existing) {
+    console.log(`[Injection Desk] Duplicate injection prevented for patient ${patientIdStr}: ${nameStr}`);
+    return existing;
+  }
+
   const result = await dbRun(
     `INSERT INTO injections_log (patientId, injectionName, dosage, route, frequency, isStat, administeredBy, notes, status, dateGiven) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      inj.patientId,
-      inj.injectionName,
-      inj.dosage || '',
+      patientIdStr,
+      nameStr,
+      dosageStr,
       route,
       frequency,
       isStat,

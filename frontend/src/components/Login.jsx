@@ -233,51 +233,6 @@ const Login = ({ onLogin }) => {
               {loading ? 'Authenticating...' : <>Sign In to Portal <ArrowRight size={18} /></>}
             </button>
           </form>
-
-          {/* Quick Demo Access Divider */}
-          <div style={{ margin: '1.5rem 0 0.85rem 0', textAlign: 'center', position: 'relative' }}>
-            <span style={{ 
-              background: 'rgba(255, 255, 255, 0.85)', 
-              padding: '0 0.75rem', 
-              fontSize: '0.72rem', 
-              fontWeight: 700,
-              color: '#64748b',
-              letterSpacing: '0.5px',
-              zIndex: 1,
-              position: 'relative'
-            }}>
-              ONE-TAP QUICK DEMO LOGIN
-            </span>
-            <div style={{ 
-              position: 'absolute', 
-              top: '50%', 
-              left: 0, 
-              right: 0, 
-              height: '1px', 
-              background: '#e2e8f0', 
-              zIndex: 0 
-            }}/>
-          </div>
-
-          <div className="quick-login-grid">
-            {quickRoles.map((item, idx) => {
-              const IconComp = item.icon;
-              return (
-                <button 
-                  key={idx}
-                  type="button"
-                  className="quick-login-btn"
-                  onClick={() => handleQuickLogin(item.role, item.email)}
-                >
-                  <div className="quick-login-icon-badge" style={{ background: item.bg, color: item.color }}>
-                    <IconComp size={16} />
-                  </div>
-                  <div className="quick-login-role" style={{ color: item.color }}>{item.label}</div>
-                  <div className="quick-login-desc">{item.desc}</div>
-                </button>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>

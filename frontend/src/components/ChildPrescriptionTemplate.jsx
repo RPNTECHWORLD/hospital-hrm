@@ -320,8 +320,8 @@ const ChildPrescriptionTemplate = ({ patient }) => {
         <div style={{
           position: 'absolute',
           top: '43.0%',
-          left: '11.5%',
-          right: '5.0%',
+          left: '10.2%',
+          right: '3.5%',
           bottom: '28.0%',
           zIndex: 10,
           display: 'flex',

@@ -1028,18 +1028,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const doctorId = activeDoctor.id;
   const doctorName = activeDoctor.name;
 
+  const isSameDayStr = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+    const dateA = new Date(d1);
+    const dateB = new Date(d2);
+    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+      return dateA.getFullYear() === dateB.getFullYear() &&
+             dateA.getMonth() === dateB.getMonth() &&
+             dateA.getDate() === dateB.getDate();
+    }
+    return false;
+  };
+
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const myPatients = patients.filter(p => {
     const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId);
     if (!matchesDoc || p.status === 'Inactive') return false;
 
-    const isToday = p.registrationDate === todayStr || (p.registrationDate && new Date(p.registrationDate).toDateString() === new Date().toDateString());
+    const isToday = isSameDayStr(p.registrationDate, todayStr);
     const isActiveQueue = ['In Queue', 'Registered', 'Consulting', 'Waiting', 'Reviewing'].includes(p.status);
 
     return isActiveQueue || isToday || Boolean(p.wardBedId);
   });
   const consultationQueue = myPatients
-    .filter(p => ['In Queue', 'Registered', 'Consulting'].includes(p.status))
+    .filter(p => ['In Queue', 'Registered', 'Consulting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
   const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
 
