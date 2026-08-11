@@ -429,10 +429,13 @@ function App() {
     // Group active patients by doctor and registration day
     const docDayGroups = {};
     patientList.forEach(p => {
-      if (p.status === 'Inactive' || !p.assignedDoctorId) return;
+      if (p.status === 'Inactive' || !p.assignedDoctorId || !p.registrationDate) return;
       const docId = parseInt(p.assignedDoctorId);
-      const regDate = p.registrationDate || todayStr;
-      const dateKey = `${docId}_${new Date(regDate).toDateString()}`;
+
+      const dateObj = new Date(p.registrationDate);
+      if (isNaN(dateObj.getTime())) return;
+
+      const dateKey = `${docId}_${dateObj.getFullYear()}-${dateObj.getMonth() + 1}-${dateObj.getDate()}`;
       if (!docDayGroups[dateKey]) docDayGroups[dateKey] = [];
       docDayGroups[dateKey].push(p);
     });
@@ -440,27 +443,21 @@ function App() {
     const updatedPatients = [...patientList];
 
     Object.values(docDayGroups).forEach(group => {
-      // Check if there are any duplicate token numbers or 0/null tokens
-      const tokens = group.map(p => parseInt(p.tokenNumber) || 0);
-      const hasDuplicates = new Set(tokens).size !== tokens.length || tokens.includes(0);
+      // Sort group by patient numerical ID to keep consistent registration order
+      group.sort((a, b) => {
+        const numA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+        const numB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
+        return numA - numB;
+      });
 
-      if (hasDuplicates) {
-        // Sort group by patient numerical ID to keep consistent registration order
-        group.sort((a, b) => {
-          const numA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
-          const numB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
-          return numA - numB;
-        });
-
-        // Re-assign unique sequential 1, 2, 3... tokens
-        group.forEach((p, index) => {
-          const expectedToken = index + 1;
-          const targetIndex = updatedPatients.findIndex(x => x.id === p.id);
-          if (targetIndex !== -1 && updatedPatients[targetIndex].tokenNumber !== expectedToken) {
-            updatedPatients[targetIndex] = { ...updatedPatients[targetIndex], tokenNumber: expectedToken };
-          }
-        });
-      }
+      // Re-assign unique sequential 1, 2, 3... tokens
+      group.forEach((p, index) => {
+        const expectedToken = index + 1;
+        const targetIndex = updatedPatients.findIndex(x => x.id === p.id);
+        if (targetIndex !== -1 && updatedPatients[targetIndex].tokenNumber !== expectedToken) {
+          updatedPatients[targetIndex] = { ...updatedPatients[targetIndex], tokenNumber: expectedToken };
+        }
+      });
     });
 
     return updatedPatients;
@@ -472,12 +469,11 @@ function App() {
       const docId = parseInt(newPatientData.assignedDoctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
 
-      // Filter active patients assigned to this doctor currently in queue/consulting or registered today
+      // Filter active patients assigned to this doctor REGISTERED TODAY
       const activeForDocToday = patients.filter(p =>
         parseInt(p.assignedDoctorId) === docId &&
         p.status !== 'Inactive' &&
-        p.status !== 'Completed' &&
-        p.status !== 'Discharged'
+        isSameDayStr(p.registrationDate, todayStr)
       );
 
       const nextToken = activeForDocToday.length > 0
@@ -541,12 +537,11 @@ function App() {
       const docIdInt = parseInt(doctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
 
-      // Filter active patients assigned to this doctor currently in queue/consulting or registered today
+      // Filter active patients assigned to this doctor REGISTERED TODAY
       const activeForDocToday = patients.filter(p =>
         parseInt(p.assignedDoctorId) === docIdInt &&
         p.status !== 'Inactive' &&
-        p.status !== 'Completed' &&
-        p.status !== 'Discharged'
+        isSameDayStr(p.registrationDate, todayStr)
       );
 
       const nextToken = activeForDocToday.length > 0
@@ -766,6 +761,7 @@ function App() {
 
   // Pharmacy Actions
   const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
+    console.log('[Pharmacy] Issuing medication for patient:', patientId, '| issuedString:', issuedString);
     try {
       const updatedData = {
         status: 'Reviewing',
@@ -776,9 +772,11 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
+      console.log('[Pharmacy] API response status:', response.status);
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        console.log('[Pharmacy] Updated patient status:', updatedPatient.status, '| issuedMedication:', updatedPatient.issuedMedication);
+        setPatients(prev => prev.map(p => String(p.id) === String(patientId) ? updatedPatient : p));
 
         if (injectionData) {
           const list = Array.isArray(injectionData) ? injectionData : [injectionData];
@@ -807,9 +805,14 @@ function App() {
             }
           }
         }
+      } else {
+        const errText = await response.text();
+        console.error('[Pharmacy] API error:', response.status, errText);
+        throw new Error(`API error ${response.status}: ${errText}`);
       }
     } catch (err) {
       console.error("Error issuing medication:", err);
+      throw err; // Re-throw so PharmacyDashboard can catch it
     }
   };
 

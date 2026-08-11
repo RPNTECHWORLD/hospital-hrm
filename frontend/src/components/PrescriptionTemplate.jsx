@@ -128,7 +128,7 @@ const PrescriptionTemplate = ({ patient }) => {
           {/* Date */}
           <div style={{
             position: 'absolute',
-            top: '27.2%',
+            top: '27.6%',
             left: '11.5%',
             fontSize: '0.75rem',
             lineHeight: 1,
@@ -142,7 +142,7 @@ const PrescriptionTemplate = ({ patient }) => {
           {/* Patient ID */}
           <div style={{
             position: 'absolute',
-            top: '27.2%',
+            top: '27.6%',
             left: '73.0%',
             fontSize: '0.75rem',
             lineHeight: 1,
@@ -338,10 +338,10 @@ const PrescriptionTemplate = ({ patient }) => {
           {/* --- RX CONTENT BODY: Doctor Canvas Drawing / Medication Table --- */}
           <div style={{
             position: 'absolute',
-            top: '43.0%',
+            top: '48.0%',
             left: '11.5%',
             right: '5.0%',
-            bottom: '28.0%',
+            bottom: '20.0%',
             overflow: 'hidden',
             pointerEvents: 'auto'
           }}>

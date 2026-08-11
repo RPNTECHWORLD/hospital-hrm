@@ -128,6 +128,9 @@ const extractInjectionsFromPrescription = (prescription = []) => {
 
 const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
+  const [issuedPatientIds, setIssuedPatientIds] = useState([]);
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [issueSuccessMsg, setIssueSuccessMsg] = useState('');
 
   // Issues state
   const [issueType, setIssueType] = useState('full'); // 'full' or 'partial'
@@ -193,7 +196,8 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const pendingPrescriptions = (patients || []).filter(p =>
     p.status !== 'Inactive' &&
-    (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy')
+    (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy') &&
+    !issuedPatientIds.includes(String(p.id))
   );
   const completedIssues = (patients || []).filter(p =>
     ['Reviewing', 'Completed'].includes(p.status) &&
@@ -261,9 +265,12 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     }));
   };
 
-  const handleSubmitIssue = (e) => {
-    e.preventDefault();
+  const handleSubmitIssue = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!activePatient) return;
+
+    const patientIdToIssue = activePatient.id;
+    const patientName = activePatient.name;
 
     let issuedString = 'Full Prescribed Quantity Issued';
     if (issueType === 'partial' && activePatient.prescription) {
@@ -290,12 +297,48 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
       ? injections.filter(inj => inj.name.trim())
       : null;
 
-    onIssueMedication(activePatient.id, issuedString, validInjections);
-    setActivePatient(null);
+    setIsIssuing(true);
+    try {
+      await onIssueMedication(patientIdToIssue, issuedString, validInjections);
+      // Mark this patient as issued so they disappear from pharmacy inbox
+      setIssuedPatientIds(prev => [...prev, String(patientIdToIssue)]);
+      setActivePatient(null);
+      // Show success toast
+      setIssueSuccessMsg(`✅ Medicines issued for ${patientName}. Patient directed to Doctor's Follow-Up Review Queue.`);
+      setTimeout(() => setIssueSuccessMsg(''), 5000);
+    } catch (err) {
+      console.error('Issue medication failed:', err);
+      alert('Error issuing medication. Please try again.');
+    } finally {
+      setIsIssuing(false);
+    }
   };
 
   return (
     <div className="fade-in">
+      {/* Success Toast Notification */}
+      {issueSuccessMsg && (
+        <div style={{
+          position: 'fixed',
+          top: '1.5rem',
+          right: '1.5rem',
+          zIndex: 9999,
+          background: 'linear-gradient(135deg, #065f46, #047857)',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          maxWidth: '420px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          animation: 'slideIn 0.3s ease'
+        }}>
+          {issueSuccessMsg}
+        </div>
+      )}
       <div className="stats-grid">
         <div className="stat-card pharmacy-stat-pending">
           <div className="stat-icon primary">
@@ -863,10 +906,17 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
-                    <CheckSquare size={16} /> Issue Medicines & Direct to Doctor
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ flexGrow: 1, opacity: isIssuing ? 0.7 : 1 }}
+                    onClick={handleSubmitIssue}
+                    disabled={isIssuing}
+                  >
+                    <CheckSquare size={16} />
+                    {isIssuing ? 'Issuing Medicines...' : 'Issue Medicines & Direct to Doctor'}
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActivePatient(null)} disabled={isIssuing}>
                     Cancel
                   </button>
                 </div>

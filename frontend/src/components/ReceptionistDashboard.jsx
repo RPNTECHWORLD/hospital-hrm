@@ -619,11 +619,25 @@ const ReceptionistDashboard = ({
     }
   };
 
+  // Helper to compare dates robustly across different string formats
+  const isSameDayStr = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+    const dateA = new Date(d1);
+    const dateB = new Date(d2);
+    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+      return dateA.getFullYear() === dateB.getFullYear() &&
+             dateA.getMonth() === dateB.getMonth() &&
+             dateA.getDate() === dateB.getDate();
+    }
+    return false;
+  };
+
   // Filter patients for Today's Active Reception Queue & Payment Collection (24-hour daily reset)
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const todayPatients = patients.filter(p =>
     p.status !== 'Inactive' &&
-    (p.registrationDate === todayStr || p.wardBedId)
+    isSameDayStr(p.registrationDate, todayStr)
   );
 
   // Stats for Today

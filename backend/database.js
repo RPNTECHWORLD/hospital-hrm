@@ -865,6 +865,7 @@ export const updatePatient = async (id, data) => {
 
   const pgColumnMap = {
     assignedDoctorId: 'assigneddoctorid',
+    issuedMedication: 'issuedmedication',
     paymentStatus: 'paymentstatus',
     wardBedId: 'wardbedid',
     bedAdmissionPending: 'bedadmissionpending',
