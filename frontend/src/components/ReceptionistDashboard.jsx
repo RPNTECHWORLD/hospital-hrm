@@ -2125,34 +2125,8 @@ const ReceptionistDashboard = ({
 
       {/* Payment Checklist & Override Modal */}
       {paymentModalPatient && createPortal(
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 999999,
-          padding: '1.5rem'
-        }} onClick={() => setPaymentModalPatient(null)}>
-          <div style={{
-            background: 'var(--bg-card, #ffffff)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '1.25rem 1.5rem',
-            width: '100%',
-            maxWidth: '540px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-            color: 'var(--text-primary)',
-            textAlign: 'left'
-          }} onClick={e => e.stopPropagation()}>
+        <div className="payment-modal-overlay" onClick={() => setPaymentModalPatient(null)}>
+          <div className="payment-modal-card" onClick={e => e.stopPropagation()}>
             {/* Popover Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
               <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>
@@ -2177,7 +2151,7 @@ const ReceptionistDashboard = ({
                 className="form-input"
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                style={{ marginTop: '0.25rem' }}
+                style={{ marginTop: '0.25rem', width: '100%' }}
               >
                 <option value="Unpaid">Unpaid</option>
                 <option value="Paid - Cash">Paid - Cash</option>
@@ -2185,22 +2159,21 @@ const ReceptionistDashboard = ({
               </select>
             </div>
 
-            {/* Checklist of Fees - 2 Column Grid */}
+            {/* Checklist of Fees */}
             <div className="form-group" style={{ marginBottom: '0.75rem' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>Fee Breakdown Checklist</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 0.75rem' }}>
+              <div className="payment-fee-grid">
                 {/* Doctor Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeDoctorChecked} onChange={(e) => setFeeDoctorChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeDoctorChecked} onChange={(e) => setFeeDoctorChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Doctor Fees
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeDoctor}
                       onChange={(e) => setFeeDoctor(parseFloat(e.target.value) || 0)}
                     />
@@ -2208,17 +2181,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Procedure Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeProcedureChecked} onChange={(e) => setFeeProcedureChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeProcedureChecked} onChange={(e) => setFeeProcedureChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Procedure Fees
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeProcedure}
                       onChange={(e) => setFeeProcedure(parseFloat(e.target.value) || 0)}
                     />
@@ -2226,17 +2198,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Lab Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeLabChecked} onChange={(e) => setFeeLabChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeLabChecked} onChange={(e) => setFeeLabChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Lab Invest.
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeLab}
                       onChange={(e) => setFeeLab(parseFloat(e.target.value) || 0)}
                     />
@@ -2244,17 +2215,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Ward Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeWardChecked} onChange={(e) => setFeeWardChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeWardChecked} onChange={(e) => setFeeWardChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Ward Room
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeWard}
                       onChange={(e) => setFeeWard(parseFloat(e.target.value) || 0)}
                     />
@@ -2262,17 +2232,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* O2 Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeO2Checked} onChange={(e) => setFeeO2Checked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeO2Checked} onChange={(e) => setFeeO2Checked(e.target.checked)} style={{ flexShrink: 0 }} />
                     O2 Therapy
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeO2}
                       onChange={(e) => setFeeO2(parseFloat(e.target.value) || 0)}
                     />
@@ -2280,17 +2249,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* GRBS Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeGrbsChecked} onChange={(e) => setFeeGrbsChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeGrbsChecked} onChange={(e) => setFeeGrbsChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     GRBS (Sugar)
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeGrbs}
                       onChange={(e) => setFeeGrbs(parseFloat(e.target.value) || 0)}
                     />
@@ -2298,17 +2266,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Dressing Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeDressingChecked} onChange={(e) => setFeeDressingChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeDressingChecked} onChange={(e) => setFeeDressingChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Dressing
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeDressing}
                       onChange={(e) => setFeeDressing(parseFloat(e.target.value) || 0)}
                     />
@@ -2316,17 +2283,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Nebuliser Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeNebuliserChecked} onChange={(e) => setFeeNebuliserChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeNebuliserChecked} onChange={(e) => setFeeNebuliserChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Nebuliser
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeNebuliser}
                       onChange={(e) => setFeeNebuliser(parseFloat(e.target.value) || 0)}
                     />
@@ -2334,17 +2300,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* ECG Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeEcgChecked} onChange={(e) => setFeeEcgChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeEcgChecked} onChange={(e) => setFeeEcgChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     ECG Test
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeEcg}
                       onChange={(e) => setFeeEcg(parseFloat(e.target.value) || 0)}
                     />
@@ -2352,17 +2317,16 @@ const ReceptionistDashboard = ({
                 </div>
 
                 {/* Nurse Fees */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-dark)', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.82rem', margin: 0, fontWeight: 500 }}>
-                    <input type="checkbox" checked={feeNurseChecked} onChange={(e) => setFeeNurseChecked(e.target.checked)} />
+                <div className="payment-fee-item">
+                  <label className="payment-fee-label">
+                    <input type="checkbox" checked={feeNurseChecked} onChange={(e) => setFeeNurseChecked(e.target.checked)} style={{ flexShrink: 0 }} />
                     Nurse Care
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                  <div className="payment-fee-input-wrap">
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹</span>
                     <input
                       type="number"
-                      className="form-input"
-                      style={{ width: '55px', padding: '0.15rem 0.25rem', fontSize: '0.8rem', height: 'auto', textAlign: 'right' }}
+                      className="form-input payment-fee-input"
                       value={feeNurse}
                       onChange={(e) => setFeeNurse(parseFloat(e.target.value) || 0)}
                     />
@@ -2371,7 +2335,7 @@ const ReceptionistDashboard = ({
               </div>
             </div>
 
-            {/* Total Paid Amount Field (Enter by their self) */}
+            {/* Total Paid Amount Field */}
             <div className="form-group" style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
                 <span>Total Paid Amount (INR)</span>
@@ -2383,7 +2347,7 @@ const ReceptionistDashboard = ({
                 value={customPaidAmount}
                 onChange={(e) => setCustomPaidAmount(e.target.value)}
                 placeholder={calculatedTotal}
-                style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.25rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.25rem', padding: '0.35rem 0.6rem', height: 'auto', width: '100%' }}
               />
             </div>
 
@@ -2391,14 +2355,14 @@ const ReceptionistDashboard = ({
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
               <button
                 className="btn btn-secondary"
-                style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.4rem 0.9rem', fontSize: '0.85rem' }}
                 onClick={() => setPaymentModalPatient(null)}
               >
                 Cancel
               </button>
               <button
                 className="btn btn-primary"
-                style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem', background: 'var(--primary)', border: 'none', fontWeight: 700 }}
+                style={{ padding: '0.4rem 1.1rem', fontSize: '0.85rem', background: 'var(--primary)', border: 'none', fontWeight: 700 }}
                 onClick={handleConfirmPayment}
               >
                 Save

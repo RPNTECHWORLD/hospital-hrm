@@ -1114,14 +1114,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             {userRole === 'admin' && doctors && doctors.length > 0 && (
               <div className="doctor-desk-container" style={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: '0.35rem',
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box'
+                alignItems: 'center',
+                gap: '0.5rem'
               }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   Doctor Desk:
                 </label>
                 <select
@@ -1129,12 +1125,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   value={doctorId}
                   onChange={(e) => setSelectedDoctorId(Number(e.target.value))}
                   style={{
-                    padding: '0.45rem 0.75rem',
+                    padding: '0.35rem 0.75rem',
                     fontSize: '0.85rem',
-                    width: '100%',
-                    maxWidth: '100%',
-                    minWidth: 0,
-                    boxSizing: 'border-box',
+                    minWidth: '220px',
+                    width: 'auto',
                     background: 'var(--bg-dark)',
                     color: 'var(--primary)',
                     fontWeight: 'bold',

@@ -2573,35 +2573,24 @@ input[type=number].no-spin {
   }
 
   .doctor-card-header {
-    flex-direction: column !important;
-    align-items: flex-start !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
     gap: 0.75rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .doctor-card-title {
-    font-size: 1.1rem !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
   }
 
   .doctor-desk-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    box-sizing: border-box !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
   }
 
   .doctor-desk-select {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    font-size: 0.82rem !important;
+    min-width: 180px !important;
+    width: auto !important;
+    font-size: 0.85rem !important;
   }
+
 
   .custom-toast-bar {
     max-width: 92vw !important;
@@ -2644,3 +2633,117 @@ input[type=number].no-spin {
     justify-content: center !important;
   }
 }
+
+/* ==========================================================================
+   Payment / Billing Checklist Modal Responsive Layout
+   ========================================================================== */
+.payment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999999;
+  padding: 1.25rem;
+}
+
+.payment-modal-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+.payment-fee-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 0.75rem;
+}
+
+.payment-fee-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-dark);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  gap: 0.5rem;
+}
+
+.payment-fee-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  margin: 0;
+  font-weight: 500;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payment-fee-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.payment-fee-input {
+  width: 60px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.82rem;
+  height: auto;
+  text-align: right;
+  border-radius: 6px;
+}
+
+@media (max-width: 540px) {
+  .payment-modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .payment-modal-card {
+    padding: 1rem 0.85rem;
+    max-height: 94vh;
+    border-radius: 14px;
+  }
+
+  .payment-fee-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .payment-fee-item {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .payment-fee-label {
+    font-size: 0.85rem;
+  }
+
+  .payment-fee-input {
+    width: 65px;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.4rem;
+  }
+}
