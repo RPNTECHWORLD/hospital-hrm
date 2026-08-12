@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout } from 'lucide-react';
+import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout, UserX, RotateCcw } from 'lucide-react';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // Tamil Nadu locations dataset with focus on Kollidam & surrounding areas
@@ -85,6 +85,7 @@ const ReceptionistDashboard = ({
   doctors,
   onRegisterPatient,
   onUpdatePaymentStatus,
+  onUpdatePatientStatus,
   onReRegisterPatient,
   isAdmin = false,
   onDeletePatient,
@@ -104,6 +105,7 @@ const ReceptionistDashboard = ({
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [returningPatientId, setReturningPatientId] = useState(null);
   const [showNameSuggestions, setShowNameSuggestions] = useState(true);
+  const [tableFilter, setTableFilter] = useState('all');
 
   // Housekeeping Modal & Form States
   const [showHousekeepingModal, setShowHousekeepingModal] = useState(false);
@@ -642,7 +644,8 @@ const ReceptionistDashboard = ({
 
   // Stats for Today
   const totalPatients = todayPatients.length;
-  const activeQueue = todayPatients.filter(p => ['Registered', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
+  const activeQueue = todayPatients.filter(p => ['Registered', 'In Queue', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
+  const skippedPatientsCount = todayPatients.filter(p => p.status === 'Skipped').length;
   const completedConsultations = todayPatients.filter(p => p.status === 'Completed' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid'))).length;
   const paidConsultations = todayPatients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
 
@@ -685,6 +688,16 @@ const ReceptionistDashboard = ({
           <div>
             <div className="stat-value">{activeQueue}</div>
             <div className="stat-label">In Active Queue</div>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ borderLeft: '4px solid #d97706' }}>
+          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>
+            <UserX size={24} />
+          </div>
+          <div>
+            <div className="stat-value" style={{ color: '#d97706' }}>{skippedPatientsCount}</div>
+            <div className="stat-label">Skipped Patients</div>
           </div>
         </div>
 
@@ -1762,10 +1775,45 @@ const ReceptionistDashboard = ({
 
         {/* Queue / Patient List */}
         <div className="card">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
-            <Calendar size={20} style={{ color: 'var(--primary)' }} />
-            Patients List & Payment Collection
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem' }}>
+              <Calendar size={20} style={{ color: 'var(--primary)' }} />
+              Patients List & Payment Collection
+            </h3>
+
+            <div style={{ display: 'flex', gap: '0.35rem', background: 'rgba(0,0,0,0.04)', padding: '0.25rem', borderRadius: '8px' }}>
+              <button
+                type="button"
+                className={`btn ${tableFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                onClick={() => setTableFilter('all')}
+              >
+                All ({todayPatients.length})
+              </button>
+              <button
+                type="button"
+                className={`btn ${tableFilter === 'queue' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                onClick={() => setTableFilter('queue')}
+              >
+                In Queue ({todayPatients.filter(p => ['Registered', 'In Queue'].includes(p.status)).length})
+              </button>
+              <button
+                type="button"
+                className={`btn ${tableFilter === 'skipped' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.8rem',
+                  background: tableFilter === 'skipped' ? '#d97706' : '',
+                  color: tableFilter === 'skipped' ? '#fff' : '',
+                  borderColor: tableFilter === 'skipped' ? '#d97706' : ''
+                }}
+                onClick={() => setTableFilter('skipped')}
+              >
+                Skipped ({skippedPatientsCount})
+              </button>
+            </div>
+          </div>
 
           {todayPatients.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
@@ -1783,11 +1831,17 @@ const ReceptionistDashboard = ({
                     <th>Queue Status</th>
                     <th>Payment</th>
                     <th style={{ textAlign: 'center' }}>Ward Bed</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
+                    <th style={{ textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {todayPatients.slice().reverse().map(patient => {
+                  {todayPatients
+                    .filter(p => {
+                      if (tableFilter === 'queue') return ['Registered', 'In Queue'].includes(p.status);
+                      if (tableFilter === 'skipped') return p.status === 'Skipped';
+                      return true;
+                    })
+                    .slice().reverse().map(patient => {
                     const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
                     return (
                       <tr key={patient.id}>
@@ -1837,6 +1891,14 @@ const ReceptionistDashboard = ({
                         <td>
                           {(() => {
                             const s = (patient.status || '').toLowerCase().trim();
+                            if (s === 'skipped') {
+                              return (
+                                <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.18)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  ⏸ Skipped
+                                </span>
+                              );
+                            }
+
                             let badgeClass = 'badge-pending';
                             let badgeText = patient.status === 'Registered' ? 'In Queue' : patient.status;
 
@@ -1937,8 +1999,58 @@ const ReceptionistDashboard = ({
                             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>--</span>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
+                            {onUpdatePatientStatus && (patient.status === 'Registered' || patient.status === 'In Queue' || !patient.status) && (
+                              <button
+                                className="btn-logout"
+                                onClick={() => {
+                                  onUpdatePatientStatus(patient.id, 'Skipped');
+                                }}
+                                title="Skip Patient (Patient is temporary absent)"
+                                style={{
+                                  cursor: 'pointer',
+                                  color: '#d97706',
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  borderRadius: '6px',
+                                  padding: '0.3rem 0.55rem',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem'
+                                }}
+                              >
+                                <UserX size={14} /> Skip
+                              </button>
+                            )}
+
+                            {onUpdatePatientStatus && patient.status === 'Skipped' && (
+                              <button
+                                className="btn-logout"
+                                onClick={() => {
+                                  onUpdatePatientStatus(patient.id, 'In Queue');
+                                }}
+                                title="Unskip Patient (Restore to queue)"
+                                style={{
+                                  cursor: 'pointer',
+                                  color: '#10b981',
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  borderRadius: '6px',
+                                  padding: '0.3rem 0.55rem',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem'
+                                }}
+                              >
+                                <RotateCcw size={14} /> Unskip
+                              </button>
+                            )}
+
                             <button
                               className="btn-logout"
                               onClick={() => {

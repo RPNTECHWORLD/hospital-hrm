@@ -179,6 +179,11 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
             .filter(p => ['In Queue', 'Registered', 'Waiting'].includes(p.status))
             .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
+          // Skipped patients on hold
+          const skippedList = docPatients
+            .filter(p => p.status === 'Skipped')
+            .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
+
           return (
             <div key={doctor.id} className="tv-doctor-card" style={{
               background: '#1e293b',
@@ -347,6 +352,22 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
                   </div>
                 )}
               </div>
+
+              {/* Skipped List */}
+              {skippedList.length > 0 && (
+                <div style={{ marginTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.85rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+                    SKIPPED / ON HOLD ({skippedList.length})
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {skippedList.map(sp => (
+                      <span key={sp.id} style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fbbf24', fontSize: '0.82rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: '6px' }}>
+                        #{String(sp.tokenNumber || '--').padStart(2, '0')} {sp.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

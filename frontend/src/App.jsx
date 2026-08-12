@@ -611,6 +611,24 @@ function App() {
     }
   };
 
+  const handleUpdatePatientStatus = async (patientId, newStatus) => {
+    try {
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient) return;
+      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(prev => normalizeTokensForPatients(prev.map(p => p.id === patientId ? updatedPatient : p)));
+      }
+    } catch (err) {
+      console.error("Error updating patient status:", err);
+    }
+  };
+
   // Doctor Actions
   const handleSubmitPrescription = async (patientId, data) => {
     try {
@@ -1093,6 +1111,7 @@ function App() {
             doctors={doctorsList}
             onRegisterPatient={handleRegisterPatient}
             onUpdatePaymentStatus={handleUpdatePaymentStatus}
+            onUpdatePatientStatus={handleUpdatePatientStatus}
             onReRegisterPatient={handleReRegisterPatient}
             isAdmin={user?.role === 'admin'}
             onDeletePatient={handleDeletePatient}
@@ -1109,6 +1128,7 @@ function App() {
             onSubmitPrescription={handleSubmitPrescription}
             onSubmitReview={handleSubmitReview}
             onStartConsultation={handleStartConsultation}
+            onUpdatePatientStatus={handleUpdatePatientStatus}
             onPrintPrescription={handlePrintPrescription}
             onEmailPrescription={handleEmailPrescription}
             onAdmitToWard={handleOpenWardAdmit}

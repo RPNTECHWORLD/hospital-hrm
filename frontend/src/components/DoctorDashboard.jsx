@@ -486,7 +486,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   );
 };
 
-const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor, onAcceptReassignment, onDeclineReassignment }) => {
+const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onUpdatePatientStatus, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor, onAcceptReassignment, onDeclineReassignment }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [reassignModalPatient, setReassignModalPatient] = useState(null);
   const [targetDoctorId, setTargetDoctorId] = useState('');
@@ -797,6 +797,9 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
   const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
+  const skippedQueue = myPatients
+    .filter(p => p.status === 'Skipped' && isSameDayStr(p.registrationDate, todayStr))
+    .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
   const handleSelectPatient = (patient) => {
     setActivePatient(patient);
@@ -1393,6 +1396,63 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               </div>
             )}
           </div>
+
+          {skippedQueue.length > 0 && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ color: '#d97706', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                ⏸ Skipped / On Hold Patients ({skippedQueue.length})
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {skippedQueue.map(p => (
+                  <div
+                    key={p.id}
+                    className="stat-card skipped-queue-card"
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #d97706', padding: '1rem 1.25rem', background: 'rgba(245, 158, 11, 0.05)' }}
+                    onClick={() => handleSelectPatient(p)}
+                  >
+                    <div style={{ flexGrow: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: '#d97706',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          padding: '0.15rem 0.55rem',
+                          borderRadius: '6px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}>
+                          Skipped
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        {p.age} Yrs • {p.gender} • Token #{String(p.tokenNumber || '--').padStart(2, '0')} • ID: #{p.id}
+                      </div>
+                    </div>
+                    <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {onUpdatePatientStatus && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdatePatientStatus(p.id, 'In Queue');
+                          }}
+                        >
+                          Unskip
+                        </button>
+                      )}
+                      <button className="btn btn-primary btn-consult-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card fade-in">
