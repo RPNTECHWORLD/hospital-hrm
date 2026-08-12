@@ -2517,3 +2517,130 @@ h6 {
     border: none !important;
   }
 }
+
+/* Remove up/down spinner arrows from number inputs */
+input.no-spin::-webkit-outer-spin-button,
+input.no-spin::-webkit-inner-spin-button,
+input[type=number].no-spin::-webkit-outer-spin-button,
+input[type=number].no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input.no-spin,
+input[type=number].no-spin {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* Mobile Responsive Audit Details Modal */
+@media (max-width: 768px) {
+  .audit-modal-backdrop,
+  .rx-modal-backdrop {
+    padding: 0.35rem !important;
+  }
+
+  .audit-modal-container,
+  .rx-modal-container {
+    max-height: 96vh !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .audit-modal-header,
+  .rx-modal-header {
+    padding: 0.75rem 0.85rem !important;
+  }
+
+  .audit-modal-header h3 {
+    font-size: 1.1rem !important;
+  }
+
+  .audit-modal-body,
+  .rx-modal-body {
+    padding: 0.75rem !important;
+  }
+
+  .audit-info-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .audit-footer,
+  .rx-modal-footer {
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  .doctor-card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .doctor-card-title {
+    font-size: 1.1rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .doctor-desk-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    box-sizing: border-box !important;
+  }
+
+  .doctor-desk-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 0.82rem !important;
+  }
+
+  .custom-toast-bar {
+    max-width: 92vw !important;
+    bottom: 1.25rem !important;
+    padding: 0.65rem 1rem !important;
+    font-size: 0.82rem !important;
+    border-radius: 30px !important;
+  }
+
+  .pending-queue-card,
+  .review-queue-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 0.85rem 1rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .doc-card-actions {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  .incoming-reassign-banner {
+    max-width: 100% !important;
+    padding: 0 0.5rem !important;
+  }
+
+  .incoming-reassign-card {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .incoming-reassign-actions {
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+    justify-content: flex-end !important;
+  }
+
+  .incoming-reassign-actions button {
+    flex: 1 !important;
+    justify-content: center !important;
+  }
+}

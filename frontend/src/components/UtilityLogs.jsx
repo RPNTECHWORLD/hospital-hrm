@@ -568,6 +568,7 @@ const UtilityLogs = ({ userRole }) => {
                       <th>Weight</th>
                       <th>Bill (₹)</th>
                       <th>Receipt Scan</th>
+                      <th style={{ textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -589,6 +590,26 @@ const UtilityLogs = ({ userRole }) => {
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No Attachment</span>
                           )}
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWasteLog(w.id)}
+                            title="Delete Record"
+                            style={{
+                              background: 'rgba(225, 29, 72, 0.08)',
+                              border: '1px solid rgba(225, 29, 72, 0.2)',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              padding: '0.25rem 0.4rem',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -601,6 +622,16 @@ const UtilityLogs = ({ userRole }) => {
             <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Add Waste disposal & Scanned Bill</h3>
 
             <form onSubmit={handleAddWasteLog}>
+              <div className="form-group">
+                <label className="form-label">Date</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  value={wasteDate} 
+                  onChange={(e) => setWasteDate(e.target.value)} 
+                />
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Bio Waste Bag Type</label>
                 <select className="form-input" value={wasteType} onChange={(e) => setWasteType(e.target.value)}>
@@ -618,7 +649,7 @@ const UtilityLogs = ({ userRole }) => {
 
               <div className="form-group">
                 <label className="form-label">Authorized Agency</label>
-                <input type="text" className="form-input" value={wasteAgency} onChange={(e) => setWasteAgency(e.target.value)} required />
+                <input type="text" className="form-input" placeholder="e.g. MediWaste Disposal Ltd" value={wasteAgency} onChange={(e) => setWasteAgency(e.target.value)} required />
               </div>
 
               <div className="form-group">

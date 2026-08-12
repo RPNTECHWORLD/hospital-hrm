@@ -7,95 +7,6 @@ import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const COMMON_MEDICINES = [
-  { name: 'Paracetamol 650mg (Dolo 650)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Paracetamol 500mg (Calpol)', dosage: '1-1-1 SOS', duration: 3 },
-  { name: 'Amoxicillin 500mg (Mox 500)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Augmentin 625mg (Amoxy + Clav)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Azithromycin 500mg (Azee 500)', dosage: '1-0-0 before food', duration: 3 },
-  { name: 'Pantoprazole 40mg (Pan 40)', dosage: '1-0-0 empty stomach', duration: 7 },
-  { name: 'Rabeprazole 20mg (Razo 20)', dosage: '1-0-0 empty stomach', duration: 7 },
-  { name: 'Omeprazole 20mg (Omez 20)', dosage: '1-0-0 empty stomach', duration: 7 },
-  { name: 'Cetirizine 10mg (Okacet / Cetzine)', dosage: '0-0-1 at bedtime', duration: 5 },
-  { name: 'Montair LC (Montelukast + Levo)', dosage: '0-0-1 at night', duration: 7 },
-  { name: 'Zerodol SP (Aceclofenac + Para)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Hifenac P (Aceclofenac + Para)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Meftal Spas (Dicyclomine + Mefenamic)', dosage: '1-0-1 SOS for pain', duration: 3 },
-  { name: 'Combiflam (Ibuprofen + Para)', dosage: '1-0-1 after food', duration: 3 },
-  { name: 'Voveran SR 100mg (Diclofenac)', dosage: '1-0-0 after food', duration: 3 },
-  { name: 'Oflomac OZ (Ofloxacin + Ornidazole)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Cifran 500mg (Ciprofloxacin)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Taxim O 200mg (Cefixime 200)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Flagyl 400mg (Metronidazole)', dosage: '1-0-1 after food', duration: 5 },
-  { name: 'Emset 4mg (Ondansetron)', dosage: '1-0-1 SOS for vomiting', duration: 3 },
-  { name: 'Vomistop 10mg (Domperidone)', dosage: '1-0-0 before food', duration: 5 },
-  { name: 'Glycomet 500mg (Metformin)', dosage: '1-0-1 after food', duration: 30 },
-  { name: 'Telma 40mg (Telmisartan)', dosage: '1-0-0 morning', duration: 30 },
-  { name: 'Amlong 5mg (Amlodipine)', dosage: '1-0-0 morning', duration: 30 },
-  { name: 'Atorva 10mg (Atorvastatin)', dosage: '0-0-1 at night', duration: 30 },
-  { name: 'Ecosprin 75mg (Aspirin)', dosage: '0-1-0 after lunch', duration: 30 },
-  { name: 'Deplatt 75mg (Clopidogrel)', dosage: '1-0-0 morning', duration: 30 },
-  { name: 'Becosules Capsules', dosage: '0-1-0 daily', duration: 10 },
-  { name: 'Neurobion Forte Tablet', dosage: '0-1-0 daily', duration: 10 },
-  { name: 'Shelcal 500 (Calcium + Vit D3)', dosage: '0-1-0 after food', duration: 30 },
-  { name: 'Zincovit Tablet', dosage: '0-1-0 daily', duration: 15 },
-  { name: 'Celin 500mg (Vitamin C)', dosage: '1-0-0 daily', duration: 10 },
-  { name: 'Benadryl Cough Syrup 100ml', dosage: '2 tsp (10ml) thrice daily', duration: 5 },
-  { name: 'Ascoril LS Syrup 100ml', dosage: '10ml thrice daily', duration: 5 },
-  { name: 'Corex DX Syrup 100ml', dosage: '5ml twice daily', duration: 5 },
-  { name: 'Sucrafil Suspension 200ml', dosage: '10ml before meals', duration: 7 },
-  { name: 'Inj. Ceftriaxone 1g IV', dosage: '1g IV Stat', duration: 1 },
-  { name: 'Inj. Pantoprazole 40mg IV', dosage: '40mg IV Stat', duration: 1 },
-  { name: 'Inj. Paracetamol 100ml IV', dosage: '100ml IV Infusion', duration: 1 },
-  { name: 'Inj. Ondansetron 4mg IV', dosage: '4mg IV Stat', duration: 1 },
-  { name: 'Inj. Tramadol 50mg IV/IM', dosage: '50mg IV Stat', duration: 1 },
-  { name: 'Inj. Hydrocortisone 100mg IV', dosage: '100mg IV Stat', duration: 1 }
-];
-
-const COMMON_SYRUPS = [
-  { name: 'Benadryl Cough Syrup 100ml', dosage: '10ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Ascoril LS Syrup 100ml', dosage: '10ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Corex DX Syrup 100ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Sucrafil Suspension 200ml', dosage: '10ml (1-0-1) - Before Food', duration: 7, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Mucaine Gel Suspension 200ml', dosage: '10ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Cremaffin Plus Syrup 225ml', dosage: '10ml (0-0-1) - Night', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Grilinctus Cough Syrup 100ml', dosage: '5ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Alex Syrup 100ml', dosage: '5ml (1-1-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Ambrodil Syrup 100ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'T-Minic Syrup 60ml', dosage: '5ml (1-0-1) - After Food', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Duphalac Syrup 150ml', dosage: '15ml (0-0-1) - Night', duration: 5, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Calpol Paediatric Syrup 60ml', dosage: '5ml (1-0-1) - After Food', duration: 3, category: 'syrup', route: 'Oral (Syrup)' },
-  { name: 'Meftal-Spas Suspension 60ml', dosage: '5ml SOS', duration: 3, category: 'syrup', route: 'Oral (Syrup)' }
-];
-
-const COMMON_INJECTIONS = [
-  { name: 'Inj. Ceftriaxone 1g IV', dosage: '1g IV Stat', duration: 1, category: 'injection', route: 'IV' },
-  { name: 'Inj. Pantoprazole 40mg IV', dosage: '40mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
-  { name: 'Inj. Paracetamol 100ml IV', dosage: '100ml IV Infusion', duration: 1, category: 'injection', route: 'IV Infusion' },
-  { name: 'Inj. Ondansetron 4mg IV', dosage: '4mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
-  { name: 'Inj. Tramadol 50mg IV/IM', dosage: '50mg IV Stat', duration: 1, category: 'injection', route: 'IV/IM' },
-  { name: 'Inj. Hydrocortisone 100mg IV', dosage: '100mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
-  { name: 'Inj. Dexamethasone 8mg IV', dosage: '8mg IV Stat', duration: 1, category: 'injection', route: 'IV' },
-  { name: 'Inj. Diclofenac 75mg IM', dosage: '75mg IM Stat', duration: 1, category: 'injection', route: 'IM' }
-];
-
-const COMMON_NEBULIZATIONS = [
-  { name: 'Duolin Respules (Ipratropium + Levosalbutamol)', dosage: '1 Respule (1-0-1)', duration: 3, category: 'nebulization', route: 'Inhalation' },
-  { name: 'Budecort Respules 0.5mg (Budesonide)', dosage: '1 Respule (1-0-1)', duration: 3, category: 'nebulization', route: 'Inhalation' },
-  { name: 'Asthalin Respules 2.5mg (Salbutamol)', dosage: '1 Respule SOS / twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' },
-  { name: 'Deriphyllin Respules', dosage: '1 Respule twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' },
-  { name: 'Normal Saline 3% Nebulizer Solution', dosage: '3ml nebulization twice daily', duration: 3, category: 'nebulization', route: 'Inhalation' }
-];
-
-const COMMON_OTHERS = [
-  { name: 'Volini Gel (Diclofenac Ointment)', dosage: 'Apply topically 3 times daily', duration: 5, category: 'others', route: 'Topical' },
-  { name: 'Betadine Ointment 15g', dosage: 'Apply on wound twice daily', duration: 5, category: 'others', route: 'Topical' },
-  { name: 'Otrivin Nasal Drops', dosage: '2 drops twice daily', duration: 3, category: 'others', route: 'Nasal Drops' },
-  { name: 'Ciplox Eye/Ear Drops', dosage: '2 drops 3 times daily', duration: 5, category: 'others', route: 'Eye/Ear Drops' },
-  { name: 'Foracort 200 Inhaler', dosage: '2 puffs twice daily (1-0-1)', duration: 30, category: 'others', route: 'Inhalation' },
-  { name: 'Candid Dusting Powder', dosage: 'Apply topically twice daily', duration: 7, category: 'others', route: 'Topical' }
-];
-
 const parseDosageToSchedule = (dosageStr = '') => {
   const str = (dosageStr || '').toLowerCase();
   
@@ -169,83 +80,13 @@ const formatScheduleToDosage = (m, a, e, n, timing) => {
 };
 
 const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const wrapperRef = React.useRef(null);
-
-  const suggestions = React.useMemo(() => {
-    if (!med.name || med.name.trim().length < 1) return [];
-    const query = med.name.toLowerCase().trim();
-    let categoryPool = COMMON_MEDICINES;
-    if (med.category === 'syrup' || med.isSyrup) categoryPool = COMMON_SYRUPS;
-    else if (med.category === 'injection') categoryPool = COMMON_INJECTIONS;
-    else if (med.category === 'nebulization') categoryPool = COMMON_NEBULIZATIONS;
-    else if (med.category === 'others') categoryPool = COMMON_OTHERS;
-
-    const allCombined = [...categoryPool, ...COMMON_MEDICINES, ...COMMON_SYRUPS, ...COMMON_INJECTIONS, ...COMMON_NEBULIZATIONS, ...COMMON_OTHERS];
-    const uniquePool = Array.from(new Set(allCombined.map(a => a.name))).map(name => allCombined.find(a => a.name === name));
-    return uniquePool.filter(m => m.name.toLowerCase().includes(query)).slice(0, 10);
-  }, [med.name, med.isSyrup, med.category]);
-
   const currentSchedule = React.useMemo(() => {
     if (med.schedule) return med.schedule;
     return parseDosageToSchedule(med.dosage || '');
   }, [med.dosage, med.schedule]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelectSuggestion = (selectedMed) => {
-    if (med.category === 'injection' || selectedMed.category === 'injection') {
-      const doseMatch = ((selectedMed.dosage || '') + ' ' + (selectedMed.name || '')).match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i);
-      const dose = doseMatch ? doseMatch[0] : (selectedMed.dosage || '1g');
-      const route = selectedMed.route || (selectedMed.name.toLowerCase().includes('im') ? 'IM' : 'IV');
-      const freq = selectedMed.dosage?.toLowerCase().includes('stat') ? 'STAT (Single / Immediate)' : 'STAT (Single / Immediate)';
-
-      onChange(idx, {
-        name: selectedMed.name,
-        injDose: dose,
-        route: route,
-        frequency: freq,
-        dosage: `${dose} ${route} Stat`,
-        duration: selectedMed.duration || 1,
-        category: 'injection'
-      });
-      setShowSuggestions(false);
-      return;
-    }
-
-    const parsed = parseDosageToSchedule(selectedMed.dosage || '');
-    onChange(idx, {
-      name: selectedMed.name,
-      dosage: selectedMed.dosage || med.dosage || '',
-      duration: selectedMed.duration || med.duration || 5,
-      schedule: parsed
-    });
-    setShowSuggestions(false);
-  };
-
   const handleInputChange = (e) => {
-    const val = e.target.value;
-    const exactMatch = COMMON_MEDICINES.find(m => m.name.toLowerCase() === val.toLowerCase().trim());
-    if (exactMatch) {
-      const parsed = parseDosageToSchedule(exactMatch.dosage || '');
-      onChange(idx, {
-        name: val,
-        dosage: exactMatch.dosage || med.dosage || '',
-        duration: exactMatch.duration || med.duration || 5,
-        schedule: parsed
-      });
-    } else {
-      onChange(idx, 'name', val);
-    }
-    setShowSuggestions(true);
+    onChange(idx, 'name', e.target.value);
   };
 
   const handleToggleSchedule = (slot) => {
@@ -301,7 +142,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
           position: 'relative',
           overflow: 'visible'
         }}>
-          <div ref={wrapperRef} style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
             <span style={{
               position: 'absolute',
               top: '-18px',
@@ -324,59 +165,9 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
               placeholder="Injection Name (e.g. Inj. Ceftriaxone)"
               value={med.name}
               onChange={handleInputChange}
-              onFocus={() => {
-                if (med.name && med.name.trim().length > 0) {
-                  setShowSuggestions(true);
-                }
-              }}
               required
               autoComplete="off"
             />
-
-            {showSuggestions && suggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                right: 0,
-                background: '#ffffff',
-                border: '1px solid var(--primary, #157388)',
-                borderRadius: '8px',
-                boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
-                zIndex: 99999,
-                maxHeight: '230px',
-                overflowY: 'auto'
-              }}>
-                {suggestions.map((s, sIdx) => (
-                  <div
-                    key={sIdx}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelectSuggestion(s);
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelectSuggestion(s);
-                    }}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      cursor: 'pointer',
-                      borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                      fontSize: '0.85rem',
-                      background: '#ffffff',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                  >
-                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
-                    {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <input 
@@ -456,7 +247,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
         </div>
       ) : (
         <div className="medicine-row-grid" style={{ overflow: 'visible', position: 'relative', marginBottom: '0.65rem' }}>
-          <div ref={wrapperRef} style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
             {med.category && (
               <span style={{
                 position: 'absolute',
@@ -481,59 +272,9 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
               placeholder={med.isSyrup ? "Syrup Name (e.g. Benadryl 100ml)" : "Medicine Name (e.g. Paracetamol)"}
               value={med.name}
               onChange={handleInputChange}
-              onFocus={() => {
-                if (med.name && med.name.trim().length > 0) {
-                  setShowSuggestions(true);
-                }
-              }}
               required
               autoComplete="off"
             />
-
-            {showSuggestions && suggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                right: 0,
-                background: '#ffffff',
-                border: '1px solid var(--primary, #157388)',
-                borderRadius: '8px',
-                boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.25)',
-                zIndex: 99999,
-                maxHeight: '230px',
-                overflowY: 'auto'
-              }}>
-                {suggestions.map((s, sIdx) => (
-                  <div
-                    key={sIdx}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelectSuggestion(s);
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelectSuggestion(s);
-                    }}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      cursor: 'pointer',
-                      borderBottom: sIdx < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                      fontSize: '0.85rem',
-                      background: '#ffffff',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                  >
-                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
-                    {s.dosage && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{s.dosage}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <input 
@@ -745,7 +486,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   );
 };
 
-const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor }) => {
+const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor, onAcceptReassignment, onDeclineReassignment }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [reassignModalPatient, setReassignModalPatient] = useState(null);
   const [targetDoctorId, setTargetDoctorId] = useState('');
@@ -766,46 +507,28 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     }, 4000);
   };
 
+  const isSameId = (a, b) => {
+    if (a === undefined || a === null || b === undefined || b === null) return false;
+    if (a === b || String(a) === String(b)) return true;
+    const strA = String(a).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const strB = String(b).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (strA === strB) return true;
+    const numA = parseInt(String(a).replace(/\D/g, ''), 10);
+    const numB = parseInt(String(b).replace(/\D/g, ''), 10);
+    if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numA === numB) return true;
+    return false;
+  };
+
   const handleReassignPatient = async (patient, targetDocId, reasonInput = '') => {
-    if (!targetDocId || Number(targetDocId) === Number(patient.assignedDoctorId)) return;
-    const targetDoc = doctors.find(d => Number(d.id) === Number(targetDocId));
+    if (!targetDocId || isSameId(targetDocId, patient.assignedDoctorId)) return;
+    const targetDoc = doctors.find(d => isSameId(d.id, targetDocId));
     const targetDocName = targetDoc ? targetDoc.name : 'Selected Doctor';
 
-    const prevDoc = doctors.find(d => Number(d.id) === Number(patient.assignedDoctorId));
+    const prevDoc = doctors.find(d => isSameId(d.id, patient.assignedDoctorId));
     const prevDocName = prevDoc ? prevDoc.name : 'Dr. Sarah';
 
     const currentUser = (doctors && doctors.find(d => d.email && d.email.toLowerCase() === (doctorEmail || '').toLowerCase())) || {};
     const changedByName = currentUser.name || (userRole === 'admin' ? 'System Admin' : prevDocName);
-
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
-    const fullDateTime = `${dateStr}, ${timeStr}`;
-
-    const historyLog = {
-      id: `reassign_${Date.now()}`,
-      type: 'Doctor Reassignment',
-      desk: 'Doctor Reassignment',
-      previousDoctor: prevDocName,
-      newDoctor: targetDocName,
-      previousStatus: `Assigned: ${prevDocName}`,
-      newStatus: `Assigned: ${targetDocName}`,
-      dateTime: fullDateTime,
-      timestamp: fullDateTime,
-      changedBy: changedByName,
-      reason: reasonInput || reassignReason || 'Reassigned from consultation desk',
-      notes: `Reassigned from ${prevDocName} to ${targetDocName}`
-    };
-
-    let existingLogs = [];
-    if (patient && patient.trackingHistory) {
-      if (Array.isArray(patient.trackingHistory)) {
-        existingLogs = patient.trackingHistory;
-      } else if (typeof patient.trackingHistory === 'string') {
-        try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
-      }
-    }
-    const updatedHistory = [historyLog, ...existingLogs];
 
     let success = false;
     if (onReassignDoctor) {
@@ -817,28 +540,41 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
     if (!success) {
       try {
-        const response = await fetch(`${API_BASE}/api/patients/${patient.id}`, {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+        const fullDateTime = `${dateStr}, ${timeStr}`;
+
+        const pendingRequestData = {
+          fromDoctorId: patient.assignedDoctorId,
+          fromDoctorName: prevDocName,
+          targetDoctorId: parseInt(targetDocId),
+          targetDoctorName: targetDocName,
+          reason: reasonInput || reassignReason || 'Reassigned from consultation desk',
+          requestedAt: fullDateTime
+        };
+
+        const targetApiId = String(patient.id).replace(/#/g, '').trim();
+        const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            assignedDoctorId: parseInt(targetDocId),
-            previousDoctor: prevDocName,
-            trackingHistory: updatedHistory
+            pendingReassignment: pendingRequestData
           })
         });
         if (response.ok) success = true;
       } catch (err) {
-        console.error("Error reassigning patient:", err);
+        console.error("Fallback error reassigning patient:", err);
       }
     }
 
     if (success) {
-      showToast(`Patient ${patient.name} reassigned to ${targetDocName} successfully!`);
-      if (activePatient && (activePatient.id === patient.id || String(activePatient.id) === String(patient.id))) {
+      showToast(`Reassignment request sent to ${targetDocName} for approval!`, 'info');
+      if (activePatient && isSameId(activePatient.id, patient.id)) {
         setActivePatient(null);
       }
     } else {
-      alert("Failed to reassign patient. Please try again.");
+      alert("Failed to send reassignment request. Please try again.");
     }
   };
   
@@ -1020,7 +756,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     }
   }, [doctors, doctorEmail]);
 
-  const activeDoctor = (doctors && doctors.find(d => d.id === selectedDoctorId)) ||
+  const activeDoctor = (doctors && doctors.find(d => Number(d.id) === Number(selectedDoctorId) || String(d.id) === String(selectedDoctorId))) ||
                        (doctors && doctors.find(d => d.email && d.email.toLowerCase() === (doctorEmail || '').toLowerCase())) ||
                        doctors[0] ||
                        { id: 1, name: 'Dr. Vijayan', specialty: 'General Medicine' };
@@ -1047,12 +783,18 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     if (!matchesDoc || p.status === 'Inactive') return false;
 
     const isToday = isSameDayStr(p.registrationDate, todayStr);
-    const isActiveQueue = ['In Queue', 'Registered', 'Consulting', 'Waiting', 'Reviewing'].includes(p.status);
+    const isConsulting = p.status === 'Consulting';
+    const isActiveQueue = ['In Queue', 'Registered', 'Waiting', 'Reviewing'].includes(p.status);
 
-    return isActiveQueue || isToday || Boolean(p.wardBedId);
+    return isConsulting || (isActiveQueue && isToday) || isToday || Boolean(p.wardBedId);
   });
+  const pendingReassignmentRequests = (patients || []).filter(p =>
+    p && p.pendingReassignment && p.status !== 'Inactive' &&
+    isSameId(p.pendingReassignment.targetDoctorId, doctorId)
+  );
+
   const consultationQueue = myPatients
-    .filter(p => ['In Queue', 'Registered', 'Consulting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr))
+    .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
   const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
 
@@ -1190,12 +932,178 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
   return (
     <div className="fade-in">
+      {/* Incoming Reassignment Requests Alert Banner (Positioned outside white box card, right below header) */}
+      {pendingReassignmentRequests.length > 0 && (
+        <div className="incoming-reassign-banner" style={{ maxWidth: '850px', margin: '0 auto 1.25rem auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h4 style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+            <UserPlus size={16} /> Incoming Reassignment Requests ({pendingReassignmentRequests.length})
+          </h4>
+          {pendingReassignmentRequests.map(p => (
+            <div
+              key={`reassign_req_${p.id}`}
+              className="incoming-reassign-card"
+              style={{
+                background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(56, 189, 248, 0.06) 100%)',
+                border: '1.5px solid rgba(14, 165, 233, 0.45)',
+                borderRadius: '14px',
+                padding: '1rem 1.25rem',
+                boxShadow: '0 4px 16px rgba(14, 165, 233, 0.12)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#0369a1', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <UserPlus size={16} />
+                    {p.pendingReassignment.fromDoctorName} has requested to re-assign a patient to you
+                  </div>
+                  <div style={{ marginTop: '0.3rem', fontSize: '0.88rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                    Patient: <span style={{ color: '#0284c7' }}>{p.name}</span> ({p.age} Yrs • {p.gender}) • ID: #{p.id}
+                    {p.status === 'Reviewing' && (
+                      <span style={{
+                        background: 'rgba(14, 165, 233, 0.18)',
+                        color: '#0284c7',
+                        border: '1px solid rgba(14, 165, 233, 0.4)',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        padding: '0.1rem 0.45rem',
+                        marginLeft: '0.5rem'
+                      }}>
+                        📋 Follow-Up Review
+                      </span>
+                    )}
+                  </div>
+                  {p.pendingReassignment.reason && (
+                    <div style={{ marginTop: '0.2rem', fontSize: '0.8rem', color: '#0c4a6e', fontStyle: 'italic' }}>
+                      Reason: "{p.pendingReassignment.reason}"
+                    </div>
+                  )}
+                </div>
+
+                <div className="incoming-reassign-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={async () => {
+                      let success = false;
+                      if (onAcceptReassignment) {
+                        success = await onAcceptReassignment(p.id);
+                      }
+                      if (!success) {
+                        try {
+                          const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+                          const isReviewing = p.status === 'Reviewing';
+                          const targetStatus = isReviewing ? 'Reviewing' : 'In Queue';
+                          const targetApiId = String(p.id).replace(/#/g, '').trim();
+
+                          const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              assignedDoctorId: parseInt(doctorId),
+                              previousDoctor: p.pendingReassignment?.fromDoctorName || '',
+                              pendingReassignment: null,
+                              reassignmentDeclined: null,
+                              status: targetStatus,
+                              registrationDate: todayStr
+                            })
+                          });
+                          if (response.ok) success = true;
+                        } catch (err) {
+                          console.error("Fallback error accepting reassignment:", err);
+                        }
+                      }
+                      if (success) {
+                        showToast(`Accepted patient ${p.name} into your consultation queue!`, 'success');
+                      } else {
+                        showToast('Failed to accept patient transfer.', 'danger');
+                      }
+                    }}
+                    style={{
+                      background: '#10b981',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.45rem 1rem',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    <Check size={16} /> Accept Patient
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={async () => {
+                      let success = false;
+                      if (onDeclineReassignment) {
+                        success = await onDeclineReassignment(p.id);
+                      }
+                      if (!success) {
+                        try {
+                          const now = new Date();
+                          const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+                          const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+                          const fullDateTime = `${dateStr}, ${timeStr}`;
+
+                          const declData = {
+                            targetDoctorId: doctorId,
+                            targetDoctorName: doctorName,
+                            fromDoctorName: p.pendingReassignment?.fromDoctorName || '',
+                            declinedAt: fullDateTime
+                          };
+
+                          const targetApiId = String(p.id).replace(/#/g, '').trim();
+                          const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              pendingReassignment: null,
+                              reassignmentDeclined: declData
+                            })
+                          });
+                          if (response.ok) success = true;
+                        } catch (err) {
+                          console.error("Fallback error declining reassignment:", err);
+                        }
+                      }
+                      if (success) {
+                        showToast(`Declined reassignment request for ${p.name}.`, 'info');
+                      } else {
+                        showToast(`Failed to decline reassignment request.`, 'danger');
+                      }
+                    }}
+                    style={{
+                      background: '#ffffff',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      padding: '0.45rem 0.85rem',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {!activePatient ? (
         <div className="card doctor-terminal-card" style={{ maxWidth: '850px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem' }}>
-              <Clipboard size={20} style={{ color: 'var(--primary)' }} />
-              {doctorName}'s Consultations
+          <div className="doctor-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+            <h3 className="doctor-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, fontSize: '1.25rem', flexWrap: 'wrap' }}>
+              <Clipboard size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <span>{doctorName}'s Consultations</span>
               {activeDoctor?.specialty && (
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
                   ({activeDoctor.specialty})
@@ -1204,15 +1112,35 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             </h3>
 
             {userRole === 'admin' && doctors && doctors.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <div className="doctor-desk-container" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '0.35rem',
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   Doctor Desk:
                 </label>
                 <select
                   className="form-input doctor-desk-select"
                   value={doctorId}
                   onChange={(e) => setSelectedDoctorId(Number(e.target.value))}
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem', minWidth: '180px', background: 'var(--bg-dark)', color: 'var(--primary)', fontWeight: 'bold' }}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    fontSize: '0.85rem',
+                    width: '100%',
+                    maxWidth: '100%',
+                    minWidth: 0,
+                    boxSizing: 'border-box',
+                    background: 'var(--bg-dark)',
+                    color: 'var(--primary)',
+                    fontWeight: 'bold',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)'
+                  }}
                 >
                   {doctors.map(doc => (
                     <option key={doc.id} value={doc.id}>
@@ -1279,6 +1207,37 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                         {p.age} Yrs • {p.gender} • ID: #{p.id}
                         {p.status === 'Consulting' && <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontWeight: 600 }}>• Consulting</span>}
+                        {p.pendingReassignment && (
+                          <span style={{
+                            background: 'rgba(245, 158, 11, 0.18)',
+                            color: '#d97706',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.5rem'
+                          }}>
+                            ⏳ Pending Approval by {p.pendingReassignment.targetDoctorName}
+                          </span>
+                        )}
+                        {p.reassignmentDeclined && !p.pendingReassignment && (
+                          <span style={{
+                            background: 'rgba(239, 68, 68, 0.16)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.45)',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.5rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem'
+                          }}>
+                            ❌ Declined by {p.reassignmentDeclined.targetDoctorName}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1363,6 +1322,37 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                         {p.age} Yrs • {p.gender} • ID: #{p.id}
+                        {p.pendingReassignment && (
+                          <span style={{
+                            background: 'rgba(245, 158, 11, 0.18)',
+                            color: '#d97706',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.5rem'
+                          }}>
+                            ⏳ Pending Approval by {p.pendingReassignment.targetDoctorName}
+                          </span>
+                        )}
+                        {p.reassignmentDeclined && !p.pendingReassignment && (
+                          <span style={{
+                            background: 'rgba(239, 68, 68, 0.16)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.45)',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.5rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem'
+                          }}>
+                            ❌ Declined by {p.reassignmentDeclined.targetDoctorName}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -3221,7 +3211,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
       {/* Custom Toast Notification - Root Level (Shows at bottom) */}
       {toast && (
-        <div style={{
+        <div className="custom-toast-bar" style={{
           position: 'fixed',
           bottom: '2rem',
           left: '50%',
@@ -3229,21 +3219,22 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           zIndex: 100020,
           background: toast.type === 'success' ? '#059669' : toast.type === 'danger' ? '#dc2626' : '#0284c7',
           color: '#ffffff',
-          padding: '0.85rem 1.75rem',
+          padding: '0.75rem 1.25rem',
           borderRadius: '50px',
           boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
+          gap: '0.65rem',
           fontWeight: 700,
-          fontSize: '0.95rem',
+          fontSize: '0.88rem',
           border: '1px solid rgba(255,255,255,0.2)',
           animation: 'fade-in 0.3s ease-out',
           pointerEvents: 'none',
-          whiteSpace: 'nowrap'
+          maxWidth: '90vw',
+          boxSizing: 'border-box'
         }}>
-          {toast.type === 'success' ? <CheckCircle2 size={22} /> : <AlertCircle size={22} />}
-          <span>{toast.message}</span>
+          {toast.type === 'success' ? <CheckCircle2 size={20} style={{ flexShrink: 0 }} /> : <AlertCircle size={20} style={{ flexShrink: 0 }} />}
+          <span style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>{toast.message}</span>
         </div>
       )}
     </div>

@@ -692,19 +692,32 @@ function App() {
     }
   };
 
+  const isSameId = (a, b) => {
+    if (a === undefined || a === null || b === undefined || b === null) return false;
+    if (a === b || String(a) === String(b)) return true;
+    const strA = String(a).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const strB = String(b).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (strA === strB) return true;
+    const numA = parseInt(String(a).replace(/\D/g, ''), 10);
+    const numB = parseInt(String(b).replace(/\D/g, ''), 10);
+    if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numA === numB) return true;
+    return false;
+  };
+
   const handleReassignDoctor = async (patientId, newDoctorId, reassignInfo = {}) => {
     try {
-      const patient = patients.find(p => p && (Number(p.id) === Number(patientId) || String(p.id) === String(patientId) || (p.id && String(p.id).replace(/\D/g, '') === String(patientId).replace(/\D/g, ''))));
-      
-      let prevDoctorName = 'Dr. Vijayan';
+      const patient = patients.find(p => p && isSameId(p.id, patientId));
+      if (!patient) return false;
+
+      let prevDoctorName = 'Doctor';
       if (patient && patient.assignedDoctorId) {
-        const prevDoc = doctorsList.find(d => Number(d.id) === Number(patient.assignedDoctorId));
+        const prevDoc = doctorsList.find(d => isSameId(d.id, patient.assignedDoctorId));
         if (prevDoc) prevDoctorName = prevDoc.name;
-      } else if (reassignInfo.changedBy && reassignInfo.changedBy !== 'System Admin') {
+      } else if (reassignInfo.changedBy) {
         prevDoctorName = reassignInfo.changedBy;
       }
 
-      const newDoc = doctorsList.find(d => Number(d.id) === Number(newDoctorId));
+      const newDoc = doctorsList.find(d => isSameId(d.id, newDoctorId));
       const newDoctorName = newDoc ? newDoc.name : 'Selected Doctor';
 
       const now = new Date();
@@ -712,19 +725,26 @@ function App() {
       const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
       const fullDateTime = `${dateStr}, ${timeStr}`;
 
+      const pendingRequestData = {
+        fromDoctorId: patient.assignedDoctorId,
+        fromDoctorName: prevDoctorName,
+        targetDoctorId: parseInt(newDoctorId),
+        targetDoctorName: newDoctorName,
+        reason: reassignInfo.reason || 'Reassigned from consultation desk',
+        requestedAt: fullDateTime
+      };
+
       const historyLog = {
-        id: `reassign_${Date.now()}`,
-        type: 'Doctor Reassignment',
+        id: `reassign_req_${Date.now()}`,
+        type: 'Doctor Reassignment Requested',
         desk: 'Doctor Reassignment',
         previousDoctor: prevDoctorName,
         newDoctor: newDoctorName,
-        previousStatus: `Assigned: ${prevDoctorName}`,
-        newStatus: `Assigned: ${newDoctorName}`,
         dateTime: fullDateTime,
         timestamp: fullDateTime,
-        changedBy: reassignInfo.changedBy || user?.name || 'System User',
+        changedBy: reassignInfo.changedBy || user?.name || prevDoctorName,
         reason: reassignInfo.reason || 'Reassigned from consultation desk',
-        notes: `Reassigned from ${prevDoctorName} to ${newDoctorName}`
+        notes: `Reassignment requested from ${prevDoctorName} to ${newDoctorName} (Pending Doctor Approval)`
       };
 
       let existingLogs = [];
@@ -732,31 +752,175 @@ function App() {
         if (Array.isArray(patient.trackingHistory)) {
           existingLogs = patient.trackingHistory;
         } else if (typeof patient.trackingHistory === 'string') {
-          try {
-            existingLogs = JSON.parse(patient.trackingHistory);
-          } catch (e) {}
+          try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
         }
       }
 
       const updatedHistory = [historyLog, ...existingLogs];
+      const targetApiId = String(patient.id || patientId).replace(/#/g, '').trim();
 
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          assignedDoctorId: parseInt(newDoctorId),
-          previousDoctor: prevDoctorName,
+          pendingReassignment: pendingRequestData,
+          reassignmentDeclined: null,
           trackingHistory: updatedHistory
         })
       });
+
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(prev => prev.map(p => (p && (Number(p.id) === Number(patientId) || String(p.id) === String(patientId) || (p.id && String(p.id).replace(/\D/g, '') === String(patientId).replace(/\D/g, '')))) ? updatedPatient : p));
+        setPatients(prev => prev.map(p => (p && isSameId(p.id, patientId)) ? updatedPatient : p));
         return true;
       }
       return false;
     } catch (err) {
-      console.error("Error reassigning doctor:", err);
+      console.error("Error requesting reassign doctor:", err);
+      return false;
+    }
+  };
+
+  const handleAcceptReassignment = async (patientId) => {
+    try {
+      const patient = patients.find(p => p && isSameId(p.id, patientId));
+      if (!patient || !patient.pendingReassignment) return false;
+
+      const req = patient.pendingReassignment;
+      const targetDocId = req.targetDoctorId;
+      const targetDocName = req.targetDoctorName;
+      const fromDocName = req.fromDoctorName;
+
+      const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+
+      // Calculate token for new doctor
+      const activeForNewDoc = patients.filter(p =>
+        isSameId(p.assignedDoctorId, targetDocId) &&
+        p.status !== 'Inactive' &&
+        isSameDayStr(p.registrationDate, todayStr)
+      );
+
+      const nextToken = activeForNewDoc.length > 0
+        ? Math.max(...activeForNewDoc.map(p => parseInt(p.tokenNumber) || 0)) + 1
+        : 1;
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+      const fullDateTime = `${dateStr}, ${timeStr}`;
+
+      const historyLog = {
+        id: `reassign_accept_${Date.now()}`,
+        type: 'Doctor Reassignment Accepted',
+        desk: 'Doctor Reassignment',
+        previousDoctor: fromDocName,
+        newDoctor: targetDocName,
+        dateTime: fullDateTime,
+        timestamp: fullDateTime,
+        changedBy: targetDocName,
+        reason: req.reason,
+        notes: `Reassignment accepted by ${targetDocName}`
+      };
+
+      let existingLogs = [];
+      if (patient && patient.trackingHistory) {
+        if (Array.isArray(patient.trackingHistory)) {
+          existingLogs = patient.trackingHistory;
+        } else if (typeof patient.trackingHistory === 'string') {
+          try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
+        }
+      }
+
+      const updatedHistory = [historyLog, ...existingLogs];
+      const targetApiId = String(patient.id || patientId).replace(/#/g, '').trim();
+
+      const isReviewing = patient.status === 'Reviewing';
+      const targetStatus = isReviewing ? 'Reviewing' : 'In Queue';
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedDoctorId: parseInt(targetDocId),
+          previousDoctor: fromDocName,
+          pendingReassignment: null,
+          status: targetStatus,
+          tokenNumber: isReviewing ? (patient.tokenNumber || nextToken) : nextToken,
+          registrationDate: todayStr,
+          trackingHistory: updatedHistory
+        })
+      });
+
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(prev => normalizeTokensForPatients(prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p)));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error accepting reassignment:", err);
+      return false;
+    }
+  };
+
+  const handleDeclineReassignment = async (patientId) => {
+    try {
+      const patient = patients.find(p => p && isSameId(p.id, patientId));
+      if (!patient || !patient.pendingReassignment) return false;
+
+      const req = patient.pendingReassignment;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+      const fullDateTime = `${dateStr}, ${timeStr}`;
+
+      const historyLog = {
+        id: `reassign_decline_${Date.now()}`,
+        type: 'Doctor Reassignment Declined',
+        desk: 'Doctor Reassignment',
+        dateTime: fullDateTime,
+        timestamp: fullDateTime,
+        changedBy: req.targetDoctorName,
+        notes: `Reassignment request to ${req.targetDoctorName} was declined by ${req.targetDoctorName}`
+      };
+
+      let existingLogs = [];
+      if (patient && patient.trackingHistory) {
+        if (Array.isArray(patient.trackingHistory)) {
+          existingLogs = patient.trackingHistory;
+        } else if (typeof patient.trackingHistory === 'string') {
+          try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
+        }
+      }
+
+      const updatedHistory = [historyLog, ...existingLogs];
+      const targetApiId = String(patient.id || patientId).replace(/#/g, '').trim();
+
+      const declData = {
+        targetDoctorId: req.targetDoctorId,
+        targetDoctorName: req.targetDoctorName,
+        fromDoctorName: req.fromDoctorName,
+        declinedAt: fullDateTime
+      };
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(targetApiId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pendingReassignment: null,
+          reassignmentDeclined: declData,
+          trackingHistory: updatedHistory
+        })
+      });
+
+      if (response.ok) {
+        const updatedPatient = await response.json();
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error declining reassignment:", err);
       return false;
     }
   };
@@ -949,6 +1113,8 @@ function App() {
             onEmailPrescription={handleEmailPrescription}
             onAdmitToWard={handleOpenWardAdmit}
             onReassignDoctor={handleReassignDoctor}
+            onAcceptReassignment={handleAcceptReassignment}
+            onDeclineReassignment={handleDeclineReassignment}
           />
         );
       case 'pharmacy':
@@ -1297,7 +1463,8 @@ function App() {
                 const queueWaitingCount = todayPatients.filter(p => ['In Queue', 'Registered'].includes(p.status)).length;
                 const pharmacyPendingCount = patients.filter(p => p.status !== 'Inactive' && ['At Pharmacy', 'Pending Pharmacy'].includes(p.status)).length;
                 const wardPendingCount = patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length;
-                const hasActiveAlerts = queueWaitingCount > 0 || pharmacyPendingCount > 0 || wardPendingCount > 0;
+                const reassignPendingCount = patients.filter(p => p && p.pendingReassignment && p.status !== 'Inactive').length;
+                const hasActiveAlerts = queueWaitingCount > 0 || pharmacyPendingCount > 0 || wardPendingCount > 0 || reassignPendingCount > 0;
 
                 return (
                   <>
@@ -1319,6 +1486,12 @@ function App() {
                           <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>● Active</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+                          {reassignPendingCount > 0 && (
+                            <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <UserPlus size={14} style={{ color: '#f59e0b' }} />
+                              <div><strong>{reassignPendingCount} Reassignment Requests</strong> pending approval</div>
+                            </div>
+                          )}
                           <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <Activity size={14} style={{ color: '#6366f1' }} />
                             <div><strong>{queueWaitingCount} Patients</strong> waiting in Queue</div>

@@ -587,7 +587,7 @@ const AdminPatientRecords = ({
           'N/A';
 
         return (
-          <div style={{
+          <div className="audit-modal-backdrop" style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -599,15 +599,15 @@ const AdminPatientRecords = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.5rem',
+            padding: '0.5rem',
             animation: 'fade-in 0.2s ease-out'
           }} onClick={() => setSelectedPatient(null)}>
-            <div style={{
+            <div className="audit-modal-container" style={{
               background: '#ffffff',
               color: 'var(--text-primary)',
               width: '100%',
               maxWidth: '850px',
-              maxHeight: '90vh',
+              maxHeight: '94vh',
               borderRadius: '16px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
               display: 'flex',
@@ -617,7 +617,7 @@ const AdminPatientRecords = ({
             }} onClick={(e) => e.stopPropagation()}>
 
               {/* Modal Header */}
-              <div style={{
+              <div className="audit-modal-header" style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -626,7 +626,7 @@ const AdminPatientRecords = ({
                 background: '#f8fafc'
               }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Audit File: {selectedPatient.name}
                   </h3>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
@@ -648,7 +648,8 @@ const AdminPatientRecords = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 'bold',
-                    fontSize: '0.85rem'
+                    fontSize: '0.85rem',
+                    flexShrink: 0
                   }}
                 >
                   ✕
@@ -656,10 +657,10 @@ const AdminPatientRecords = ({
               </div>
 
               {/* Modal Content Area */}
-              <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, background: '#fcfcfd' }}>
+              <div className="audit-modal-body" style={{ padding: '1.25rem', overflowY: 'auto', flex: 1, background: '#fcfcfd' }}>
 
                 {/* Info Grid splits */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                <div className="audit-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
 
                   {/* Demographics card */}
                   <div style={{
@@ -910,8 +911,8 @@ const AdminPatientRecords = ({
               </div>
 
               {/* Footer */}
-              <div style={{
-                padding: '1rem 1.5rem',
+              <div className="audit-footer" style={{
+                padding: '0.85rem 1.25rem',
                 borderTop: '1px solid var(--border)',
                 background: '#f8fafc',
                 display: 'flex',
@@ -939,7 +940,7 @@ const AdminPatientRecords = ({
       {activePrescriptionPreview && (() => {
         const { patientName, visit } = activePrescriptionPreview;
         return (
-          <div style={{
+          <div className="rx-modal-backdrop" style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -951,14 +952,15 @@ const AdminPatientRecords = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.5rem',
+            padding: '0.5rem',
             animation: 'fade-in 0.15s ease-out'
           }} onClick={() => setActivePrescriptionPreview(null)}>
-            <div style={{
+            <div className="rx-modal-container" style={{
               background: '#ffffff',
               color: 'var(--text-primary)',
               width: '100%',
               maxWidth: '500px',
+              maxHeight: '92vh',
               borderRadius: '12px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)',
               display: 'flex',
@@ -968,11 +970,11 @@ const AdminPatientRecords = ({
             }} onClick={(e) => e.stopPropagation()}>
 
               {/* Header */}
-              <div style={{
+              <div className="rx-modal-header" style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '1rem 1.25rem',
+                padding: '0.85rem 1rem',
                 borderBottom: '1px solid var(--border)',
                 background: '#f8fafc'
               }}>

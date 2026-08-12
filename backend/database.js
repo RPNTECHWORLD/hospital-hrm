@@ -137,7 +137,9 @@ const camelCaseMap = {
   pharmacystatus: 'pharmacyStatus',
   injectionstatus: 'injectionStatus',
   trackinghistory: 'trackingHistory',
-  previousdoctor: 'previousDoctor'
+  previousdoctor: 'previousDoctor',
+  pendingreassignment: 'pendingReassignment',
+  reassignmentdeclined: 'reassignmentDeclined'
 };
 
 const camelizeObject = (obj) => {
@@ -267,6 +269,8 @@ export const initDB = async () => {
   try { await dbRun(`ALTER TABLE patients ADD COLUMN injectionstatus TEXT DEFAULT 'N/A'`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN trackinghistory TEXT`); } catch (e) { }
   try { await dbRun(`ALTER TABLE patients ADD COLUMN previousdoctor TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN pendingreassignment TEXT`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE patients ADD COLUMN reassignmentdeclined TEXT`); } catch (e) { }
 
   // Create Patient History
   await dbRun(`
@@ -654,6 +658,24 @@ export const getPatients = async () => {
     pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
     injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
     previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
+    pendingReassignment: (() => {
+      const raw = pat.pendingreassignment || pat.pendingReassignment;
+      if (!raw) return null;
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+      }
+      return null;
+    })(),
+    reassignmentDeclined: (() => {
+      const raw = pat.reassignmentdeclined || pat.reassignmentDeclined;
+      if (!raw) return null;
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+      }
+      return null;
+    })(),
     trackingHistory: (() => {
       const raw = pat.trackinghistory || pat.trackingHistory;
       if (!raw) return [];
@@ -667,11 +689,37 @@ export const getPatients = async () => {
   }));
 };
 
+const findPatientRow = async (id) => {
+  if (id === undefined || id === null) return null;
+  let row = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  if (row) return row;
+
+  const strId = String(id).trim();
+  row = await dbGet(`SELECT * FROM patients WHERE id = ?`, [strId]);
+  if (row) return row;
+
+  const numOnly = strId.replace(/\D/g, '');
+  if (numOnly) {
+    const numVal = parseInt(numOnly, 10);
+    const vhFormatted = `VH${numOnly.padStart(3, '0')}`;
+    row = await dbGet(`SELECT * FROM patients WHERE id = ? OR id = ? OR id = ? OR id = ?`, [numVal, numOnly, vhFormatted, `VH${numVal}`]);
+    if (row) return row;
+  }
+
+  const allPats = await dbAll(`SELECT * FROM patients`);
+  return allPats.find(p => {
+    if (p.id === id || String(p.id) === strId) return true;
+    const pNum = String(p.id).replace(/\D/g, '');
+    return numOnly && pNum && parseInt(pNum, 10) === parseInt(numOnly, 10);
+  }) || null;
+};
+
 export const getPatientById = async (id) => {
-  const pat = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  const pat = await findPatientRow(id);
   if (!pat) return null;
 
-  const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [id]);
+  const targetId = pat.id;
+  const historyRows = await dbAll(`SELECT * FROM patient_history WHERE patientId = ?`, [targetId]);
   const history = historyRows.map(h => ({
     visitId: h.visitId,
     date: h.date,
@@ -736,6 +784,24 @@ export const getPatientById = async (id) => {
     pharmacyStatus: pat.pharmacystatus || pat.pharmacyStatus || (pat.prescription && pat.prescription.length > 0 ? (pat.issuedMedication ? 'Completed' : 'Pending') : 'N/A'),
     injectionStatus: pat.injectionstatus || pat.injectionStatus || 'N/A',
     previousDoctor: pat.previousdoctor || pat.previousDoctor || '',
+    pendingReassignment: (() => {
+      const raw = pat.pendingreassignment || pat.pendingReassignment;
+      if (!raw) return null;
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+      }
+      return null;
+    })(),
+    reassignmentDeclined: (() => {
+      const raw = pat.reassignmentdeclined || pat.reassignmentDeclined;
+      if (!raw) return null;
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+      }
+      return null;
+    })(),
     trackingHistory: (() => {
       const raw = pat.trackinghistory || pat.trackingHistory;
       if (!raw) return [];
@@ -866,8 +932,9 @@ export const addPatient = async (pat) => {
 };
 
 export const updatePatient = async (id, data) => {
-  const existing = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
+  const existing = await findPatientRow(id);
   if (!existing) throw new Error("Patient not found");
+  const targetId = existing.id;
 
   const fields = [];
   const params = [];
@@ -897,7 +964,9 @@ export const updatePatient = async (id, data) => {
     specialInvestigation: 'specialinvestigation',
     specialInvestigationNotes: 'specialinvestigationnotes',
     trackingHistory: 'trackinghistory',
-    previousDoctor: 'previousdoctor'
+    previousDoctor: 'previousdoctor',
+    pendingReassignment: 'pendingreassignment',
+    reassignmentDeclined: 'reassignmentdeclined'
   };
 
   const keys = [
@@ -908,14 +977,14 @@ export const updatePatient = async (id, data) => {
     'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
     'complaints', 'pastHistory', 'examination', 'investigation', 'bmi', 'paidAmount', 'feeBreakdown',
     'isChild', 'childGa', 'childBirthDate', 'childBirthWeight', 'childPlaceOfBirth', 'childDeliveryType', 'childNicuHistory',
-    'specialInvestigation', 'specialInvestigationNotes', 'trackingHistory', 'previousDoctor'
+    'specialInvestigation', 'specialInvestigationNotes', 'trackingHistory', 'previousDoctor', 'pendingReassignment', 'reassignmentDeclined'
   ];
 
   for (const k of keys) {
     if (data[k] !== undefined) {
       const colName = pgColumnMap[k] || k;
       fields.push(`"${colName}" = ?`);
-      if (k === 'prescription' || k === 'trackingHistory') {
+      if (k === 'prescription' || k === 'trackingHistory' || k === 'pendingReassignment' || k === 'reassignmentDeclined') {
         params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
         params.push(data[k]);
@@ -924,19 +993,19 @@ export const updatePatient = async (id, data) => {
   }
 
   if (fields.length > 0) {
-    params.push(id);
+    params.push(targetId);
     await dbRun(`UPDATE patients SET ${fields.join(', ')} WHERE id = ?`, params);
   }
 
   // Handle history updates if present
   if (data.history !== undefined) {
-    await dbRun(`DELETE FROM patient_history WHERE patientId = ?`, [id]);
+    await dbRun(`DELETE FROM patient_history WHERE patientId = ?`, [targetId]);
     for (const h of data.history) {
       await dbRun(
         `INSERT INTO patient_history (patientId, visitId, date, doctorName, diagnosis, prescription, prescriptionImg, issuedMedication, paymentStatus, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          id,
+          targetId,
           h.visitId || Date.now(),
           h.date,
           h.doctorName,
@@ -951,7 +1020,7 @@ export const updatePatient = async (id, data) => {
     }
   }
 
-  return await getPatientById(id);
+  return await getPatientById(targetId);
 };
 
 // Staff Attendance

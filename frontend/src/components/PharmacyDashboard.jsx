@@ -61,71 +61,6 @@ const formatMedUnitQty = (medicine = {}, calculatedQty = 1, days = 1) => {
   return `${calculatedQty} Tabs`;
 };
 
-const extractInjectionsFromPrescription = (prescription = []) => {
-  if (!Array.isArray(prescription) || prescription.length === 0) return [];
-
-  const found = [];
-
-  prescription.forEach(med => {
-    if (!med || !med.name) return;
-    const nameStr = med.name.trim();
-    const nameLower = nameStr.toLowerCase();
-    const catLower = (med.category || '').toLowerCase();
-    const routeLower = (med.route || '').toLowerCase();
-    const dosageStr = (med.dosage || '').trim();
-    const dosageLower = dosageStr.toLowerCase();
-
-    const isInj =
-      catLower === 'injection' ||
-      nameLower.startsWith('inj') ||
-      nameLower.includes('inj.') ||
-      nameLower.includes('injection') ||
-      ['iv', 'im', 'sc', 'id', 'iv infusion'].includes(routeLower) ||
-      nameLower.includes(' iv') ||
-      nameLower.includes(' im');
-
-    if (isInj) {
-      // Extract dose from dosage or name
-      let dose = '';
-      const doseMatch = (dosageStr + ' ' + nameStr).match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|i\.?u\.?)\b/i);
-      if (doseMatch) {
-        dose = doseMatch[0];
-      } else if (dosageStr && !dosageLower.includes('after food') && !dosageLower.includes('before food')) {
-        dose = dosageStr;
-      } else {
-        dose = '1 Dose';
-      }
-
-      // Route extraction
-      let route = 'IV';
-      const fullText = (routeLower + ' ' + nameLower + ' ' + dosageLower).toUpperCase();
-      if (fullText.includes('IV INFUSION')) route = 'IV Infusion';
-      else if (fullText.includes('IM')) route = 'IM';
-      else if (fullText.includes('IV')) route = 'IV';
-      else if (fullText.includes('SC')) route = 'SC';
-      else if (med.route) route = med.route.toUpperCase();
-
-      // Frequency / STAT logic
-      let frequency = 'STAT (Single / Immediate)';
-      let isStat = true;
-      if (dosageLower.includes('normal') || dosageLower.includes('1-0-1') || dosageLower.includes('1-1-1') || (med.duration && med.duration > 1 && !dosageLower.includes('stat'))) {
-        frequency = 'NORMAL';
-        isStat = false;
-      }
-
-      found.push({
-        name: nameStr,
-        dosage: dose,
-        route: route,
-        frequency: frequency,
-        isStat: isStat
-      });
-    }
-  });
-
-  return found;
-};
-
 const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onPrintPrescription, onEmailPrescription }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [issuedPatientIds, setIssuedPatientIds] = useState([]);
@@ -155,23 +90,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   ]);
 
   React.useEffect(() => {
-    if (activePatient && activePatient.prescription) {
-      const parsedInj = extractInjectionsFromPrescription(activePatient.prescription);
-      if (parsedInj.length > 0) {
-        setRequiresInjection(true);
-        setInjections(parsedInj);
-      } else {
-        setRequiresInjection(false);
-        setInjections([
-          { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
-        ]);
-      }
-    } else {
-      setRequiresInjection(false);
-      setInjections([
-        { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
-      ]);
-    }
+    setRequiresInjection(false);
+    setInjections([
+      { name: '', dosage: '', route: 'IM', frequency: 'STAT (Single / Immediate)', isStat: true }
+    ]);
   }, [activePatient]);
 
   const handleAddInjectionRow = () => {
@@ -223,22 +145,31 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     setNewMedName('');
     setNewMedDosage('1-0-1 - After Food');
     setNewMedDuration('5');
-    const initialDaysMap = {};
-    if (patient.prescription && patient.prescription.length > 0) {
-      patient.prescription.forEach((m, idx) => {
-        initialDaysMap[idx] = parseInt(m.duration) || 10;
-      });
-    }
-    setCustomMedDays(initialDaysMap);
+    setCustomMedDays({});
     const firstMedDuration = patient.prescription?.[0]?.duration || 10;
     setPartialDays(Math.max(1, Math.floor(firstMedDuration / 2)));
   };
 
   const handleMedicineDaysChange = (idx, newDays, maxDays) => {
-    const parsed = Math.max(1, Math.min(parseInt(newDays) || 1, maxDays));
+    if (newDays === '' || newDays === null) {
+      setCustomMedDays(prev => ({
+        ...prev,
+        [idx]: ''
+      }));
+      return;
+    }
+    const val = parseInt(newDays);
+    if (isNaN(val)) {
+      setCustomMedDays(prev => ({
+        ...prev,
+        [idx]: ''
+      }));
+      return;
+    }
+    const clamped = Math.max(0, Math.min(val, maxDays));
     setCustomMedDays(prev => ({
       ...prev,
-      [idx]: parsed
+      [idx]: clamped === 0 ? '' : clamped
     }));
   };
 
@@ -298,7 +229,9 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     if (issueType === 'partial' && activePatient.prescription) {
       const itemizedParts = activePatient.prescription.map((m, i) => {
         const totalDays = parseInt(m.duration) || 1;
-        const issuedDays = Math.min(customMedDays[i] ?? totalDays, totalDays);
+        const customVal = customMedDays[i];
+        const rawDays = customVal !== undefined ? customVal : '';
+        const issuedDays = rawDays === '' ? 0 : Math.min(parseInt(rawDays) || 0, totalDays);
         const totalQty = calculateTabletQty(m.dosage, totalDays);
         const issuedQty = calculateTabletQty(m.dosage, issuedDays);
         const remQty = totalQty - issuedQty;
@@ -306,10 +239,13 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
         const totalUnitStr = formatMedUnitQty(m, totalQty, totalDays);
         const issuedUnitStr = formatMedUnitQty(m, issuedQty, issuedDays);
 
+        if (issuedDays <= 0) {
+          return `${m.name}: Not Dispensed (${totalDays} Days Total)`;
+        }
         if (remQty <= 0) {
           return `${m.name}: ${issuedUnitStr} (${issuedDays}/${totalDays} Days - Complete)`;
         }
-        return `${m.name}: ${issuedUnitStr} (${issuedDays}/${totalDays} Days) • Pending`;
+        return `${m.name}: ${issuedUnitStr} (${issuedDays}/${totalDays} Days Issued) • ${totalDays - issuedDays} Days Remaining`;
       });
 
       issuedString = `Partial Issue Breakdown: ${itemizedParts.join(' | ')}`;
@@ -603,7 +539,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                 </div>
               )}
               {/* Live Prescribed vs Issued Quantity Breakdown Card */}
-              {activePatient.prescription && activePatient.prescription.length > 0 && (
+              {!activePatient.prescriptionImg && activePatient.prescription && activePatient.prescription.length > 0 && !activePatient.prescription.some(m => m.name && (m.name.toLowerCase().includes('handwritten') || m.name.toLowerCase().includes('drawing'))) && (
                 <div style={{
                   background: 'rgba(21, 115, 136, 0.05)',
                   border: '1.5px solid rgba(21, 115, 136, 0.25)',
@@ -643,8 +579,9 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                         {activePatient.prescription.map((m, i) => {
                           const totalDays = parseInt(m.duration) || 1;
                           const totalQty = calculateTabletQty(m.dosage, totalDays);
-                          const selectedDays = customMedDays[i] !== undefined ? customMedDays[i] : (issueType === 'full' ? totalDays : Math.min(partialDays, totalDays));
-                          const issuedDays = issueType === 'full' ? totalDays : Math.min(selectedDays, totalDays);
+                          const customDaysVal = customMedDays[i];
+                          const rawInputValue = customDaysVal !== undefined ? customDaysVal : '';
+                          const issuedDays = issueType === 'full' ? totalDays : (rawInputValue === '' ? 0 : Math.min(parseInt(rawInputValue) || 0, totalDays));
                           const issuedQty = issueType === 'full' ? totalQty : calculateTabletQty(m.dosage, issuedDays);
                           const remQty = totalQty - issuedQty;
                           const remDays = totalDays - issuedDays;
@@ -678,12 +615,15 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', flexWrap: 'nowrap' }}>
                                     <input 
                                       type="number"
+                                      className="no-spin"
+                                      inputMode="numeric"
                                       min="1"
                                       max={totalDays}
-                                      value={issuedDays}
+                                      placeholder=""
+                                      value={rawInputValue}
                                       onChange={(e) => handleMedicineDaysChange(i, e.target.value, totalDays)}
                                       style={{
-                                        width: '42px',
+                                        width: '45px',
                                         padding: '0.15rem 0.2rem',
                                         borderRadius: '4px',
                                         border: '1.5px solid var(--primary)',
@@ -691,7 +631,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                         textAlign: 'center',
                                         fontSize: '0.76rem',
                                         background: 'var(--bg-card)',
-                                        color: 'var(--text-primary)'
+                                        color: 'var(--text-primary)',
+                                        MozAppearance: 'textfield',
+                                        WebkitAppearance: 'none',
+                                        appearance: 'textfield'
                                       }}
                                     />
                                     <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Days</span>
@@ -871,7 +814,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                         borderColor: issueType === 'partial' ? 'var(--primary)' : 'var(--border)',
                         background: issueType === 'partial' ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255,255,255,0.02)'
                       }}
-                      onClick={() => setIssueType('partial')}
+                      onClick={() => {
+                        setIssueType('partial');
+                        setCustomMedDays({});
+                      }}
                     >
                       <strong style={{ display: 'block', fontSize: '1rem' }}>Partial Duration</strong>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dispense partial dosage / limited days</span>
