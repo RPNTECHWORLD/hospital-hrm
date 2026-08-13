@@ -784,9 +784,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
     const isToday = isSameDayStr(p.registrationDate, todayStr);
     const isConsulting = p.status === 'Consulting';
-    const isActiveQueue = ['In Queue', 'Registered', 'Waiting', 'Reviewing'].includes(p.status);
+    const isReviewing = p.status === 'Reviewing';
+    const isActiveQueue = ['In Queue', 'Registered', 'Waiting'].includes(p.status);
 
-    return isConsulting || (isActiveQueue && isToday) || isToday || Boolean(p.wardBedId);
+    return isConsulting || isReviewing || (isActiveQueue && isToday) || isToday || Boolean(p.wardBedId);
   });
   const pendingReassignmentRequests = (patients || []).filter(p =>
     p && p.pendingReassignment && p.status !== 'Inactive' &&
@@ -2253,9 +2254,30 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Previous Diagnosis</label>
+                    <label className="form-label" style={{ fontWeight: 700, color: 'var(--primary)' }}>Previous Diagnosis & Clinical Notes</label>
                     <div style={{ background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.95rem' }}>
-                      {activePatient.diagnosis}
+                      <div style={{ fontWeight: 700, marginBottom: '0.3rem', color: 'var(--text-primary)' }}>
+                        Diagnosis: <span style={{ fontWeight: 500 }}>
+                          {activePatient.diagnosis ||
+                            (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].diagnosis) ||
+                            'No prior diagnosis recorded'}
+                        </span>
+                      </div>
+                      {(activePatient.complaints || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].complaints)) && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                          <strong>Complaints:</strong> {activePatient.complaints || (activePatient.history && activePatient.history[activePatient.history.length - 1].complaints)}
+                        </div>
+                      )}
+                      {(activePatient.examination || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].examination)) && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          <strong>Examination:</strong> {activePatient.examination || (activePatient.history && activePatient.history[activePatient.history.length - 1].examination)}
+                        </div>
+                      )}
+                      {(activePatient.investigation || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].investigation)) && (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          <strong>Investigation:</strong> {activePatient.investigation || (activePatient.history && activePatient.history[activePatient.history.length - 1].investigation)}
+                        </div>
+                      )}
                     </div>
                   </div>
 

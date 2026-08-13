@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter } from 'lucide-react';
 
 // Helper: extract city from address string "street | city | pincode"
 const extractCity = (address) => {
@@ -41,6 +41,49 @@ const formatOnlyDate = (registrationDate, history) => {
   return `${day}/${month}/${year}`;
 };
 
+// Helper: Check if date string matches yesterday
+const isYesterdayDate = (dateVal) => {
+  if (!dateVal) return false;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yYear = yesterday.getFullYear();
+  const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const yDay = String(yesterday.getDate()).padStart(2, '0');
+  const yYearShort = String(yYear).slice(-2);
+
+  if (typeof dateVal === 'string') {
+    if (dateVal.includes(`${yDay}/${yMonth}/${yYear}`) || dateVal.includes(`${yDay}/${yMonth}/${yYearShort}`)) {
+      return true;
+    }
+  }
+  const d = new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return d.getFullYear() === yYear && (d.getMonth() + 1) === parseInt(yMonth) && d.getDate() === parseInt(yDay);
+  }
+  return false;
+};
+
+// Helper: Check if date string matches today
+const isTodayDate = (dateVal) => {
+  if (!dateVal) return true;
+  const today = new Date();
+  const tYear = today.getFullYear();
+  const tMonth = String(today.getMonth() + 1).padStart(2, '0');
+  const tDay = String(today.getDate()).padStart(2, '0');
+  const tYearShort = String(tYear).slice(-2);
+
+  if (typeof dateVal === 'string') {
+    if (dateVal.includes(`${tDay}/${tMonth}/${tYear}`) || dateVal.includes(`${tDay}/${tMonth}/${tYearShort}`)) {
+      return true;
+    }
+  }
+  const d = new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return d.getFullYear() === tYear && (d.getMonth() + 1) === parseInt(tMonth) && d.getDate() === parseInt(tDay);
+  }
+  return false;
+};
+
 const AdminPatientRecords = ({
   patients = [],
   doctors = [],
@@ -48,7 +91,9 @@ const AdminPatientRecords = ({
 }) => {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'Reviewing', etc.
+  const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
+  const [customDate, setCustomDate] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'unpaid'
   const [aboveAge, setAboveAge] = useState('');
   const [belowAge, setBelowAge] = useState('');
@@ -63,6 +108,8 @@ const AdminPatientRecords = ({
   const handleResetFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
+    setDateFilter('all');
+    setCustomDate('');
     setPaymentFilter('all');
     setAboveAge('');
     setBelowAge('');
@@ -115,32 +162,56 @@ const AdminPatientRecords = ({
       // 2. Status Filter
       const matchesStatus =
         statusFilter === 'all' ||
-        statusFilter === 'active' ||
-        (statusFilter === 'inactive' && p.status === 'Inactive');
+        (statusFilter === 'active' && p.status !== 'Inactive') ||
+        (statusFilter === 'inactive' && p.status === 'Inactive') ||
+        (statusFilter === 'Reviewing' && p.status === 'Reviewing') ||
+        (statusFilter === 'In Queue' && (p.status === 'Registered' || p.status === 'In Queue' || !p.status)) ||
+        (statusFilter === 'Consulting' && p.status === 'Consulting') ||
+        (statusFilter === 'At Pharmacy' && (p.status === 'At Pharmacy' || p.status === 'Pharmacy')) ||
+        (statusFilter === 'Completed' && p.status === 'Completed') ||
+        (statusFilter === 'Admitted' && (p.status === 'Admitted' || Boolean(p.wardBedId)));
 
-      // 3. Payment Filter
+      // 3. Date Filter
+      const pDate = p.registrationDate || (p.history && p.history.length > 0 && p.history[p.history.length - 1].date);
+      const matchesDate = (() => {
+        if (dateFilter === 'all') return true;
+        if (dateFilter === 'today') return isTodayDate(pDate);
+        if (dateFilter === 'yesterday') return isYesterdayDate(pDate);
+        if (dateFilter === 'custom' && customDate) {
+          if (!pDate) return false;
+          const target = new Date(customDate);
+          const d = new Date(pDate);
+          if (!isNaN(d.getTime()) && !isNaN(target.getTime())) {
+            return d.toDateString() === target.toDateString();
+          }
+          return pDate.includes(customDate);
+        }
+        return true;
+      })();
+
+      // 4. Payment Filter
       const matchesPayment =
         paymentFilter === 'all' ||
         (paymentFilter === 'paid' && p.paymentStatus && p.paymentStatus.startsWith('Paid')) ||
         (paymentFilter === 'unpaid' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid')));
 
-      // 4. Above Age Filter (Minimum Age)
+      // 5. Above Age Filter (Minimum Age)
       const matchesAboveAge = aboveAge === '' || p.age >= parseInt(aboveAge);
 
-      // 5. Below Age Filter (Maximum Age)
+      // 6. Below Age Filter (Maximum Age)
       const matchesBelowAge = belowAge === '' || p.age <= parseInt(belowAge);
 
-      // 6. City / Town Filter
+      // 7. City / Town Filter
       const matchesCity =
         cityFilter === 'all' ||
         extractCity(p.address).toLowerCase() === cityFilter.toLowerCase();
 
-      // 7. Pincode Filter
+      // 8. Pincode Filter
       const matchesPincode =
         pincodeFilter === 'all' ||
         extractPincode(p.address) === pincodeFilter;
 
-      return matchesSearch && matchesStatus && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
+      return matchesSearch && matchesStatus && matchesDate && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
     });
 
   return (
@@ -156,7 +227,7 @@ const AdminPatientRecords = ({
 
       {/* Stats Summary Panel */}
       <div className="stats-grid" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-        <div className="stat-card">
+        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => handleResetFilters()}>
           <div className="stat-icon primary">
             <Users size={24} />
           </div>
@@ -166,17 +237,17 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('active')}>
           <div className="stat-icon success">
             <CheckCircle size={24} />
           </div>
           <div>
             <div className="stat-value">{activeCount}</div>
-            <div className="stat-label">Active / In Queue</div>
+            <div className="stat-label">Active Patients</div>
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setPaymentFilter('paid')}>
           <div className="stat-icon warning" style={{ color: 'var(--success)', background: 'rgba(16, 185, 129, 0.15)' }}>
             <span style={{ fontSize: '24px', fontWeight: 900, display: 'inline-block', lineHeight: 1 }}>$</span>
           </div>
@@ -208,6 +279,56 @@ const AdminPatientRecords = ({
             />
           </div>
 
+          {/* Date Filter */}
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Calendar size={13} style={{ color: 'var(--primary)' }} /> Date Filter
+            </label>
+            <select
+              className="form-input"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: dateFilter === 'yesterday' || dateFilter === 'today' ? 700 : 400 }}
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Registered / Visited Today</option>
+              <option value="yesterday">Registered / Visited Yesterday 📅</option>
+              <option value="custom">Custom Date Pick...</option>
+            </select>
+            {dateFilter === 'custom' && (
+              <input
+                type="date"
+                className="form-input"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                style={{ marginTop: '0.4rem', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }}
+              />
+            )}
+          </div>
+
+          {/* Queue & Registration Status Filter */}
+          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Filter size={13} style={{ color: 'var(--primary)' }} /> Queue / Registration Status
+            </label>
+            <select
+              className="form-input"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: statusFilter === 'Reviewing' ? 700 : 400 }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="Reviewing">📋 Reviewing (Doctor Follow-Up)</option>
+              <option value="In Queue">⏳ In Queue</option>
+              <option value="Consulting">🩺 Consulting</option>
+              <option value="At Pharmacy">💊 At Pharmacy</option>
+              <option value="Completed">✅ Completed</option>
+              <option value="Admitted">🛏️ Admitted (Ward)</option>
+              <option value="active">Active Patients Only</option>
+              <option value="inactive">Deleted / Inactive Only</option>
+            </select>
+          </div>
+
           {/* Payment Filter */}
           <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
             <label className="form-label" style={{ fontSize: '0.8rem' }}>Payment Status</label>
@@ -220,21 +341,6 @@ const AdminPatientRecords = ({
               <option value="all">All Payments</option>
               <option value="paid">Paid Only</option>
               <option value="unpaid">Unpaid Only</option>
-            </select>
-          </div>
-
-          {/* Active/Inactive Status */}
-          <div className="form-group" style={{ margin: 0, minWidth: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.8rem' }}>Registration Status</label>
-            <select
-              className="form-input"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Deleted / Inactive Only</option>
             </select>
           </div>
 
@@ -299,8 +405,8 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        {/* Reset Button */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+        {/* Reset Filter Button */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '1.25rem' }}>
           <button
             type="button"
             className="btn btn-secondary"
@@ -366,13 +472,17 @@ const AdminPatientRecords = ({
                   const queueStatusText = (p.status === 'Registered' || p.status === 'Inactive' || p.status === 'In Queue' || !p.status)
                     ? 'In Queue'
                     : p.status;
-                  const statusBadgeClass = queueStatusText === 'Completed'
-                    ? 'badge-success'
-                    : (queueStatusText === 'In Queue'
-                      ? 'badge-pending'
-                      : (queueStatusText === 'At Pharmacy' || queueStatusText === 'Pharmacy'
-                        ? 'badge-warning'
-                        : 'badge-info'));
+
+                  const getStatusBadgeClass = (status) => {
+                    const s = (status || '').toLowerCase().trim();
+                    if (s === 'completed') return 'badge-success';
+                    if (s === 'registered' || s === 'in queue' || !status) return 'badge-pending';
+                    if (s === 'at pharmacy' || s === 'pharmacy') return 'badge-warning';
+                    if (s === 'reviewing' || s === 'review') return 'badge-reviewing';
+                    if (s === 'consulting') return 'badge-consulting';
+                    if (s === 'admitted') return 'badge-admitted';
+                    return 'badge-info';
+                  };
 
                   return (
                     <tr
@@ -505,7 +615,7 @@ const AdminPatientRecords = ({
                         })()}
                       </td>
                       <td>
-                        <span className={`badge ${statusBadgeClass}`}>
+                        <span className={`badge ${getStatusBadgeClass(p.status)}`}>
                           {queueStatusText}
                         </span>
                       </td>
@@ -769,6 +879,99 @@ const AdminPatientRecords = ({
                     </div>
                   </div>
 
+                </div>
+
+                {/* Doctor Review & Clinical Consultation Audit Card */}
+                <div style={{
+                  background: selectedPatient.status === 'Reviewing' ? 'rgba(139, 92, 246, 0.06)' : '#ffffff',
+                  border: selectedPatient.status === 'Reviewing' ? '1.5px solid rgba(139, 92, 246, 0.35)' : '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: selectedPatient.status === 'Reviewing' ? '#6d28d9' : 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Stethoscope size={18} />
+                      {selectedPatient.status === 'Reviewing' ? '📋 Doctor Review Details (Follow-Up)' : '🩺 Primary Clinical Consultation Details'}
+                    </h4>
+                    <span className={`badge ${selectedPatient.status === 'Reviewing' ? 'badge-reviewing' : (selectedPatient.status === 'Completed' ? 'badge-success' : 'badge-info')}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem', fontWeight: 800 }}>
+                      Status: {selectedPatient.status || 'In Queue'}
+                    </span>
+                  </div>
+
+                  {/* Doctor & Fulfillment Summary Header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.85rem' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Assigned Doctor</span>
+                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        {doctors.find(d => Number(d.id) === Number(selectedPatient.assignedDoctorId))?.name || selectedPatient.assignedDoctorName || 'Dr. Vijayan'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Pharmacy Fulfillment</span>
+                      <strong style={{ fontSize: '0.9rem', color: selectedPatient.issuedMedication ? '#059669' : '#d97706' }}>
+                        {selectedPatient.issuedMedication || 'Pending / None Issued'}
+                      </strong>
+                    </div>
+                    {selectedPatient.previousDoctor && (
+                      <div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Previous Doctor</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#475569' }}>{selectedPatient.previousDoctor}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Consultation / Review Details Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                    {/* Diagnosis */}
+                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                        Diagnosis / Doctor Assessment
+                      </span>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {selectedPatient.diagnosis ||
+                          (selectedPatient.history && selectedPatient.history.length > 0 && selectedPatient.history[selectedPatient.history.length - 1].diagnosis) ||
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>No diagnosis recorded</span>}
+                      </div>
+                    </div>
+
+                    {/* Chief Complaints */}
+                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                        Chief Complaints
+                      </span>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                        {selectedPatient.complaints ||
+                          (selectedPatient.history && selectedPatient.history.length > 0 && selectedPatient.history[selectedPatient.history.length - 1].complaints) ||
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>--</span>}
+                      </div>
+                    </div>
+
+                    {/* Examination */}
+                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                        Clinical Examination
+                      </span>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                        {selectedPatient.examination ||
+                          (selectedPatient.history && selectedPatient.history.length > 0 && selectedPatient.history[selectedPatient.history.length - 1].examination) ||
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>--</span>}
+                      </div>
+                    </div>
+
+                    {/* Investigation / Lab Orders */}
+                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                        Ordered Investigation / Lab Tests
+                      </span>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                        {selectedPatient.investigation ||
+                          (selectedPatient.history && selectedPatient.history.length > 0 && selectedPatient.history[selectedPatient.history.length - 1].investigation) ||
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>--</span>}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Audit Timeline */}

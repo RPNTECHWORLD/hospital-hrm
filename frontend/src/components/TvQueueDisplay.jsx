@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, LogOut } from 'lucide-react';
 
+const isSameDayStr = (d1, d2) => {
+  if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  const dateA = new Date(d1);
+  const dateB = new Date(d2);
+  if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+    return dateA.getFullYear() === dateB.getFullYear() &&
+           dateA.getMonth() === dateB.getMonth() &&
+           dateA.getDate() === dateB.getDate();
+  }
+  return false;
+};
+
 const TvQueueDisplay = ({ patients, doctors, onExit }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(0);
@@ -159,16 +172,13 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
         }}
       >
         {displayedDoctors.map(doctor => {
-          // Filter patients assigned to this doctor
-          const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+          // Filter patients assigned to this doctor for today's active queue (updates automatically day by day)
+          const todayStr = currentTime.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
           const docPatients = patients.filter(p => {
             const matchesDoc = Number(p.assignedDoctorId) === Number(doctor.id) || String(p.assignedDoctorId) === String(doctor.id);
             if (!matchesDoc || p.status === 'Inactive') return false;
 
-            const isToday = p.registrationDate === todayStr || (p.registrationDate && new Date(p.registrationDate).toDateString() === new Date().toDateString());
-            const isActiveQueue = ['In Queue', 'Registered', 'Consulting', 'Waiting'].includes(p.status);
-
-            return isActiveQueue || isToday;
+            return isSameDayStr(p.registrationDate, todayStr);
           });
 
           // Now Consulting patient
