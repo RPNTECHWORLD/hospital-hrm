@@ -691,25 +691,42 @@ export const getPatients = async () => {
 
 const findPatientRow = async (id) => {
   if (id === undefined || id === null) return null;
-  let row = await dbGet(`SELECT * FROM patients WHERE id = ?`, [id]);
-  if (row) return row;
-
   const strId = String(id).trim();
-  row = await dbGet(`SELECT * FROM patients WHERE id = ?`, [strId]);
+
+  // 1. Direct match query
+  let row = await dbGet(`SELECT * FROM patients WHERE id = ?`, [strId]);
   if (row) return row;
 
+  // 2. Case-insensitive & normalized zero-padding lookup (e.g. '5', 'vh05', 'VH5', '#VH005')
   const numOnly = strId.replace(/\D/g, '');
   if (numOnly) {
     const numVal = parseInt(numOnly, 10);
-    const vhFormatted = `VH${numOnly.padStart(3, '0')}`;
-    row = await dbGet(`SELECT * FROM patients WHERE id = ? OR id = ? OR id = ? OR id = ?`, [numVal, numOnly, vhFormatted, `VH${numVal}`]);
+    const vhFormatted = `VH${String(numVal).padStart(3, '0')}`;
+    const vhShort = `VH${numVal}`;
+    const vhTwoZero = `VH${String(numVal).padStart(2, '0')}`;
+
+    row = await dbGet(
+      `SELECT * FROM patients 
+       WHERE LOWER(id) = LOWER(?) 
+          OR LOWER(id) = LOWER(?) 
+          OR LOWER(id) = LOWER(?) 
+          OR LOWER(id) = LOWER(?) 
+          OR id = ? 
+          OR id = ?`,
+      [vhFormatted, vhShort, vhTwoZero, strId, String(numVal), numOnly]
+    );
     if (row) return row;
   }
 
+  // 3. Fallback scan across all patients matching numerical ID or normalized string
   const allPats = await dbAll(`SELECT * FROM patients`);
   return allPats.find(p => {
-    if (p.id === id || String(p.id) === strId) return true;
-    const pNum = String(p.id).replace(/\D/g, '');
+    if (!p || !p.id) return false;
+    const pidStr = String(p.id).trim().toLowerCase();
+    const searchClean = strId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (pidStr === strId.toLowerCase() || pidStr.replace(/[^a-z0-9]/g, '') === searchClean) return true;
+
+    const pNum = pidStr.replace(/\D/g, '');
     return numOnly && pNum && parseInt(pNum, 10) === parseInt(numOnly, 10);
   }) || null;
 };

@@ -100,6 +100,15 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Auth Middleware for Protected API Endpoints
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization || req.headers['x-auth-token'] || req.headers['x-admin-key'];
+  if (!authHeader) {
+    return res.status(401).json({ message: 'Unauthorized: Authentication token or header required' });
+  }
+  next();
+};
+
 // Patients API
 // Lookup patient by ID — returns ALL patients including Inactive (for returning patient ID search)
 app.get('/api/patients/lookup/:id', async (req, res) => {
@@ -136,11 +145,14 @@ app.put('/api/patients/:id', async (req, res) => {
     const updated = await updatePatient(id, req.body);
     res.json(updated);
   } catch (err) {
+    if (err.message && err.message.toLowerCase().includes('patient not found')) {
+      return res.status(404).json({ message: err.message });
+    }
     res.status(500).json({ message: err.message });
   }
 });
 
-app.delete('/api/patients', async (req, res) => {
+app.delete('/api/patients', requireAuth, async (req, res) => {
   try {
     await deleteAllPatients();
     res.json({ message: 'All patients deleted successfully' });
@@ -149,7 +161,7 @@ app.delete('/api/patients', async (req, res) => {
   }
 });
 
-app.delete('/api/patients/:id', async (req, res) => {
+app.delete('/api/patients/:id', requireAuth, async (req, res) => {
   const id = isNaN(req.params.id) ? req.params.id : parseInt(req.params.id);
   try {
     await deletePatient(id);
@@ -182,7 +194,7 @@ app.post('/api/doctors', async (req, res) => {
   }
 });
 
-app.delete('/api/doctors/:id', async (req, res) => {
+app.delete('/api/doctors/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
     await deleteDoctor(id);
@@ -211,7 +223,7 @@ app.post('/api/staff', async (req, res) => {
   }
 });
 
-app.delete('/api/staff/:id', async (req, res) => {
+app.delete('/api/staff/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
     await deleteStaff(id);

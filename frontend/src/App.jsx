@@ -1497,9 +1497,9 @@ function App() {
 
                     {showNotifications && (
                       <div style={{
-                        position: 'absolute', right: 0, top: '120%', width: '320px', background: 'var(--bg-card)',
+                        position: 'absolute', right: 0, top: '120%', width: 'min(320px, 85vw)', background: 'var(--bg-card)',
                         border: '1px solid var(--border)', borderRadius: '14px', boxShadow: 'var(--shadow-lg)',
-                        padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease'
+                        padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease', boxSizing: 'border-box'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
                           <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>Live Notifications</span>
@@ -1726,15 +1726,14 @@ function App() {
                 const matched = patients.filter(p => {
                   const nameMatch = p.name.toLowerCase().includes(q);
                   const rawId = String(p.id).toLowerCase();
-                  const vhId = `vh${rawId.padStart(3, '0')}`.toLowerCase(); // Format: vh019, vh001
-                  const vhShortId = `vh${rawId}`.toLowerCase(); // Format: vh19
-                  const hashId = `#${rawId}`.toLowerCase();
+                  const numOnly = rawId.replace(/\D/g, '');
+                  const formattedId = numOnly ? `vh${numOnly.padStart(3, '0')}` : rawId;
+                  const hashId = `#${formattedId}`;
 
                   const idMatch =
                     rawId.includes(q) ||
-                    rawId.includes(qClean) ||
-                    vhId.includes(q) ||
-                    vhShortId.includes(q) ||
+                    (numOnly && (numOnly.includes(q) || numOnly.includes(qClean))) ||
+                    formattedId.includes(q) ||
                     hashId.includes(q);
 
                   const phoneMatch = p.contact && String(p.contact).includes(q);
@@ -1751,36 +1750,41 @@ function App() {
                   );
                 }
 
-                return matched.map(p => (
-                  <div
-                    key={p.id}
-                    style={{
-                      padding: '0.85rem 1rem',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)',
-                      marginBottom: '0.5rem',
-                      display: 'flex',
-                      justify: 'space-between',
-                      alignItems: 'center',
-                      background: 'var(--bg-card)'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                        {p.name} <span style={{ color: 'var(--primary)', fontSize: '0.82rem', marginLeft: '0.4rem', fontWeight: 800 }}>#VH{String(p.id).padStart(3, '0')}</span>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                        {p.age} Yrs • {p.gender} {p.contact ? `• ${p.contact}` : ''}
-                      </div>
-                    </div>
+                return matched.map(p => {
+                  const numOnly = String(p.id).replace(/\D/g, '');
+                  const formattedDisplayId = numOnly ? `#VH${numOnly.padStart(3, '0')}` : (String(p.id).startsWith('#') ? p.id : `#${p.id}`);
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span className={`badge badge-${(p.status || 'registered').toLowerCase().replace(' ', '')}`}>
-                        {p.status === 'Registered' ? 'In Queue' : p.status}
-                      </span>
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        padding: '0.85rem 1rem',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
+                        marginBottom: '0.5rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--bg-card)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                          {p.name} <span style={{ color: 'var(--primary)', fontSize: '0.82rem', marginLeft: '0.4rem', fontWeight: 800 }}>{formattedDisplayId}</span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                          {p.age} Yrs • {p.gender} {p.contact ? `• ${p.contact}` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span className={`badge badge-${(p.status || 'registered').toLowerCase().replace(' ', '')}`}>
+                          {p.status === 'Registered' ? 'In Queue' : p.status}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ));
+                  );
+                });
               })()}
             </div>
           </div>
