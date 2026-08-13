@@ -344,13 +344,22 @@ function App() {
   };
 
   const handleDeleteDoctor = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this doctor?')) return;
     try {
-      const response = await fetch(`${API_BASE}/api/doctors/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/doctors/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+      });
       if (response.ok) {
-        setDoctorsList(prev => prev.filter(d => d.id !== id));
+        setDoctorsList(prev => prev.filter(d => String(d.id) !== String(id)));
+        alert('Doctor deleted successfully!');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(`Failed to delete doctor: ${err.message || 'Server error'}`);
       }
     } catch (err) {
       console.error("Error deleting doctor:", err);
+      alert('Error deleting doctor');
     }
   };
 
@@ -377,35 +386,61 @@ function App() {
   };
 
   const handleDeleteStaff = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
     try {
-      const response = await fetch(`${API_BASE}/api/staff/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/staff/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+      });
       if (response.ok) {
-        setStaffList(staffList.filter(s => s.id !== id));
+        setStaffList(prev => prev.filter(s => String(s.id) !== String(id)));
+        alert('Staff deleted successfully!');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(`Failed to delete staff: ${err.message || 'Server error'}`);
       }
     } catch (err) {
       console.error("Error deleting staff:", err);
+      alert('Error deleting staff');
     }
   };
 
   const handleDeletePatient = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this patient record?')) return;
     try {
-      const response = await fetch(`${API_BASE}/api/patients/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/patients/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+      });
       if (response.ok) {
-        setPatients(patients.map(p => p.id === id ? { ...p, status: 'Inactive', tokenNumber: null, registrationDate: null } : p));
+        setPatients(prev => prev.map(p => (String(p.id).toLowerCase() === String(id).toLowerCase() ? { ...p, status: 'Inactive', tokenNumber: null, registrationDate: null } : p)));
+        alert('Patient record inactivated successfully!');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(`Failed to delete patient: ${err.message || 'Server error'}`);
       }
     } catch (err) {
       console.error("Error deleting patient:", err);
+      alert('Error deleting patient');
     }
   };
 
   const handleDeleteAllPatients = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/patients`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/patients`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+      });
       if (response.ok) {
         setPatients([]);
+        alert('All patients deleted successfully!');
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(`Failed to delete all patients: ${err.message || 'Server error'}`);
       }
     } catch (err) {
       console.error("Error deleting all patients:", err);
+      alert('Error deleting all patients');
     }
   };
 

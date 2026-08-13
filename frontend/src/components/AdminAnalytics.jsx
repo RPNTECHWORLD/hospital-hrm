@@ -198,8 +198,32 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
   staffList.forEach(s => { roleMap[s.role] = (roleMap[s.role] || 0) + 1; });
   const roleSeg = Object.entries(roleMap).map(([r, v]) => ({ label: r.charAt(0).toUpperCase() + r.slice(1), value: v, color: ROLE_CLR[r] || '#94a3b8' }));
 
-  /* Geographic / Pincode Distribution (Normalized & Grouped) */
+  /* Geographic / Pincode Distribution (Calculated strictly from registered patient records) */
   const locationGroupMap = {};
+
+  const extractCityName = (addr) => {
+    if (!addr) return '';
+    if (addr.includes(' | ')) {
+      const parts = addr.split(' | ').map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2 && parts[1] && !/^\d+$/.test(parts[1])) {
+        return parts[1];
+      }
+      if (parts[0] && !/street|st\b|road|rd\b|nagar|lane|door|no\b|3rd|2nd|1st|4th|^\d+$/i.test(parts[0])) {
+        return parts[0];
+      }
+      return '';
+    }
+    const clean = addr.replace(/,\s*/g, ' ').trim();
+    if (/street|st\b|road|rd\b|nagar|door|no\b|3rd|2nd|1st|4th/i.test(clean)) return '';
+    const words = clean.split(/\s+/).filter(w => !/^\d+$/.test(w));
+    return words.length > 0 ? words.slice(-2).join(' ') : '';
+  };
+
+  const extractPincodeVal = (addr) => {
+    if (!addr) return '';
+    const match = addr.match(/\b(6\d{5})\b/);
+    return match ? match[1] : '';
+  };
 
   patients.forEach(p => {
     const addr = (p.address || '').trim();
@@ -209,24 +233,27 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
       return;
     }
 
-    const pinMatch = addr.match(/\b(6\d{5})\b/);
-    const pin = pinMatch ? pinMatch[1] : null;
+    const cityRaw = extractCityName(addr);
+    const pin = extractPincodeVal(addr);
 
-    let placeName = '';
-    if (addr.includes(' | ')) {
-      const parts = addr.split(' | ').map(s => s.trim()).filter(Boolean);
-      placeName = parts[0] || parts[1] || 'Tamil Nadu Region';
+    let city = cityRaw.replace(/town|city/gi, '').trim();
+    if (city && !/street|st\b|road|rd\b|3rd/i.test(city)) {
+      city = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     } else {
-      const cleanAddr = addr.replace(/,\s*/g, ' ').trim();
-      const words = cleanAddr.split(/\s+/);
-      placeName = words.length > 2 ? words.slice(-2).join(' ') : cleanAddr;
+      city = '';
     }
 
-    // Standardize Case (e.g. "chidambaram" -> "Chidambaram")
-    placeName = placeName.replace(/town|city/gi, '').trim();
-    placeName = placeName ? placeName.charAt(0).toUpperCase() + placeName.slice(1).toLowerCase() : 'Tamil Nadu';
+    let key = '';
+    if (city && pin) {
+      key = city.includes(pin) ? city : `${city} (${pin})`;
+    } else if (city) {
+      key = city;
+    } else if (pin) {
+      key = `Pincode ${pin}`;
+    } else {
+      key = 'Not Specified';
+    }
 
-    const key = pin ? `${placeName} (${pin})` : placeName;
     locationGroupMap[key] = (locationGroupMap[key] || 0) + 1;
   });
 

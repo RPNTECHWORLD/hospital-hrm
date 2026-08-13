@@ -1,4 +1,4 @@
-import pg from 'pg';
+import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -6,6 +6,7 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbJsonPath = path.join(__dirname, 'db.json');
+const sqliteDbPath = path.join(__dirname, 'hospital.db');
 
 // Load environment variables from .env and .env.local
 ['.env', '.env.local'].forEach(envFile => {
@@ -32,57 +33,25 @@ const dbJsonPath = path.join(__dirname, 'db.json');
   }
 });
 
-let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
-
-if (connectionString.includes('sslmode=')) {
-  connectionString = connectionString.replace(/[\?&]sslmode=[^&]+/gi, '');
-}
-
-const pool = new pg.Pool({
-  connectionString,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-  keepAlive: true,
-  ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech')
-    ? { rejectUnauthorized: false }
-    : false
+// Initialize SQLite Database Connection
+const db = new sqlite3.Database(sqliteDbPath, (err) => {
+  if (err) {
+    console.error("Failed to connect to SQLite database:", err.message);
+  } else {
+    console.log("Connected to SQLite database at:", sqliteDbPath);
+  }
 });
 
-// Handle idle client errors so Supabase connection resets (ECONNRESET) don't crash the server
-pool.on('error', (err) => {
-  console.error('PostgreSQL Pool idle client error (handled):', err.message);
-});
+// Enable foreign keys
+db.run("PRAGMA foreign_keys = ON;");
 
-// Helper to convert SQLite ? to Postgres $1, $2, etc.
-const convertPlaceholders = (sql) => {
-  let index = 1;
-  return sql.replace(/\?/g, () => `$${index++}`);
-};
-
-export const dbRun = async (query, params = []) => {
-  let sql = convertPlaceholders(query);
-
-  if (sql.toUpperCase().includes('INSERT OR IGNORE')) {
-    sql = sql.replace(/INSERT OR IGNORE/gi, 'INSERT');
-    if (sql.toLowerCase().includes('staff')) {
-      sql += ' ON CONFLICT (email) DO NOTHING';
-    } else if (sql.toLowerCase().includes('doctors')) {
-      sql += ' ON CONFLICT (email) DO NOTHING';
-    }
-  }
-
-  const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
-  if (isInsert && !sql.toUpperCase().includes('RETURNING')) {
-    sql += ' RETURNING id';
-  }
-
-  const result = await pool.query(sql, params);
-
-  if (isInsert && result.rows && result.rows.length > 0) {
-    return { lastID: result.rows[0].id };
-  }
-  return { lastID: null, rowsAffected: result.rowCount };
+export const dbRun = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(query, params, function (err) {
+      if (err) return reject(err);
+      resolve({ lastID: this.lastID, rowsAffected: this.changes });
+    });
+  });
 };
 
 const camelCaseMap = {
@@ -155,16 +124,22 @@ const camelizeObject = (obj) => {
   return newObj;
 };
 
-export const dbAll = async (query, params = []) => {
-  const sql = convertPlaceholders(query);
-  const result = await pool.query(sql, params);
-  return camelizeObject(result.rows);
+export const dbAll = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(camelizeObject(rows || []));
+    });
+  });
 };
 
-export const dbGet = async (query, params = []) => {
-  const sql = convertPlaceholders(query);
-  const result = await pool.query(sql, params);
-  return camelizeObject(result.rows[0]) || null;
+export const dbGet = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(camelizeObject(row) || null);
+    });
+  });
 };
 
 // Initialize Database Tables
@@ -172,7 +147,7 @@ export const initDB = async () => {
   // Create Doctors
   await dbRun(`
     CREATE TABLE IF NOT EXISTS doctors (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       specialty TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
@@ -183,7 +158,7 @@ export const initDB = async () => {
   // Create Staff
   await dbRun(`
     CREATE TABLE IF NOT EXISTS staff (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       role TEXT NOT NULL,
@@ -203,7 +178,7 @@ export const initDB = async () => {
       assignedDoctorId INTEGER,
       status TEXT NOT NULL,
       diagnosis TEXT,
-      prescription TEXT, -- JSON string of prescription array
+      prescription TEXT,
       issuedMedication TEXT,
       paymentStatus TEXT NOT NULL,
       wardBedId TEXT,
@@ -229,59 +204,48 @@ export const initDB = async () => {
     )
   `);
 
-  // Migrate existing patients table if missing motherOrGuardianName or bedAdmissionPending
-  await dbRun(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS motherOrGuardianName TEXT`);
-  await dbRun(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS bedAdmissionPending INTEGER DEFAULT 0`);
-  try {
-    await dbRun(`ALTER TABLE patients ALTER COLUMN wardbedid TYPE TEXT`);
-  } catch (e) {
-    console.log("Migration warning for wardbedid column type:", e.message);
+  // Migration for adding optional columns
+  const alterColumns = [
+    `ALTER TABLE patients ADD COLUMN motherOrGuardianName TEXT`,
+    `ALTER TABLE patients ADD COLUMN bedAdmissionPending INTEGER DEFAULT 0`,
+    `ALTER TABLE patients ADD COLUMN paidAmount NUMERIC DEFAULT 0`,
+    `ALTER TABLE patients ADD COLUMN feeBreakdown TEXT`,
+    `ALTER TABLE patients ADD COLUMN isChild INTEGER DEFAULT 0`,
+    `ALTER TABLE patients ADD COLUMN childGa TEXT`,
+    `ALTER TABLE patients ADD COLUMN childBirthDate TEXT`,
+    `ALTER TABLE patients ADD COLUMN childBirthWeight TEXT`,
+    `ALTER TABLE patients ADD COLUMN childPlaceOfBirth TEXT`,
+    `ALTER TABLE patients ADD COLUMN childDeliveryType TEXT`,
+    `ALTER TABLE patients ADD COLUMN childNicuHistory TEXT`,
+    `ALTER TABLE patients ADD COLUMN specialInvestigation INTEGER DEFAULT 0`,
+    `ALTER TABLE patients ADD COLUMN specialInvestigationNotes TEXT`,
+    `ALTER TABLE patients ADD COLUMN dob TEXT`,
+    `ALTER TABLE patients ADD COLUMN respiratoryRate TEXT`,
+    `ALTER TABLE patients ADD COLUMN painScale TEXT`,
+    `ALTER TABLE patients ADD COLUMN headCircumference TEXT`,
+    `ALTER TABLE patients ADD COLUMN avpu TEXT`,
+    `ALTER TABLE patients ADD COLUMN pharmacyStatus TEXT DEFAULT 'N/A'`,
+    `ALTER TABLE patients ADD COLUMN injectionStatus TEXT DEFAULT 'N/A'`,
+    `ALTER TABLE patients ADD COLUMN trackingHistory TEXT`,
+    `ALTER TABLE patients ADD COLUMN previousDoctor TEXT`,
+    `ALTER TABLE patients ADD COLUMN pendingReassignment TEXT`,
+    `ALTER TABLE patients ADD COLUMN reassignmentDeclined TEXT`
+  ];
+
+  for (const sql of alterColumns) {
+    try { await dbRun(sql); } catch (e) {}
   }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN paidamount NUMERIC DEFAULT 0`);
-  } catch (e) {
-    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
-      console.log("Migration warning for paidamount column:", e.message);
-    }
-  }
-  try {
-    await dbRun(`ALTER TABLE patients ADD COLUMN feebreakdown TEXT`);
-  } catch (e) {
-    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
-      console.log("Migration warning for feebreakdown column:", e.message);
-    }
-  }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN ischild INTEGER DEFAULT 0`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childga TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthdate TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childbirthweight TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childplaceofbirth TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childdeliverytype TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN childnicuhistory TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigation INTEGER DEFAULT 0`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN specialinvestigationnotes TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN dob TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN respiratoryrate TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN painscale TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN headcircumference TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN avpu TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN pharmacystatus TEXT DEFAULT 'N/A'`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN injectionstatus TEXT DEFAULT 'N/A'`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN trackinghistory TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN previousdoctor TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN pendingreassignment TEXT`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE patients ADD COLUMN reassignmentdeclined TEXT`); } catch (e) { }
 
   // Create Patient History
   await dbRun(`
     CREATE TABLE IF NOT EXISTS patient_history (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       patientId TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-      visitId BIGINT,
+      visitId INTEGER,
       date TEXT NOT NULL,
       doctorName TEXT NOT NULL,
       diagnosis TEXT,
-      prescription TEXT, -- JSON string of prescription array
+      prescription TEXT,
       prescriptionImg TEXT,
       issuedMedication TEXT,
       paymentStatus TEXT,
@@ -292,7 +256,7 @@ export const initDB = async () => {
   // Create Staff Attendance
   await dbRun(`
     CREATE TABLE IF NOT EXISTS staff_attendance (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       staffId INTEGER NOT NULL,
       date TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -300,18 +264,12 @@ export const initDB = async () => {
       shift TEXT DEFAULT 'Day'
     )
   `);
-  try {
-    await dbRun(`ALTER TABLE staff_attendance ADD COLUMN shift TEXT DEFAULT 'Day'`);
-  } catch (e) {
-    if (!e.message.includes('already exists') && !e.message.includes('duplicate column')) {
-      console.log("Migration warning for shift column in staff_attendance:", e.message);
-    }
-  }
+  try { await dbRun(`ALTER TABLE staff_attendance ADD COLUMN shift TEXT DEFAULT 'Day'`); } catch (e) {}
 
   // Create Directory Ledger
   await dbRun(`
     CREATE TABLE IF NOT EXISTS directory_ledger (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       category TEXT NOT NULL,
       phone TEXT NOT NULL,
@@ -323,7 +281,7 @@ export const initDB = async () => {
   // Create Housekeeping Checklist
   await dbRun(`
     CREATE TABLE IF NOT EXISTS housekeeping_checklist (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       placeName TEXT NOT NULL,
       date TEXT NOT NULL,
       isCleaned INTEGER DEFAULT 0,
@@ -335,7 +293,7 @@ export const initDB = async () => {
   // Create Medical Waste Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS medical_waste (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       wasteType TEXT NOT NULL,
       weight REAL NOT NULL,
@@ -348,7 +306,7 @@ export const initDB = async () => {
   // Create Pharmacy Ledger
   await dbRun(`
     CREATE TABLE IF NOT EXISTS pharmacy_ledger (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       type TEXT NOT NULL,
       description TEXT NOT NULL,
@@ -357,12 +315,12 @@ export const initDB = async () => {
       paymentMethod TEXT DEFAULT 'Cash'
     )
   `);
-  try { await dbRun(`ALTER TABLE pharmacy_ledger ADD COLUMN IF NOT EXISTS paymentMethod TEXT DEFAULT 'Cash'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE pharmacy_ledger ADD COLUMN paymentMethod TEXT DEFAULT 'Cash'`); } catch (e) {}
 
   // Create Lab Logs
   await dbRun(`
     CREATE TABLE IF NOT EXISTS lab_logs (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       patientId TEXT NOT NULL,
       testName TEXT NOT NULL,
       dateOrdered TEXT NOT NULL,
@@ -371,16 +329,12 @@ export const initDB = async () => {
       reportImg TEXT
     )
   `);
-  try {
-    await dbRun(`ALTER TABLE lab_logs ADD COLUMN IF NOT EXISTS reportImg TEXT`);
-  } catch (e) {
-    console.log("Migration warning for reportImg column in lab_logs:", e.message);
-  }
+  try { await dbRun(`ALTER TABLE lab_logs ADD COLUMN reportImg TEXT`); } catch (e) {}
 
   // Create Vaccinations Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS vaccinations_log (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       patientId TEXT NOT NULL,
       vaccineName TEXT NOT NULL,
       dateGiven TEXT NOT NULL,
@@ -392,7 +346,7 @@ export const initDB = async () => {
   // Create Injections Log
   await dbRun(`
     CREATE TABLE IF NOT EXISTS injections_log (
-      id SERIAL PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       patientId TEXT NOT NULL,
       injectionName TEXT NOT NULL,
       dosage TEXT NOT NULL,
@@ -406,14 +360,13 @@ export const initDB = async () => {
     )
   `);
 
-  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS route TEXT DEFAULT 'IV'`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS frequency TEXT DEFAULT 'STAT'`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS isStat INTEGER DEFAULT 1`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS administeredBy TEXT DEFAULT ''`); } catch (e) { }
-  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT ''`); } catch (e) { }
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN route TEXT DEFAULT 'IV'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN frequency TEXT DEFAULT 'STAT'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN isStat INTEGER DEFAULT 1`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN administeredBy TEXT DEFAULT ''`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE injections_log ADD COLUMN notes TEXT DEFAULT ''`); } catch (e) {}
 
-
-  // Ensure injection and lab default staff accounts always exist
+  // Ensure injection and lab default staff accounts exist
   await dbRun(
     `INSERT OR IGNORE INTO staff (name, email, role, password) VALUES (?, ?, ?, ?)`,
     ['Injection Desk Nurse', 'injection@vijayas.com', 'injection', 'password123']
@@ -425,12 +378,11 @@ export const initDB = async () => {
 
   // Migrate data from db.json if database is empty
   const docCount = await dbGet(`SELECT count(*) as count FROM doctors`);
-  if (docCount.count === 0 && fs.existsSync(dbJsonPath)) {
+  if ((!docCount || docCount.count === 0) && fs.existsSync(dbJsonPath)) {
     console.log("Migrating data from db.json to SQLite database...");
     try {
       const dbJson = JSON.parse(fs.readFileSync(dbJsonPath, 'utf8'));
 
-      // Insert doctors
       if (dbJson.doctors) {
         for (const doc of dbJson.doctors) {
           await dbRun(
@@ -440,7 +392,6 @@ export const initDB = async () => {
         }
       }
 
-      // Insert staff
       if (dbJson.staff) {
         for (const st of dbJson.staff) {
           await dbRun(
@@ -450,7 +401,6 @@ export const initDB = async () => {
         }
       }
 
-      // Insert patients and their history
       if (dbJson.patients) {
         for (const pat of dbJson.patients) {
           await dbRun(
@@ -473,7 +423,6 @@ export const initDB = async () => {
             ]
           );
 
-          // Insert patient history
           if (pat.history && pat.history.length > 0) {
             for (const h of pat.history) {
               await dbRun(
@@ -502,8 +451,6 @@ export const initDB = async () => {
     }
   }
 
-  try { await dbRun(`SELECT setval('doctors_id_seq', COALESCE((SELECT MAX(id) FROM doctors), 1))`); } catch (e) {}
-  try { await dbRun(`SELECT setval('staff_id_seq', COALESCE((SELECT MAX(id) FROM staff), 1))`); } catch (e) {}
   try {
     await dbRun(`UPDATE patients SET status = 'In Queue' WHERE status = 'Registered'`);
     await dbRun(`UPDATE patients SET status = 'Completed' WHERE status = 'Inactive' AND (diagnosis IS NOT NULL AND diagnosis != '')`);
@@ -511,7 +458,7 @@ export const initDB = async () => {
   } catch (e) {}
 
   try {
-    const allPats = await dbAll(`SELECT id, assignedDoctorId, trackinghistory, previousdoctor FROM patients`);
+    const allPats = await dbAll(`SELECT id, assignedDoctorId, trackingHistory, previousDoctor FROM patients`);
     for (const pat of allPats) {
       if (!pat.previousdoctor) {
         let trackingLogs = [];
@@ -524,7 +471,7 @@ export const initDB = async () => {
           resolvedPrev = 'Dr. Vijayan';
         }
         if (resolvedPrev) {
-          await dbRun(`UPDATE patients SET previousdoctor = ? WHERE id = ?`, [resolvedPrev, pat.id]);
+          await dbRun(`UPDATE patients SET previousDoctor = ? WHERE id = ?`, [resolvedPrev, pat.id]);
         }
       }
     }
@@ -543,15 +490,15 @@ export const addDoctor = async (doc) => {
     );
     return { id: doc.id, name: doc.name, specialty: doc.specialty, email: doc.email };
   } else {
-    const res = await dbGet(
-      `INSERT INTO doctors (name, specialty, email, password) VALUES (?, ?, ?, ?) RETURNING id`,
+    const res = await dbRun(
+      `INSERT INTO doctors (name, specialty, email, password) VALUES (?, ?, ?, ?)`,
       [doc.name, doc.specialty, doc.email, doc.password || 'password123']
     );
-    const newId = res ? res.id : Date.now();
+    const newId = res ? res.lastID : Date.now();
     return { id: newId, name: doc.name, specialty: doc.specialty, email: doc.email };
   }
 };
-export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ?`, [id]);
+export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
 
 export const getStaff = () => dbAll(`SELECT * FROM staff`);
 export const addStaff = async (st) => {
@@ -562,15 +509,15 @@ export const addStaff = async (st) => {
     );
     return { id: st.id, name: st.name, email: st.email, role: st.role };
   } else {
-    const res = await dbGet(
-      `INSERT INTO staff (name, email, role, password) VALUES (?, ?, ?, ?) RETURNING id`,
+    const res = await dbRun(
+      `INSERT INTO staff (name, email, role, password) VALUES (?, ?, ?, ?)`,
       [st.name, st.email, st.role, st.password || 'password123']
     );
-    const newId = res ? res.id : Date.now();
+    const newId = res ? res.lastID : Date.now();
     return { id: newId, name: st.name, email: st.email, role: st.role };
   }
 };
-export const deleteStaff = (id) => dbRun(`DELETE FROM staff WHERE id = ?`, [id]);
+export const deleteStaff = (id) => dbRun(`DELETE FROM staff WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
 export const deletePatient = (id) => dbRun(
   `UPDATE patients SET status = 'Inactive', tokenNumber = NULL, registrationDate = NULL WHERE id = ?`,
   [id]
@@ -832,7 +779,6 @@ export const getPatientById = async (id) => {
   };
 };
 
-
 const getNextPatientId = async () => {
   const patients = await dbAll(`SELECT id FROM patients`);
   let maxNum = 0;
@@ -956,36 +902,6 @@ export const updatePatient = async (id, data) => {
   const fields = [];
   const params = [];
 
-  const pgColumnMap = {
-    assignedDoctorId: 'assigneddoctorid',
-    issuedMedication: 'issuedmedication',
-    paymentStatus: 'paymentstatus',
-    wardBedId: 'wardbedid',
-    bedAdmissionPending: 'bedadmissionpending',
-    fatherOrHusbandName: 'fatherorhusbandname',
-    motherOrGuardianName: 'motherorguardianname',
-    alternatePhone: 'alternatephone',
-    tokenNumber: 'tokennumber',
-    registrationDate: 'registrationdate',
-    prescriptionImg: 'prescriptionimg',
-    pastHistory: 'pasthistory',
-    paidAmount: 'paidamount',
-    feeBreakdown: 'feebreakdown',
-    isChild: 'ischild',
-    childGa: 'childga',
-    childBirthDate: 'childbirthdate',
-    childBirthWeight: 'childbirthweight',
-    childPlaceOfBirth: 'childplaceofbirth',
-    childDeliveryType: 'childdeliverytype',
-    childNicuHistory: 'childnicuhistory',
-    specialInvestigation: 'specialinvestigation',
-    specialInvestigationNotes: 'specialinvestigationnotes',
-    trackingHistory: 'trackinghistory',
-    previousDoctor: 'previousdoctor',
-    pendingReassignment: 'pendingreassignment',
-    reassignmentDeclined: 'reassignmentdeclined'
-  };
-
   const keys = [
     'name', 'age', 'gender', 'contact', 'address',
     'assignedDoctorId', 'status', 'diagnosis',
@@ -999,8 +915,7 @@ export const updatePatient = async (id, data) => {
 
   for (const k of keys) {
     if (data[k] !== undefined) {
-      const colName = pgColumnMap[k] || k;
-      fields.push(`"${colName}" = ?`);
+      fields.push(`"${k}" = ?`);
       if (k === 'prescription' || k === 'trackingHistory' || k === 'pendingReassignment' || k === 'reassignmentDeclined') {
         params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
@@ -1087,7 +1002,7 @@ export const addPharmacyLedger = async (ledger) => {
     `INSERT INTO pharmacy_ledger (date, type, description, amount, agencyName, paymentMethod) VALUES (?, ?, ?, ?, ?, ?)`,
     [ledger.date, ledger.type, ledger.description, ledger.amount, ledger.agencyName, paymentMethod]
   );
-  return { id: result ? result.id : Date.now(), ...ledger, paymentMethod };
+  return { id: result ? result.lastID : Date.now(), ...ledger, paymentMethod };
 };
 
 // Lab Logs
@@ -1139,7 +1054,7 @@ export const addInjection = async (inj) => {
   const routeStr = String(route).trim();
   const freqStr = String(frequency).trim();
 
-  // Check if identical injection entry already exists for this patient (Patient + Medicine + Dose + Route + Frequency all match)
+  // Check if identical injection entry already exists for this patient
   const existing = await dbGet(
     `SELECT * FROM injections_log 
      WHERE LOWER(TRIM(patientId)) = LOWER(?) 

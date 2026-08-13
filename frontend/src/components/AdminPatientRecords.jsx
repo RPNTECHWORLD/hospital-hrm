@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope } from 'lucide-react';
 
 // Helper: extract city from address string "street | city | pincode"
 const extractCity = (address) => {
@@ -203,13 +203,17 @@ const AdminPatientRecords = ({
 
       // 7. City / Town Filter
       const matchesCity =
+        !cityFilter ||
         cityFilter === 'all' ||
-        extractCity(p.address).toLowerCase() === cityFilter.toLowerCase();
+        (p.address && p.address.toLowerCase().includes(cityFilter.trim().toLowerCase())) ||
+        extractCity(p.address).toLowerCase().includes(cityFilter.trim().toLowerCase());
 
       // 8. Pincode Filter
       const matchesPincode =
+        !pincodeFilter ||
         pincodeFilter === 'all' ||
-        extractPincode(p.address) === pincodeFilter;
+        (p.address && p.address.includes(pincodeFilter.trim())) ||
+        extractPincode(p.address).includes(pincodeFilter.trim());
 
       return matchesSearch && matchesStatus && matchesDate && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
     });
@@ -349,17 +353,14 @@ const AdminPatientRecords = ({
             <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <MapPin size={12} style={{ color: 'var(--primary)' }} /> City / Town Filter
             </label>
-            <select
+            <input
+              type="text"
               className="form-input"
-              value={cityFilter}
+              placeholder="Search City / Town..."
+              value={cityFilter === 'all' ? '' : cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
               style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="all">All Cities / Towns</option>
-              {uniqueCities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Pincode Filter */}
@@ -367,17 +368,14 @@ const AdminPatientRecords = ({
             <label className="form-label" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <MapPin size={12} style={{ color: '#f59e0b' }} /> Pincode Filter
             </label>
-            <select
+            <input
+              type="text"
               className="form-input"
-              value={pincodeFilter}
+              placeholder="Search Pincode..."
+              value={pincodeFilter === 'all' ? '' : pincodeFilter}
               onChange={(e) => setPincodeFilter(e.target.value)}
               style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="all">All Pincodes</option>
-              {uniquePincodes.map(pin => (
-                <option key={pin} value={pin}>{pin}</option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Custom Age Ranges */}
