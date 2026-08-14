@@ -1223,10 +1223,23 @@ function App() {
           <Menu size={24} />
         </button>
         <div className="mobile-logo">
-          <div className="logo-icon" style={{ padding: '0.35rem', boxShadow: 'none' }}>
-            <Stethoscope size={18} />
+          <img 
+            src="/vijayas-logo.png" 
+            alt="Vijaya's Health Care Logo" 
+            className="mobile-logo-img"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.nextElementSibling) {
+                e.target.nextElementSibling.style.display = 'flex';
+              }
+            }}
+          />
+          <div className="mobile-logo-fallback" style={{ display: 'none', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="logo-icon" style={{ padding: '0.35rem', boxShadow: 'none' }}>
+              <Stethoscope size={18} />
+            </div>
+            <span className="logo-text-mobile">Vijaya's <span className="logo-sub">Health Care</span></span>
           </div>
-          <span className="logo-text-mobile">Vijaya's <span className="logo-sub">Health Care</span></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
@@ -1262,11 +1275,24 @@ function App() {
         </button>
 
         <div className="logo-container">
-          <div className="logo-icon">
-            <Stethoscope size={24} />
-          </div>
-          <div>
-            <h1 className="logo-text">Vijaya's <span className="logo-sub">Health Care</span></h1>
+          <img 
+            src="/vijayas-logo.png" 
+            alt="Vijaya's Health Care Logo" 
+            className="sidebar-logo-img"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.nextElementSibling) {
+                e.target.nextElementSibling.style.display = 'flex';
+              }
+            }}
+          />
+          <div className="logo-text-fallback" style={{ display: 'none', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="logo-icon">
+              <Stethoscope size={24} />
+            </div>
+            <div>
+              <h1 className="logo-text">Vijaya's <span className="logo-sub">Health Care</span></h1>
+            </div>
           </div>
         </div>
 
@@ -1511,15 +1537,14 @@ function App() {
 
 
             {/* Notification Center */}
-            <div style={{ position: 'relative' }}>
+            <div className="user-badge" style={{ position: 'relative' }}>
               {(() => {
-                const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-                const todayPatients = patients.filter(p => p.status !== 'Inactive' && isSameDayStr(p.registrationDate, todayStr));
-                const queueWaitingCount = todayPatients.filter(p => ['In Queue', 'Registered'].includes(p.status)).length;
-                const pharmacyPendingCount = patients.filter(p => p.status !== 'Inactive' && ['At Pharmacy', 'Pending Pharmacy'].includes(p.status)).length;
                 const wardPendingCount = patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length;
-                const reassignPendingCount = patients.filter(p => p && p.pendingReassignment && p.status !== 'Inactive').length;
-                const hasActiveAlerts = queueWaitingCount > 0 || pharmacyPendingCount > 0 || wardPendingCount > 0 || reassignPendingCount > 0;
+                const pharmacyPendingCount = patients.filter(p => p.pharmacyPending === 1 && p.status !== 'Inactive').length;
+                const queueWaitingCount = patients.filter(p => p.queueStatus === 'Waiting' && p.status !== 'Inactive').length;
+                const reassignPendingCount = patients.filter(p => p.doctorReassigned === 1 && p.status !== 'Inactive').length;
+                const totalAlerts = wardPendingCount + pharmacyPendingCount + reassignPendingCount;
+                const hasActiveAlerts = totalAlerts > 0;
 
                 return (
                   <>
@@ -1570,6 +1595,10 @@ function App() {
         </header>
 
         {renderDashboard()}
+
+        <footer className="global-app-footer">
+          Developed by <span className="footer-brand">RPN Tech World</span>
+        </footer>
       </main>
 
       {/* ===== GLOBAL WARD ADMIT MODAL ===== */}

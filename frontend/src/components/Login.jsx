@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import loginPageLogo from '../assets/login page logo.png';
 import { 
   Stethoscope, 
   User, 
@@ -106,26 +107,38 @@ const Login = ({ onLogin }) => {
 
       <div className="login-wrapper fade-in">
         {/* Single Centered Login Card */}
-        <div className="login-card">
-          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-            <div style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              width: '54px', 
-              height: '54px', 
-              borderRadius: '16px', 
-              background: 'linear-gradient(135deg, #e31e24 0%, #b91c1c 100%)',
-              color: '#ffffff',
-              boxShadow: '0 8px 20px rgba(227, 30, 36, 0.35)',
-              marginBottom: '0.85rem'
-            }}>
-              <Stethoscope size={30} />
-            </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
-              VIJAYA'S <span style={{ color: '#e31e24' }}>HEALTH CARE</span>
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '0.25rem' }}>
+        <div className="login-card" style={{ position: 'relative' }}>
+          {/* Top Left Corner Logo */}
+          <img 
+            src="/vijayas-logo.png" 
+            alt="Vijaya's Health Care Logo" 
+            className="login-top-left-logo"
+            style={{
+              position: 'absolute',
+              top: '1.25rem',
+              left: '1.5rem',
+              maxHeight: '42px',
+              maxWidth: '130px',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.12))'
+            }} 
+          />
+
+          <div style={{ textAlign: 'center', marginBottom: '1.25rem', paddingTop: '0.5rem' }}>
+            <img 
+              src={loginPageLogo} 
+              alt="Hospital Management System Logo" 
+              className="login-logo-img"
+              style={{
+                maxHeight: '115px',
+                maxWidth: '100%',
+                objectFit: 'contain',
+                margin: '0 auto 0 auto',
+                display: 'block',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))'
+              }} 
+            />
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0.15rem 0 0 0' }}>
               Hospital Management System Portal
             </p>
           </div>
@@ -233,6 +246,10 @@ const Login = ({ onLogin }) => {
               {loading ? 'Authenticating...' : <>Sign In to Portal <ArrowRight size={18} /></>}
             </button>
           </form>
+
+          <div className="login-footer-credit">
+            Developed by <span>RPN Tech World</span>
+          </div>
         </div>
       </div>
     </div>

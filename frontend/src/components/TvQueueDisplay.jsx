@@ -412,9 +412,13 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
           fontWeight: 500,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
-          textOverflow: 'ellipsis'
+          textOverflow: 'ellipsis',
+          flexGrow: 1
         }}>
           Please cooperate with clinic staff. Wait for your Token Number to be called before entering the consultation room. Thank you.
+        </div>
+        <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          Developed by <span style={{ color: '#38bdf8', fontWeight: 800 }}>RPN Tech World</span>
         </div>
       </footer>
     </div>

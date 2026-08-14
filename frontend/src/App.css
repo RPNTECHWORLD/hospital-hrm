@@ -102,8 +102,38 @@ h6 {
 .logo-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  padding: 0.25rem 0;
+  background: transparent;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.logo-container:hover {
+  transform: translateY(-1px);
+}
+
+.sidebar-logo-img {
+  max-width: 100%;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+}
+
+.mobile-logo-img {
+  max-height: 44px;
+  width: auto;
+  object-fit: contain;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
 
 .logo-icon {
@@ -2746,4 +2776,51 @@ input[type=number].no-spin {
     font-size: 0.85rem;
     padding: 0.25rem 0.4rem;
   }
+}
+
+/* Global App Footer Credits */
+.global-app-footer {
+  text-align: center;
+  padding: 1rem 1.5rem;
+  margin-top: auto;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  letter-spacing: 0.02em;
+}
+
+.global-app-footer .footer-brand {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+[data-theme="dark"] .global-app-footer .footer-brand {
+  color: var(--accent);
+}
+
+.sidebar-footer-credit {
+  text-align: center;
+  padding: 0.6rem 0.5rem 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.02em;
+}
+
+.sidebar-footer-credit span {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.login-footer-credit {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.login-footer-credit span {
+  font-weight: 800;
+  color: #e31e24;
 }
