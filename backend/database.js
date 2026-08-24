@@ -108,7 +108,8 @@ const camelCaseMap = {
   trackinghistory: 'trackingHistory',
   previousdoctor: 'previousDoctor',
   pendingreassignment: 'pendingReassignment',
-  reassignmentdeclined: 'reassignmentDeclined'
+  reassignmentdeclined: 'reassignmentDeclined',
+  lastlogindate: 'lastLoginDate'
 };
 
 const camelizeObject = (obj) => {
@@ -229,7 +230,8 @@ export const initDB = async () => {
     `ALTER TABLE patients ADD COLUMN trackingHistory TEXT`,
     `ALTER TABLE patients ADD COLUMN previousDoctor TEXT`,
     `ALTER TABLE patients ADD COLUMN pendingReassignment TEXT`,
-    `ALTER TABLE patients ADD COLUMN reassignmentDeclined TEXT`
+    `ALTER TABLE patients ADD COLUMN reassignmentDeclined TEXT`,
+    `ALTER TABLE doctors ADD COLUMN lastLoginDate TEXT`
   ];
 
   for (const sql of alterColumns) {
@@ -499,6 +501,7 @@ export const addDoctor = async (doc) => {
   }
 };
 export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
+export const updateDoctorLastLogin = (id, dateStr) => dbRun(`UPDATE doctors SET lastLoginDate = ? WHERE id = ? OR CAST(id AS TEXT) = ?`, [dateStr, id, String(id)]);
 
 export const getStaff = () => dbAll(`SELECT * FROM staff`);
 export const addStaff = async (st) => {

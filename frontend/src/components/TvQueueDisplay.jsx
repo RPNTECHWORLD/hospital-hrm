@@ -4,9 +4,22 @@ import { Monitor, LogOut } from 'lucide-react';
 const isSameDayStr = (d1, d2) => {
   if (!d1 || !d2) return false;
   if (d1 === d2) return true;
-  const dateA = new Date(d1);
-  const dateB = new Date(d2);
-  if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+  const parseD = (s) => {
+    if (!s) return null;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+    const parts = String(s).trim().split(/[/.-]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) {
+        const tryD = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+        if (!isNaN(tryD.getTime())) return tryD;
+      }
+    }
+    return null;
+  };
+  const dateA = parseD(d1);
+  const dateB = parseD(d2);
+  if (dateA && dateB) {
     return dateA.getFullYear() === dateB.getFullYear() &&
            dateA.getMonth() === dateB.getMonth() &&
            dateA.getDate() === dateB.getDate();
@@ -178,15 +191,15 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
             const matchesDoc = Number(p.assignedDoctorId) === Number(doctor.id) || String(p.assignedDoctorId) === String(doctor.id);
             if (!matchesDoc || p.status === 'Inactive') return false;
 
-            return isSameDayStr(p.registrationDate, todayStr);
+            return isSameDayStr(p.registrationDate, todayStr) || p.status === 'Reviewing' || p.status === 'Consulting';
           });
 
           // Now Consulting patient
           const nowConsulting = docPatients.find(p => p.status === 'Consulting');
 
-          // Up Next patients (status is In Queue, Registered, or Waiting, sorted by Token Number)
+          // Up Next patients (status is In Queue, Registered, Waiting, or Reviewing, sorted by Token Number)
           const upNext = docPatients
-            .filter(p => ['In Queue', 'Registered', 'Waiting'].includes(p.status))
+            .filter(p => ['In Queue', 'Registered', 'Waiting', 'Reviewing'].includes(p.status))
             .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
           // Skipped patients on hold

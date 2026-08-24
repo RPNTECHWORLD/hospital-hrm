@@ -767,9 +767,22 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const isSameDayStr = (d1, d2) => {
     if (!d1 || !d2) return false;
     if (d1 === d2) return true;
-    const dateA = new Date(d1);
-    const dateB = new Date(d2);
-    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+    const parseD = (s) => {
+      if (!s) return null;
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      const parts = String(s).trim().split(/[/.-]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const tryD = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+          if (!isNaN(tryD.getTime())) return tryD;
+        }
+      }
+      return null;
+    };
+    const dateA = parseD(d1);
+    const dateB = parseD(d2);
+    if (dateA && dateB) {
       return dateA.getFullYear() === dateB.getFullYear() &&
              dateA.getMonth() === dateB.getMonth() &&
              dateA.getDate() === dateB.getDate();
@@ -778,6 +791,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   };
 
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+
+  // Filter active doctors who have logged in today with user ID & password (same concept as Receptionist)
+  const availableDoctors = (doctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
+
   const myPatients = patients.filter(p => {
     const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId);
     if (!matchesDoc || p.status === 'Inactive') return false;
@@ -3095,20 +3112,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           zIndex: 99999,
           padding: '1rem'
         }} onClick={() => setReassignModalPatient(null)}>
-          <div className="card fade-in" style={{
-            maxWidth: '480px',
-            width: '100%',
-            background: 'var(--bg-card, #1e293b)',
-            border: '1px solid var(--border, rgba(255,255,255,0.1))',
-            borderRadius: '16px',
-            padding: '1.75rem',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
-          }} onClick={(e) => e.stopPropagation()}>
+          <div className="reassign-modal-card fade-in" onClick={(e) => e.stopPropagation()}>
             
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
               <div>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                   <UserPlus size={22} style={{ color: 'var(--primary)' }} />
                   Reassign Doctor
                 </h3>
@@ -3119,7 +3128,21 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               <button 
                 type="button" 
                 onClick={() => setReassignModalPatient(null)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', padding: '0.2rem 0.5rem' }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  transition: 'all 0.15s ease'
+                }}
               >
                 ✕
               </button>
@@ -3127,30 +3150,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
             {/* Patient Info Summary Badge */}
             <div style={{
-              background: 'rgba(99, 102, 241, 0.08)',
-              border: '1px solid rgba(99, 102, 241, 0.2)',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
               borderRadius: '10px',
               padding: '0.85rem 1rem',
               marginBottom: '1.25rem',
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center'
             }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
                   {reassignModalPatient.name}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                   {reassignModalPatient.age} Yrs • {reassignModalPatient.gender} • ID: #{reassignModalPatient.id}
                 </div>
               </div>
               <span style={{
-                background: 'rgba(59, 130, 246, 0.2)',
+                background: 'rgba(56, 189, 248, 0.18)',
                 color: 'var(--primary)',
                 fontWeight: 800,
-                fontSize: '0.8rem',
-                padding: '0.25rem 0.6rem',
-                borderRadius: '6px'
+                fontSize: '0.82rem',
+                padding: '0.3rem 0.7rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(56, 189, 248, 0.35)'
               }}>
                 Token #{reassignModalPatient.tokenNumber || '--'}
               </span>
@@ -3158,83 +3182,81 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
             {/* Doctor Selection Options List */}
             <div style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.6rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Select Doctor:
+              <label style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span>Select Doctor:</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--primary)', textTransform: 'none', fontWeight: 600 }}>
+                  Active Logged-In Doctors ({availableDoctors.length})
+                </span>
               </label>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                {doctors.map(doc => {
-                  const isCurrent = Number(doc.id) === Number(reassignModalPatient.assignedDoctorId);
-                  const isSelected = Number(doc.id) === Number(targetDoctorId);
-                  return (
-                    <div
-                      key={doc.id}
-                      onClick={() => {
-                        if (!isCurrent) setTargetDoctorId(doc.id);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justify: 'space-between',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '10px',
-                        border: isSelected 
-                          ? '2px solid var(--primary)' 
-                          : isCurrent 
-                          ? '1px solid rgba(255, 255, 255, 0.08)' 
-                          : '1px solid var(--border)',
-                        background: isSelected 
-                          ? 'rgba(99, 102, 241, 0.15)' 
-                          : isCurrent 
-                          ? 'rgba(255, 255, 255, 0.02)' 
-                          : 'var(--bg-dark, rgba(0,0,0,0.2))',
-                        cursor: isCurrent ? 'default' : 'pointer',
-                        opacity: isCurrent ? 0.6 : 1,
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
-                          color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justify: 'center',
-                          fontWeight: 700,
-                          fontSize: '0.85rem'
-                        }}>
-                          {doc.name.replace('Dr.', '').trim().charAt(0)}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
-                            {doc.name}
+                {availableDoctors.length === 0 ? (
+                  <div style={{
+                    padding: '1.25rem 1rem',
+                    textAlign: 'center',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: '10px',
+                    border: '1px dashed var(--border)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.85rem'
+                  }}>
+                    No other active doctors logged in today for reassignment.
+                  </div>
+                ) : (
+                  availableDoctors.map(doc => {
+                    const isCurrent = Number(doc.id) === Number(reassignModalPatient.assignedDoctorId);
+                    const isSelected = Number(doc.id) === Number(targetDoctorId);
+                    return (
+                      <div
+                        key={doc.id}
+                        onClick={() => {
+                          if (!isCurrent) setTargetDoctorId(doc.id);
+                        }}
+                        className={`reassign-doctor-item ${isSelected ? 'selected' : ''} ${isCurrent ? 'disabled' : ''}`}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '50%',
+                            background: isSelected ? 'var(--primary)' : 'rgba(56, 189, 248, 0.15)',
+                            color: isSelected ? '#ffffff' : 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '0.85rem'
+                          }}>
+                            {doc.name.replace('Dr.', '').trim().charAt(0)}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {doc.specialty || 'General Practice'}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.92rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                              {doc.name}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {doc.specialty || 'General Practice'}
+                            </div>
                           </div>
                         </div>
+                        {isCurrent ? (
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)', padding: '0.25rem 0.55rem', borderRadius: '4px', fontWeight: 600, border: '1px solid var(--border)' }}>
+                            Current Doctor
+                          </span>
+                        ) : isSelected ? (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <UserCheck size={15} /> Selected
+                          </span>
+                        ) : null}
                       </div>
-                      {isCurrent ? (
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
-                          Current Doctor
-                        </span>
-                      ) : isSelected ? (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <UserCheck size={14} /> Selected
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
             {/* Reason for Reassignment (Optional) */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>
                 Reason for Reassignment (Optional):
               </label>
               <input
@@ -3243,7 +3265,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 placeholder="e.g. Specialist consultation needed, Doctor unavailable, Patient request..."
                 value={reassignReason}
                 onChange={(e) => setReassignReason(e.target.value)}
-                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.55rem 0.85rem' }}
               />
             </div>
 

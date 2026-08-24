@@ -283,7 +283,10 @@ function App() {
         if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
           const doctorsData = await doctorsRes.value.json();
           if (Array.isArray(doctorsData) && doctorsData.length > 0) {
-            setDoctorsList(prev => (prev.length !== doctorsData.length ? doctorsData : prev));
+            setDoctorsList(prev => {
+              const changed = prev.length !== doctorsData.length || prev.some((d, i) => d.lastLoginDate !== doctorsData[i]?.lastLoginDate || d.name !== doctorsData[i]?.name);
+              return changed ? doctorsData : prev;
+            });
           }
         }
         if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
@@ -448,9 +451,22 @@ function App() {
   const isSameDayStr = (d1, d2) => {
     if (!d1 || !d2) return false;
     if (d1 === d2) return true;
-    const dateA = new Date(d1);
-    const dateB = new Date(d2);
-    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+    const parseD = (s) => {
+      if (!s) return null;
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      const parts = String(s).trim().split(/[/.-]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const tryD = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+          if (!isNaN(tryD.getTime())) return tryD;
+        }
+      }
+      return null;
+    };
+    const dateA = parseD(d1);
+    const dateB = parseD(d2);
+    if (dateA && dateB) {
       return dateA.getFullYear() === dateB.getFullYear() &&
              dateA.getMonth() === dateB.getMonth() &&
              dateA.getDate() === dateB.getDate();

@@ -5,6 +5,7 @@ import {
   getDoctors,
   addDoctor,
   deleteDoctor,
+  updateDoctorLastLogin,
   getStaff,
   addStaff,
   deleteStaff,
@@ -68,33 +69,59 @@ app.use(async (req, res, next) => {
 // Auth API - Login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const emailClean = String(email || '').trim().toLowerCase();
+    const { email, userId, username, password } = req.body;
+    const inputKey = String(userId || username || email || '').trim().toLowerCase();
     const passClean = String(password || '').trim();
+
+    if (!inputKey || !passClean) {
+      return res.status(400).json({ message: 'User ID and Password are required' });
+    }
+
+    const matchesUser = (user) => {
+      if (!user) return false;
+      const uEmail = String(user.email || '').trim().toLowerCase();
+      const uPrefix = uEmail.split('@')[0];
+      const uName = String(user.name || '').trim().toLowerCase();
+      const uId = String(user.id || '').trim().toLowerCase();
+      return uEmail === inputKey || 
+             uPrefix === inputKey || 
+             uName === inputKey || 
+             uName.replace(/[^a-z0-9]/g, '') === inputKey.replace(/[^a-z0-9]/g, '') ||
+             uId === inputKey;
+    };
 
     // 1. Check Doctors
     const doctorsList = await getDoctors();
-    const doctor = doctorsList.find(d => d.email && d.email.toLowerCase() === emailClean);
+    const doctor = doctorsList.find(d => matchesUser(d));
     if (doctor && (doctor.password === passClean || passClean === 'password123')) {
+      const todayDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+      try {
+        await updateDoctorLastLogin(doctor.id, todayDateStr);
+      } catch (e) {
+        console.error("Error updating doctor login date:", e);
+      }
       return res.json({
+        id: doctor.id,
         email: doctor.email,
         name: doctor.name,
-        role: 'doctor'
+        role: 'doctor',
+        lastLoginDate: todayDateStr
       });
     }
 
     // 2. Check Admin & Staff
     const staffList = await getStaff();
-    const staffMember = staffList.find(s => s.email && s.email.toLowerCase() === emailClean);
+    const staffMember = staffList.find(s => matchesUser(s));
     if (staffMember && (staffMember.password === passClean || passClean === 'password123')) {
       return res.json({
+        id: staffMember.id,
         email: staffMember.email,
         name: staffMember.name,
         role: staffMember.role
       });
     }
 
-    return res.status(401).json({ message: 'Invalid email or password selection' });
+    return res.status(401).json({ message: 'Invalid User ID or Password' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

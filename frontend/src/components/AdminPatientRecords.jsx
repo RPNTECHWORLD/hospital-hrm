@@ -573,19 +573,7 @@ const AdminPatientRecords = ({
 
                           if (prevDocName && prevDocName !== 'Unassigned' && prevDocName !== currentDocName) {
                             return (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                                color: '#334155',
-                                fontWeight: 700,
-                                background: 'rgba(100, 116, 139, 0.1)',
-                                border: '1px solid rgba(100, 116, 139, 0.25)',
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '6px',
-                                fontSize: '0.84rem',
-                                whiteSpace: 'nowrap'
-                              }}>
+                              <span className="previous-doctor-badge">
                                 {prevDocName}
                               </span>
                             );
@@ -914,8 +902,8 @@ const AdminPatientRecords = ({
                     </div>
                     {selectedPatient.previousDoctor && (
                       <div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Previous Doctor</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#475569' }}>{selectedPatient.previousDoctor}</strong>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Previous Doctor</span>
+                        <span className="previous-doctor-badge">{selectedPatient.previousDoctor}</span>
                       </div>
                     )}
                   </div>

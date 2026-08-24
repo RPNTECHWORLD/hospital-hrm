@@ -32,6 +32,71 @@ const ReceptionistDashboard = ({
   const [returningPatientId, setReturningPatientId] = useState(null);
   const [showNameSuggestions, setShowNameSuggestions] = useState(true);
   const [tableFilter, setTableFilter] = useState('all');
+  const [alreadyInQueuePatient, setAlreadyInQueuePatient] = useState(null);
+
+  // Helper to compare dates robustly across different string formats
+  const isSameDayStr = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+    const parseD = (s) => {
+      if (!s) return null;
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      const parts = String(s).trim().split(/[/.-]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const tryD = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+          if (!isNaN(tryD.getTime())) return tryD;
+        }
+      }
+      return null;
+    };
+    const dateA = parseD(d1);
+    const dateB = parseD(d2);
+    if (dateA && dateB) {
+      return dateA.getFullYear() === dateB.getFullYear() &&
+             dateA.getMonth() === dateB.getMonth() &&
+             dateA.getDate() === dateB.getDate();
+    }
+    return false;
+  };
+
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+
+  // Helper to check if a patient is already active in today's queue
+  const getActiveQueuePatient = (patientIdOrName, phone = '') => {
+    if (!patientIdOrName && !phone) return null;
+    return (patients || []).find(p => {
+      if (!p || p.status === 'Inactive') return false;
+
+      const isToday = isSameDayStr(p.registrationDate, todayStr);
+      const isReviewing = p.status === 'Reviewing' || (p.status || '').toLowerCase() === 'review';
+      const isCompleted = p.status === 'Completed';
+
+      const isCurrentlyActiveInQueue = (isToday && !isCompleted) || isReviewing;
+      if (!isCurrentlyActiveInQueue) return false;
+
+      // 1. Match by Patient ID
+      if (patientIdOrName) {
+        const cleanIdA = String(patientIdOrName).replace(/#/g, '').trim().toLowerCase();
+        const cleanIdB = String(p.id).replace(/#/g, '').trim().toLowerCase();
+        if (cleanIdA && cleanIdB && cleanIdA === cleanIdB) return p;
+      }
+
+      // 2. Match by Name & Phone
+      if (name && phone) {
+        const cleanPhoneA = String(phone).replace(/\D/g, '');
+        const cleanPhoneB = (p.contact || '').replace(/\D/g, '');
+        const nameA = (name || '').trim().toLowerCase();
+        const nameB = (p.name || '').trim().toLowerCase();
+        if (cleanPhoneA && cleanPhoneB && cleanPhoneA.slice(-10) === cleanPhoneB.slice(-10) && nameA && nameB && nameA === nameB) {
+          return p;
+        }
+      }
+
+      return false;
+    });
+  };
 
   // Housekeeping Modal & Form States
   const [showHousekeepingModal, setShowHousekeepingModal] = useState(false);
@@ -103,6 +168,12 @@ const ReceptionistDashboard = ({
     : [];
 
   const handleSelectReturningPatient = (p) => {
+    const activeInQueue = getActiveQueuePatient(p.id);
+    if (activeInQueue) {
+      setAlreadyInQueuePatient(activeInQueue);
+      return;
+    }
+
     setReturningPatientId(p.id);
     setName(p.name || '');
     setFatherOrHusbandName(p.fatherOrHusbandName || '');
@@ -475,8 +546,18 @@ const ReceptionistDashboard = ({
 
     let registered;
     if (returningPatientId) {
+      const activeInQueue = getActiveQueuePatient(returningPatientId);
+      if (activeInQueue) {
+        setAlreadyInQueuePatient(activeInQueue);
+        return;
+      }
       registered = await onReRegisterPatient(returningPatientId, parseInt(assignedDoctorId), patientPayload);
     } else {
+      const activeInQueue = getActiveQueuePatient(null, fullContact);
+      if (activeInQueue) {
+        setAlreadyInQueuePatient(activeInQueue);
+        return;
+      }
       registered = await onRegisterPatient(patientPayload);
     }
 
@@ -524,6 +605,11 @@ const ReceptionistDashboard = ({
   };
 
   const handleReRegisterClick = async (patientId) => {
+    const activeInQueue = getActiveQueuePatient(patientId);
+    if (activeInQueue) {
+      setAlreadyInQueuePatient(activeInQueue);
+      return;
+    }
     const updated = await onReRegisterPatient(patientId, reRegisterDoctorId, {
       height,
       weight,
@@ -547,30 +633,30 @@ const ReceptionistDashboard = ({
     }
   };
 
-  // Helper to compare dates robustly across different string formats
-  const isSameDayStr = (d1, d2) => {
-    if (!d1 || !d2) return false;
-    if (d1 === d2) return true;
-    const dateA = new Date(d1);
-    const dateB = new Date(d2);
-    if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-      return dateA.getFullYear() === dateB.getFullYear() &&
-             dateA.getMonth() === dateB.getMonth() &&
-             dateA.getDate() === dateB.getDate();
+  // Filter active doctors who have logged in today with user ID & password
+  const availableDoctors = (doctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
+
+  useEffect(() => {
+    if (availableDoctors.length > 0) {
+      if (!assignedDoctorId || !availableDoctors.some(d => String(d.id) === String(assignedDoctorId))) {
+        setAssignedDoctorId(String(availableDoctors[0].id));
+      }
+      if (!reRegisterDoctorId || !availableDoctors.some(d => String(d.id) === String(reRegisterDoctorId))) {
+        setReRegisterDoctorId(String(availableDoctors[0].id));
+      }
     }
-    return false;
-  };
+  }, [availableDoctors, assignedDoctorId, reRegisterDoctorId]);
 
-  // Filter patients for Today's Active Reception Queue & Payment Collection (24-hour daily reset)
-  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-  const todayPatients = patients.filter(p =>
-    p.status !== 'Inactive' &&
-    isSameDayStr(p.registrationDate, todayStr)
-  );
+  const todayPatients = patients.filter(p => {
+    if (!p || p.status === 'Inactive') return false;
+    const isToday = isSameDayStr(p.registrationDate, todayStr);
+    const isReviewing = p.status === 'Reviewing' || (p.status || '').toLowerCase() === 'review';
+    return isToday || isReviewing;
+  });
 
-  // Stats for Today
+  // Stats for Today & Active Reviews
   const totalPatients = todayPatients.length;
-  const activeQueue = todayPatients.filter(p => ['Registered', 'In Queue', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status)).length;
+  const activeQueue = todayPatients.filter(p => ['Registered', 'In Queue', 'Consulting', 'At Pharmacy', 'Reviewing'].includes(p.status) || (p.status || '').toLowerCase() === 'review').length;
   const skippedPatientsCount = todayPatients.filter(p => p.status === 'Skipped').length;
   const completedConsultations = todayPatients.filter(p => p.status === 'Completed' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid'))).length;
   const paidConsultations = todayPatients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
@@ -774,38 +860,31 @@ const ReceptionistDashboard = ({
                       Please fill out this field
                     </span>
                   )}
-
-                  {/* Existing Patient Auto-suggest Dropdown */}
                   {nameMatches.length > 0 && (
-                    <div style={{
-                      position: 'absolute',
+                    <div className="auto-suggestions-dropdown" style={{
                       top: 'calc(100% + 4px)',
                       left: 0,
                       right: 0,
-                      background: 'var(--card-bg, #ffffff)',
-                      border: '1.5px solid var(--primary, #157388)',
-                      borderRadius: '10px',
-                      boxShadow: '0 12px 30px -5px rgba(0,0,0,0.3)',
+                      border: '1.5px solid var(--primary)',
                       zIndex: 99999,
                       maxHeight: '260px',
-                      overflowY: 'auto',
                       padding: '0.5rem'
                     }}>
                       <div style={{
                         display: 'flex',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
                         padding: '0.4rem 0.6rem',
-                        borderBottom: '1px solid rgba(0,0,0,0.08)',
+                        borderBottom: '1px solid var(--border)',
                         fontSize: '0.75rem',
                         fontWeight: 700,
-                        color: 'var(--primary, #157388)'
+                        color: 'var(--primary)'
                       }}>
                         <span>💡 Existing Patient(s) Found in Database ({nameMatches.length})</span>
                         <button
                           type="button"
                           onClick={() => setShowNameSuggestions(false)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600 }}
                         >
                           ✕ Close
                         </button>
@@ -814,29 +893,21 @@ const ReceptionistDashboard = ({
                       {nameMatches.map((p) => (
                         <div
                           key={p.id}
+                          className="suggestion-item"
                           onClick={() => {
                             handleSelectReturningPatient(p);
                             setShowNameSuggestions(false);
                           }}
                           style={{
-                            padding: '0.65rem 0.75rem',
                             borderRadius: '6px',
-                            cursor: 'pointer',
-                            borderBottom: '1px solid rgba(0,0,0,0.04)',
-                            transition: 'background 0.15s',
-                            display: 'flex',
-                            justify: 'space-between',
-                            alignItems: 'center',
                             marginTop: '0.25rem'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(21, 115, 136, 0.08)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                         >
                           <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main, #1e293b)' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                               {p.name} <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>(#{p.id})</span>
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #64748b)', marginTop: '0.15rem' }}>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                               {p.age} Yrs • {p.gender} • Phone: {p.contact || 'N/A'}
                             </div>
                           </div>
@@ -1040,12 +1111,7 @@ const ReceptionistDashboard = ({
                         onBlur={() => setTimeout(() => setShowStreetSuggestions(false), 200)}
                       />
                       {showStreetSuggestions && street.trim().length > 0 && (
-                        <div style={{
-                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-                          background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border)',
-                          borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                          maxHeight: '220px', overflowY: 'auto', marginTop: '4px'
-                        }}>
+                        <div className="auto-suggestions-dropdown">
                           {TN_LOCATIONS.filter(loc =>
                             loc.area.toLowerCase().includes(street.toLowerCase()) ||
                             loc.city.toLowerCase().includes(street.toLowerCase()) ||
@@ -1053,15 +1119,7 @@ const ReceptionistDashboard = ({
                           ).slice(0, 10).map((loc, idx) => (
                             <div
                               key={idx}
-                              style={{
-                                padding: '0.6rem 0.85rem',
-                                cursor: 'pointer',
-                                borderBottom: '1px solid rgba(0,0,0,0.04)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: '0.85rem'
-                              }}
+                              className="suggestion-item"
                               onMouseDown={() => {
                                 setStreet(loc.area);
                                 setCity(loc.city);
@@ -1069,11 +1127,11 @@ const ReceptionistDashboard = ({
                                 setShowStreetSuggestions(false);
                               }}
                             >
-                              <div>
-                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>📍 {loc.area}</span>
-                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.4rem', fontSize: '0.78rem' }}>({loc.city})</span>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span className="suggestion-item-text">📍 {loc.area}</span>
+                                <span className="suggestion-item-sub">({loc.city})</span>
                               </div>
-                              <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.78rem' }}>{loc.pincode}</span>
+                              <span className="suggestion-item-pincode">{loc.pincode}</span>
                             </div>
                           ))}
                         </div>
@@ -1095,27 +1153,14 @@ const ReceptionistDashboard = ({
                         onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
                       />
                       {showCitySuggestions && city.trim().length > 0 && (
-                        <div style={{
-                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-                          background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border)',
-                          borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                          maxHeight: '220px', overflowY: 'auto', marginTop: '4px'
-                        }}>
+                        <div className="auto-suggestions-dropdown">
                           {TN_LOCATIONS.filter(loc =>
                             loc.city.toLowerCase().includes(city.toLowerCase()) ||
                             loc.area.toLowerCase().includes(city.toLowerCase())
                           ).slice(0, 10).map((loc, idx) => (
                             <div
                               key={idx}
-                              style={{
-                                padding: '0.6rem 0.85rem',
-                                cursor: 'pointer',
-                                borderBottom: '1px solid rgba(0,0,0,0.04)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: '0.85rem'
-                              }}
+                              className="suggestion-item"
                               onMouseDown={() => {
                                 setCity(loc.city);
                                 if (!street) setStreet(loc.area);
@@ -1123,11 +1168,11 @@ const ReceptionistDashboard = ({
                                 setShowCitySuggestions(false);
                               }}
                             >
-                              <div>
-                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>🏙️ {loc.city}</span>
-                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.4rem', fontSize: '0.78rem' }}>({loc.area})</span>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span className="suggestion-item-text">🏙️ {loc.city}</span>
+                                <span className="suggestion-item-sub">({loc.area})</span>
                               </div>
-                              <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.78rem' }}>{loc.pincode}</span>
+                              <span className="suggestion-item-pincode">{loc.pincode}</span>
                             </div>
                           ))}
                         </div>
@@ -1493,17 +1538,28 @@ const ReceptionistDashboard = ({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Assign Available Doctor</label>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Assign Available Doctor</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: availableDoctors.length > 0 ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)' }}>
+                      {availableDoctors.length > 0 ? `🟢 ${availableDoctors.length} Logged In Today` : `⚠️ No Doctor Logged In Today`}
+                    </span>
+                  </label>
                   <select
                     className="form-input"
                     value={assignedDoctorId}
                     onChange={(e) => setAssignedDoctorId(e.target.value)}
                     required
                   >
-                    <option value="" disabled>Select Doctor</option>
-                    {doctors.map(doc => (
-                      <option key={doc.id} value={doc.id}>{doc.name} ({doc.specialty})</option>
-                    ))}
+                    {availableDoctors.length === 0 ? (
+                      <option value="" disabled>⚠️ No doctors have logged in today</option>
+                    ) : (
+                      <>
+                        <option value="" disabled>Select Doctor</option>
+                        {availableDoctors.map(doc => (
+                          <option key={doc.id} value={doc.id}>{doc.name} ({doc.specialty})</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -1722,7 +1778,7 @@ const ReceptionistDashboard = ({
                 style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
                 onClick={() => setTableFilter('queue')}
               >
-                In Queue ({todayPatients.filter(p => ['Registered', 'In Queue'].includes(p.status)).length})
+                In Queue ({todayPatients.filter(p => ['Registered', 'In Queue', 'Reviewing'].includes(p.status) || (p.status || '').toLowerCase() === 'review').length})
               </button>
               <button
                 type="button"
@@ -1763,7 +1819,7 @@ const ReceptionistDashboard = ({
                 <tbody>
                   {todayPatients
                     .filter(p => {
-                      if (tableFilter === 'queue') return ['Registered', 'In Queue'].includes(p.status);
+                      if (tableFilter === 'queue') return ['Registered', 'In Queue', 'Reviewing'].includes(p.status) || (p.status || '').toLowerCase() === 'review';
                       if (tableFilter === 'skipped') return p.status === 'Skipped';
                       return true;
                     })
@@ -1775,8 +1831,23 @@ const ReceptionistDashboard = ({
                           #{patient.id}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{patient.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600 }}>{patient.name}</span>
+                            {!isSameDayStr(patient.registrationDate, todayStr) && (
+                              <span style={{
+                                fontSize: '0.7rem',
+                                background: 'rgba(139, 92, 246, 0.12)',
+                                color: '#7c3aed',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px',
+                                fontWeight: 700
+                              }}>
+                                📅 {patient.registrationDate || 'Yesterday'}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginTop: '0.15rem' }}>
                             {patient.age} Yrs • {patient.gender} • {patient.contact}
                             {patient.fatherOrHusbandName && <div>F/H: {patient.fatherOrHusbandName}</div>}
                             {patient.motherOrGuardianName && (
@@ -1839,7 +1910,7 @@ const ReceptionistDashboard = ({
                               badgeText = 'At Pharmacy';
                             } else if (s === 'reviewing' || s === 'review') {
                               badgeClass = 'badge-reviewing';
-                              badgeText = 'Reviewing';
+                              badgeText = 'Review';
                             } else if (s === 'completed' || s === 'paid') {
                               badgeClass = 'badge-completed';
                               badgeText = 'Completed';
@@ -2070,6 +2141,147 @@ const ReceptionistDashboard = ({
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No clinical history found.</p>
               )}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Patient Already in Queue Warning Modal */}
+      {alreadyInQueuePatient && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '1.5rem'
+          }}
+          onClick={() => setAlreadyInQueuePatient(null)}
+        >
+          <div
+            className="card modal-content fade-in"
+            style={{
+              padding: '2rem',
+              width: '100%',
+              maxWidth: '460px',
+              textAlign: 'center',
+              background: 'var(--bg-card, #ffffff)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
+              border: '1px solid var(--border)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.12)',
+              color: '#f59e0b',
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto',
+              border: '2px solid rgba(245, 158, 11, 0.3)',
+              boxShadow: '0 0 16px rgba(245, 158, 11, 0.2)'
+            }}>
+              <Clock size={34} />
+            </div>
+
+            <h3 style={{ fontSize: '1.45rem', marginBottom: '0.4rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+              Patient Already In Queue!
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginBottom: '1.4rem', lineHeight: 1.4 }}>
+              This patient is already registered and active in today's doctor queue.
+            </p>
+
+            <div style={{
+              background: 'var(--bg-dark, rgba(255, 255, 255, 0.02))',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '1.15rem 1.25rem',
+              marginBottom: '1.75rem',
+              textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Patient Name:</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{alreadyInQueuePatient.name}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', borderTop: '1px dashed var(--border)', paddingTop: '0.65rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Register ID (Patient ID):</span>
+                <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>#{alreadyInQueuePatient.id}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', borderTop: '1px dashed var(--border)', paddingTop: '0.65rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Token Number:</span>
+                <strong style={{ fontSize: '1.45rem', color: '#f59e0b', fontWeight: 800 }}>
+                  {alreadyInQueuePatient.tokenNumber ? `#${alreadyInQueuePatient.tokenNumber}` : 'In Queue'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', borderTop: '1px dashed var(--border)', paddingTop: '0.65rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Assigned Doctor:</span>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                  {doctors.find(d => Number(d.id) === Number(alreadyInQueuePatient.assignedDoctorId))?.name || 'Assigned Doctor'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: '0.65rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Queue Status:</span>
+                <span className="badge badge-pending" style={{ fontWeight: 700 }}>
+                  {alreadyInQueuePatient.status || 'In Queue'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                fontWeight: 700,
+                padding: '0.75rem',
+                fontSize: '0.95rem'
+              }}
+              onClick={() => {
+                setAlreadyInQueuePatient(null);
+                setReturningPatientId(null);
+                setFormSubmitted(false);
+                // Clear Form
+                setName('');
+                setAge('');
+                setGender('Male');
+                setContact('');
+                setCountryCode('+91');
+                setFatherOrHusbandName('');
+                setMotherName('');
+                setGuardianName('');
+                setAlternatePhone('');
+                setAltCountryCode('+91');
+                setStreet('');
+                setCity('');
+                setPincode('');
+                setHeight('');
+                setWeight('');
+                setBp('');
+                setHr('');
+                setSpo2('');
+                setGrbs('');
+                setTemp('');
+                setRespiratoryRate('');
+                setPainScale('');
+                setHeadCircumference('');
+                setAvpu('Alert');
+                setDob('');
+                setBmi('');
+              }}
+            >
+              Done & Close
+            </button>
           </div>
         </div>,
         document.body

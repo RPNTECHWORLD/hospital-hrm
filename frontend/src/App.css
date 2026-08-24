@@ -7,6 +7,7 @@
   --bg-dark: #f0f6f8;
   /* Soft brand teal-tinted background */
   --bg-card: rgba(255, 255, 255, 0.85);
+  --card-bg: #ffffff;
   /* Pure white glass card */
   --bg-sidebar: #0f4c5c;
   /* Brand Dark Teal */
@@ -1598,6 +1599,7 @@ h6 {
 [data-theme="dark"] {
   --bg-dark: #0b1329;
   --bg-card: #111c30;
+  --card-bg: #111c30;
   --bg-sidebar: #08111e;
 
   --primary: #38bdf8;
@@ -1780,6 +1782,20 @@ h6 {
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
 }
 
+/* Fix Browser Autofill (e.g. Chrome, Edge) from turning bright light-blue in dark mode */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover, 
+[data-theme="dark"] input:-webkit-autofill:focus, 
+[data-theme="dark"] input:-webkit-autofill:active,
+[data-theme="dark"] select:-webkit-autofill,
+[data-theme="dark"] textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+  box-shadow: 0 0 0 1000px #1e293b inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] select::placeholder,
 [data-theme="dark"] textarea::placeholder {
@@ -1793,6 +1809,72 @@ h6 {
 [data-theme="dark"] textarea:focus {
   border-color: #38bdf8 !important;
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3) !important;
+}
+
+/* Auto Suggestions Dropdowns (Location & Returning Patient search) */
+.auto-suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .auto-suggestions-dropdown {
+  background: #111c30 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7) !important;
+}
+
+.suggestion-item {
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+  box-sizing: border-box;
+}
+
+.suggestion-item:hover {
+  background: rgba(21, 115, 136, 0.08);
+}
+
+[data-theme="dark"] .suggestion-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .suggestion-item:hover {
+  background: rgba(56, 189, 248, 0.15) !important;
+}
+
+.suggestion-item-text {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.suggestion-item-sub {
+  color: var(--text-secondary);
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.suggestion-item-pincode {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 /* Table Styling */
@@ -1834,37 +1916,100 @@ h6 {
   background: #475569;
 }
 
-/* 🌙 Dark Mode Popups & Overlay Audit Modals - Black Text for Maximum Clarity */
-[data-theme="dark"] div[style*="position: fixed"][style*="zIndex: 9999"],
-[data-theme="dark"] div[style*="position: fixed"][style*="zIndex: 10000"] {
+/* 🌙 Dark Mode Popups & Overlay Audit Modals - White Container text contrast */
+[data-theme="dark"] .audit-modal-backdrop {
   background: rgba(15, 23, 42, 0.75) !important;
 }
 
-/* Ensure Popup Modal Container & All Text inside is Bold Dark Black/Charcoal */
-[data-theme="dark"] div[style*="position: fixed"] h3,
-[data-theme="dark"] div[style*="position: fixed"] h4,
-[data-theme="dark"] div[style*="position: fixed"] h5 {
+[data-theme="dark"] .audit-modal-container h3,
+[data-theme="dark"] .audit-modal-container h4,
+[data-theme="dark"] .audit-modal-container h5 {
   color: #0f172a !important;
   font-weight: 800 !important;
 }
 
-[data-theme="dark"] div[style*="position: fixed"] p,
-[data-theme="dark"] div[style*="position: fixed"] span,
-[data-theme="dark"] div[style*="position: fixed"] label,
-[data-theme="dark"] div[style*="position: fixed"] div {
+[data-theme="dark"] .audit-modal-container p,
+[data-theme="dark"] .audit-modal-container span,
+[data-theme="dark"] .audit-modal-container label,
+[data-theme="dark"] .audit-modal-container div {
   color: #334155 !important;
 }
 
-[data-theme="dark"] div[style*="position: fixed"] strong,
-[data-theme="dark"] div[style*="position: fixed"] b {
+[data-theme="dark"] .audit-modal-container strong,
+[data-theme="dark"] .audit-modal-container b {
   color: #000000 !important;
   font-weight: 800 !important;
 }
 
-[data-theme="dark"] div[style*="position: fixed"] button,
-[data-theme="dark"] div[style*="position: fixed"] .btn {
+[data-theme="dark"] .audit-modal-container button,
+[data-theme="dark"] .audit-modal-container .btn {
   color: #0f172a !important;
   font-weight: 700 !important;
+}
+
+/* 🔄 Reassign Doctor Modal System */
+.reassign-modal-card {
+  max-width: 480px;
+  width: 100%;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .reassign-modal-card {
+  background: #111c30 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 25px rgba(56, 189, 248, 0.15) !important;
+}
+
+.reassign-doctor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reassign-doctor-item:hover:not(.disabled) {
+  border-color: var(--primary);
+  background: rgba(21, 115, 136, 0.08);
+  transform: translateY(-1px);
+}
+
+.reassign-doctor-item.selected {
+  border: 2px solid var(--primary) !important;
+  background: rgba(21, 115, 136, 0.12) !important;
+}
+
+[data-theme="dark"] .reassign-doctor-item {
+  background: #16243d !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .reassign-doctor-item:hover:not(.disabled) {
+  border-color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15) !important;
+}
+
+[data-theme="dark"] .reassign-doctor-item.selected {
+  border: 2px solid #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.22) !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .reassign-doctor-item.disabled {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  opacity: 0.55;
+  cursor: default;
 }
 
 /* 📐 Compact Density View */
@@ -2005,6 +2150,28 @@ h6 {
   background: rgba(248, 113, 113, 0.22) !important;
   color: #f87171 !important;
   border: 1px solid rgba(248, 113, 113, 0.4) !important;
+}
+
+/* Previous Doctor Badge */
+.previous-doctor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #334155;
+  font-weight: 700;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .previous-doctor-badge {
+  color: #93c5fd !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  font-weight: 700 !important;
 }
 
 /* 🩺 Doctor Consultation Terminal Dark Theme Differentiations */
@@ -2812,15 +2979,19 @@ input[type=number].no-spin {
   color: #38bdf8;
 }
 
-.login-footer-credit {
+.login-footer-credit,
+[data-theme="dark"] .login-footer-credit {
   text-align: center;
   margin-top: 1.25rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-size: 0.85rem;
+  color: #334155 !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-.login-footer-credit span {
+.login-footer-credit span,
+[data-theme="dark"] .login-footer-credit span {
   font-weight: 800;
-  color: #e31e24;
+  color: #e31e24 !important;
+  margin-left: 0.25rem;
 }

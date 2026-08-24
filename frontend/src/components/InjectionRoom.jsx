@@ -208,11 +208,11 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
       {/* Top Header & Action Stats */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>
-            <Syringe size={28} style={{ color: 'var(--primary, #157388)' }} />
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            <Syringe size={28} style={{ color: 'var(--primary)' }} />
             Injection Desk Administration
           </h2>
-          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted, #64748b)' }}>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Manage IM/IV injections, STAT single doses, daily frequencies, and nurse administration records.
           </p>
         </div>
@@ -245,7 +245,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
       </div>
 
       {/* Main Table Card */}
-      <div className="card" style={{ width: '100%', maxWidth: '100%', border: '1px solid rgba(0, 0, 0, 0.08)', borderRadius: '12px' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '100%', border: '1px solid var(--border)', borderRadius: '12px' }}>
         {/* Controls Bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           {/* Status Tabs */}
@@ -270,7 +270,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
 
           {/* Search Box */}
           <div style={{ position: 'relative', minWidth: '280px' }}>
-            <Search style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted, #94a3b8)' }} size={18} />
+            <Search style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={18} />
             <input
               type="text"
               className="form-input"
@@ -294,7 +294,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
           <div className="table-container" style={{ overflowX: 'auto' }}>
             <table className="custom-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'rgba(0, 0, 0, 0.02)', textAlign: 'left', borderBottom: '2px solid rgba(0, 0, 0, 0.06)' }}>
+                <tr style={{ background: 'rgba(0, 0, 0, 0.02)', textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Patient</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Medicine & Dose</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Route</th>
@@ -312,19 +312,19 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                   const freqName = inj.frequency || (isStatDose ? 'STAT (Single / Immediate)' : 'NORMAL');
 
                   return (
-                    <tr key={inj.id} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.05)' }}>
+                    <tr key={inj.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       {/* Patient */}
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-main, #1e293b)' }}>{pat ? pat.name : 'Unknown Patient'}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748b)' }}>ID: #{inj.patientId}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{pat ? pat.name : 'Unknown Patient'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>ID: #{inj.patientId}</div>
                       </td>
 
                       {/* Medicine & Dose */}
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--primary, #157388)', fontSize: '0.95rem' }}>{inj.injectionName}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 500 }}>Dose: {inj.dosage || '1 Dose'}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.95rem' }}>{inj.injectionName}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500, marginTop: '0.1rem' }}>Dose: {inj.dosage || '1 Dose'}</div>
                         {inj.notes && (
-                          <div style={{ fontSize: '0.725rem', color: '#64748b', fontStyle: 'italic', marginTop: '0.15rem' }}>Note: {inj.notes}</div>
+                          <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.15rem' }}>Note: {inj.notes}</div>
                         )}
                       </td>
 
@@ -337,9 +337,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                           fontSize: '0.75rem',
                           fontWeight: 700,
                           letterSpacing: '0.5px',
-                          background: routeName === 'IV' ? 'rgba(14, 165, 233, 0.12)' : routeName === 'IM' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(234, 179, 8, 0.12)',
+                          background: routeName === 'IV' ? 'rgba(14, 165, 233, 0.15)' : routeName === 'IM' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(234, 179, 8, 0.15)',
                           color: routeName === 'IV' ? '#0284c7' : routeName === 'IM' ? '#7e22ce' : '#a16207',
-                          border: `1px solid ${routeName === 'IV' ? 'rgba(14, 165, 233, 0.25)' : routeName === 'IM' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(234, 179, 8, 0.25)'}`
+                          border: `1px solid ${routeName === 'IV' ? 'rgba(14, 165, 233, 0.3)' : routeName === 'IM' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`
                         }}>
                           {routeName}
                         </span>
@@ -356,9 +356,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                             borderRadius: '6px',
                             fontSize: '0.75rem',
                             fontWeight: 800,
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            border: '1px solid #fca5a5'
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.3)'
                           }}>
                             {freqName}
                           </span>
@@ -370,9 +370,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                             borderRadius: '6px',
                             fontSize: '0.75rem',
                             fontWeight: 700,
-                            background: 'rgba(14, 165, 233, 0.08)',
-                            color: '#0284c7',
-                            border: '1px solid rgba(14, 165, 233, 0.25)'
+                            background: 'rgba(14, 165, 233, 0.12)',
+                            color: 'var(--primary)',
+                            border: '1px solid rgba(14, 165, 233, 0.3)'
                           }}>
                             {freqName}
                           </span>
@@ -385,9 +385,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                           className={`badge ${inj.status === 'Administered' ? 'badge-success' : inj.status === 'Cancelled' ? 'badge-danger' : ''}`}
                           style={{
                             fontWeight: 600,
-                            background: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'rgba(21, 115, 136, 0.1)',
-                            color: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'var(--primary, #157388)',
-                            border: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : '1px solid rgba(21, 115, 136, 0.2)'
+                            background: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'rgba(21, 115, 136, 0.12)',
+                            color: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : 'var(--primary)',
+                            border: inj.status === 'Administered' ? undefined : inj.status === 'Cancelled' ? undefined : '1px solid rgba(21, 115, 136, 0.25)'
                           }}
                         >
                           {inj.status === 'Administered' ? 'Given ✅' : inj.status}
@@ -398,18 +398,18 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                       <td style={{ padding: '0.85rem 1rem' }}>
                         {inj.status === 'Administered' ? (
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: '#15803d' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--success)' }}>
                               <UserCheck size={14} />
                               {inj.administeredBy || 'Nurse'}
                             </div>
-                            <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.1rem' }}>
+                            <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
                               {inj.dateGiven}
                             </div>
                           </div>
                         ) : inj.status === 'Cancelled' ? (
-                          <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>{inj.dateGiven || 'Cancelled'}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>{inj.dateGiven || 'Cancelled'}</div>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>Pending Administration</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Pending Administration</span>
                         )}
                       </td>
 
@@ -469,23 +469,23 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
 
       {/* Modal: Mark Administered */}
       {showAdministerModal && activeInjection && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', background: '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ marginTop: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#16a34a' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowAdministerModal(false)}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)' }}>
               <ShieldCheck size={22} /> Confirm Injection Administration
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Record nurse details and confirm administration for:
             </p>
 
-            <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
+            <div style={{ background: 'var(--bg-dark, #f8fafc)', padding: '0.85rem 1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
               <div><strong>Medicine:</strong> {activeInjection.injectionName} ({activeInjection.dosage})</div>
               <div><strong>Route & Type:</strong> {activeInjection.route || 'IV'} | {activeInjection.frequency || 'STAT'}</div>
               <div><strong>Patient ID:</strong> #{activeInjection.patientId}</div>
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block', color: 'var(--text-secondary)' }}>
                 Administered By (Nurse / Staff Name) *
               </label>
               <input
@@ -503,7 +503,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
               <button className="btn btn-secondary" onClick={() => setShowAdministerModal(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" style={{ background: '#16a34a', borderColor: '#16a34a' }} onClick={handleConfirmAdminister}>
+              <button className="btn btn-primary" style={{ background: 'var(--success)', borderColor: 'var(--success)' }} onClick={handleConfirmAdminister}>
                 Confirm Given ✅
               </button>
             </div>
@@ -511,12 +511,10 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
         </div>
       )}
 
-
-
       {/* Modal: Edit Injection */}
       {showEditModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '520px', background: '#fff', borderRadius: '12px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowEditModal(false)}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ marginTop: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
               <Edit3 size={22} /> Edit Injection Order
             </h3>
