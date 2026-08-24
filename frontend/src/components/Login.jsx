@@ -51,7 +51,7 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-container" data-theme="light">
       {/* Dynamic Ambient Glow Effects */}
       <div className="login-glow-bg login-glow-1"></div>
       <div className="login-glow-bg login-glow-2"></div>

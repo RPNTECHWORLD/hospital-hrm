@@ -2633,6 +2633,7 @@ h6 {
 [data-theme="dark"] .login-container {
   background: linear-gradient(135deg, #06191f 0%, #092c34 50%, #061318 100%) !important;
   color: #0f172a !important;
+  color-scheme: light !important;
 }
 
 .login-wrapper,
@@ -2662,16 +2663,37 @@ h6 {
 
 .login-card .form-input,
 [data-theme="dark"] .login-card .form-input,
+.login-card input,
+[data-theme="dark"] .login-card input,
 .login-card select,
 [data-theme="dark"] .login-card select {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border: 1.5px solid #cbd5e1 !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+  color-scheme: light !important;
+}
+
+/* Fix Browser Autofill on Login page */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover, 
+.login-card input:-webkit-autofill:focus, 
+.login-card input:-webkit-autofill:active,
+[data-theme="dark"] .login-card input:-webkit-autofill,
+[data-theme="dark"] .login-card input:-webkit-autofill:hover, 
+[data-theme="dark"] .login-card input:-webkit-autofill:focus, 
+[data-theme="dark"] .login-card input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
 }
 
 .login-card .form-input:focus,
 [data-theme="dark"] .login-card .form-input:focus,
+.login-card input:focus,
+[data-theme="dark"] .login-card input:focus,
 .login-card select:focus,
 [data-theme="dark"] .login-card select:focus {
   border-color: #157388 !important;

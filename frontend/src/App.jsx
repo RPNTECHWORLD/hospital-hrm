@@ -141,9 +141,13 @@ function App() {
 
   // Sync Theme & Density DOM attributes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', themeMode);
-    localStorage.setItem('hms_theme', themeMode);
-  }, [themeMode]);
+    if (!user) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeMode);
+      localStorage.setItem('hms_theme', themeMode);
+    }
+  }, [themeMode, user]);
 
   useEffect(() => {
     if (isCompact) {
