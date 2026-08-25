@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FlaskConical, CheckCircle, Clock, AlertCircle, Plus } from 'lucide-react';
+import { Search, FlaskConical, CheckCircle, CheckCircle2, Clock, AlertCircle, Plus, Trash2, X, Loader2 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -12,12 +12,21 @@ const LabDashboard = ({ patients }) => {
   const [newPatientId, setNewPatientId] = useState('');
   const [newTestName, setNewTestName] = useState('');
   const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [selectedLog, setSelectedLog] = useState(null);
   const [reportNotes, setReportNotes] = useState('');
   const [updateStatus, setUpdateStatus] = useState('Sample Collected');
   const [reportImg, setReportImg] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+
+  useEffect(() => {
+    if (formSuccess) {
+      const timer = setTimeout(() => setFormSuccess(''), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [formSuccess]);
 
   const fetchLabLogs = async () => {
     setLoading(true);
@@ -72,24 +81,41 @@ const LabDashboard = ({ patients }) => {
   const handleCreateLabLog = async (e) => {
     e.preventDefault();
     setFormError('');
+    setFormSuccess('');
     if (!newPatientId || !newTestName) {
       setFormError('All fields are required.');
       return;
     }
 
-    const patientExists = patients.find(p => String(p.id).toUpperCase() === newPatientId.toUpperCase());
+    const cleanPid = newPatientId.trim().toUpperCase();
+    const cleanTest = newTestName.trim();
+
+    const patientExists = (patients || []).find(p => String(p.id).toUpperCase() === cleanPid || String(p.patientId || '').toUpperCase() === cleanPid);
     if (!patientExists) {
       setFormError(`Patient with ID ${newPatientId} does not exist.`);
       return;
     }
 
+    // Check duplicate active/pending lab test
+    const isDuplicate = labLogs.some(
+      log => String(log.patientId).trim().toUpperCase() === cleanPid &&
+             String(log.testName).trim().toUpperCase() === cleanTest.toUpperCase() &&
+             (log.status === 'Ordered' || log.status === 'Sample Collected')
+    );
+
+    if (isDuplicate) {
+      setFormError(`Lab investigation "${cleanTest}" is already requested/pending for patient ${cleanPid}. Duplicate entries are not allowed.`);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE}/api/lab`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: newPatientId,
-          testName: newTestName,
+          patientId: cleanPid,
+          testName: cleanTest,
           dateOrdered: new Date().toLocaleString(),
           status: 'Ordered',
           reportNotes: ''
@@ -97,13 +123,21 @@ const LabDashboard = ({ patients }) => {
       });
 
       if (response.ok) {
+        const patLabel = patientExists.name ? `${patientExists.name} (#${cleanPid})` : `#${cleanPid}`;
         setNewPatientId('');
         setNewTestName('');
+        setFormError('');
+        setFormSuccess(`✓ Lab Investigation "${cleanTest}" registered successfully for ${patLabel}!`);
         fetchLabLogs();
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setFormError(errData.message || 'Could not register test.');
       }
     } catch (err) {
       console.error("Failed to create lab log entry:", err);
       setFormError('Connection error. Could not add test.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,6 +156,20 @@ const LabDashboard = ({ patients }) => {
       }
     } catch (err) {
       console.error("Failed to accept order:", err);
+    }
+  };
+
+  const handleDeleteOrder = async (id) => {
+    if (!window.confirm("Are you sure you want to dismiss/remove this lab request?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/lab/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        fetchLabLogs();
+      }
+    } catch (err) {
+      console.error("Failed to delete lab order:", err);
     }
   };
 
@@ -214,7 +262,7 @@ const LabDashboard = ({ patients }) => {
                       Ordered: {notification.dateOrdered}
                     </div>
                   </div>
-                  <div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <button 
                       className="btn btn-primary"
                       onClick={() => handleAcceptOrder(notification.id)}
@@ -228,6 +276,23 @@ const LabDashboard = ({ patients }) => {
                       }}
                     >
                       ✓ Accept & Collect Sample
+                    </button>
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => handleDeleteOrder(notification.id)}
+                      title="Remove / Delete duplicate request"
+                      style={{ 
+                        color: 'var(--danger)', 
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        padding: '0.4rem 0.65rem',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -466,6 +531,25 @@ const LabDashboard = ({ patients }) => {
                 New Lab Investigation Entry
               </h3>
 
+              {formSuccess && (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#34d399',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: 600
+                }}>
+                  <CheckCircle2 size={18} color="#34d399" />
+                  <span>{formSuccess}</span>
+                </div>
+              )}
+
               {formError && (
                 <div style={{
                   background: 'rgba(239, 68, 68, 0.1)',
@@ -494,6 +578,7 @@ const LabDashboard = ({ patients }) => {
                     value={newPatientId} 
                     onChange={(e) => setNewPatientId(e.target.value.toUpperCase())}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -506,17 +591,80 @@ const LabDashboard = ({ patients }) => {
                     value={newTestName} 
                     onChange={(e) => setNewTestName(e.target.value)}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>
-                  Register Investigation
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                  style={{
+                    width: '100%',
+                    marginTop: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="spin" /> Registering...
+                    </>
+                  ) : (
+                    <>
+                      <FlaskConical size={16} /> Register Investigation
+                    </>
+                  )}
                 </button>
               </form>
             </div>
           )}
         </div>
     </div>
+
+      {/* Floating Toast Notification */}
+      {formSuccess && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 999999,
+          background: '#065f46',
+          color: '#ffffff',
+          padding: '0.85rem 1.25rem',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          fontSize: '0.9rem',
+          fontWeight: 700,
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          animation: 'fade-in 0.3s ease-out'
+        }}>
+          <CheckCircle2 size={18} color="#34d399" />
+          <span>{formSuccess}</span>
+          <button
+            type="button"
+            onClick={() => setFormSuccess('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              cursor: 'pointer',
+              marginLeft: '0.5rem',
+              opacity: 0.8,
+              padding: 0,
+              display: 'flex'
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {previewImage && (
         <div style={{

@@ -1,11 +1,10 @@
-import sqlite3 from 'sqlite3';
+import pg from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbJsonPath = path.join(__dirname, 'db.json');
 const sqliteDbPath = path.join(__dirname, 'hospital.db');
 
 // Load environment variables from .env and .env.local
@@ -33,21 +32,79 @@ const sqliteDbPath = path.join(__dirname, 'hospital.db');
   }
 });
 
-// Initialize SQLite Database Connection
-const db = new sqlite3.Database(sqliteDbPath, (err) => {
-  if (err) {
-    console.error("Failed to connect to SQLite database:", err.message);
-  } else {
-    console.log("Connected to SQLite database at:", sqliteDbPath);
+// Determine if we should connect to cloud/PostgreSQL:
+// On Vercel / Production: connects to PostgreSQL (Supabase)
+// On Localhost / Development: connects to local SQLite (hospital.db) so live changes do NOT affect localhost and vice-versa
+const isVercel = !!process.env.VERCEL;
+const isProd = process.env.NODE_ENV === 'production';
+const usePostgresExplicitly = process.env.USE_POSTGRES === 'true';
+
+const connectionString = (isVercel || isProd || usePostgresExplicitly)
+  ? (process.env.DATABASE_URL || 'postgresql://postgres:rpntechworld24@db.keofupiarihqkxnnmloy.supabase.co:5432/postgres')
+  : null;
+
+let pgPool = null;
+if (connectionString) {
+  pgPool = new pg.Pool({
+    connectionString,
+    ssl: connectionString.includes('supabase.co') || connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : false
+  });
+  console.log("Connected to PostgreSQL Database (Supabase Production)");
+} else {
+  console.log("Using Local SQLite Database (Localhost Isolation Active)");
+}
+
+let sqliteDb = null;
+const getSqliteDb = async () => {
+  if (sqliteDb) return sqliteDb;
+  try {
+    const sqlite3 = (await import('sqlite3')).default;
+    sqliteDb = new sqlite3.Database(sqliteDbPath, (err) => {
+      if (err) console.error("Failed to connect to SQLite database:", err.message);
+      else console.log("Connected to SQLite database at:", sqliteDbPath);
+    });
+    sqliteDb.run("PRAGMA foreign_keys = ON;");
+    return sqliteDb;
+  } catch (e) {
+    console.warn("SQLite not available (running on serverless):", e.message);
+    return null;
   }
-});
+};
 
-// Enable foreign keys
-db.run("PRAGMA foreign_keys = ON;");
+const convertToPgQuery = (query) => {
+  let paramIdx = 1;
+  // Replace ? with $1, $2, etc.
+  let converted = query.replace(/\?/g, () => `$${paramIdx++}`);
+  // Replace double-quoted column identifiers with lowercase identifiers for PostgreSQL
+  converted = converted.replace(/"([a-zA-Z0-9_]+)"/g, (match, p1) => p1.toLowerCase());
+  return converted;
+};
 
-export const dbRun = (query, params = []) => {
+export const dbRun = async (query, params = []) => {
+  if (pgPool) {
+    try {
+      let pgQuery = convertToPgQuery(query);
+      const isInsert = /^\s*INSERT\s+INTO/i.test(pgQuery);
+      if (isInsert && !/RETURNING/i.test(pgQuery)) {
+        pgQuery += ' RETURNING *';
+      }
+      const res = await pgPool.query(pgQuery, params);
+      const firstRow = res.rows && res.rows[0] ? res.rows[0] : {};
+      return {
+        lastID: firstRow.id || firstRow.visitid || firstRow.patientid || Date.now(),
+        rowsAffected: res.rowCount,
+        ...firstRow
+      };
+    } catch (err) {
+      console.error("PostgreSQL dbRun error:", err.message, "Query:", query);
+      throw err;
+    }
+  }
+
+  const sDb = await getSqliteDb();
+  if (!sDb) throw new Error("Database connection not available");
   return new Promise((resolve, reject) => {
-    db.run(query, params, function (err) {
+    sDb.run(query, params, function (err) {
       if (err) return reject(err);
       resolve({ lastID: this.lastID, rowsAffected: this.changes });
     });
@@ -125,18 +182,45 @@ const camelizeObject = (obj) => {
   return newObj;
 };
 
-export const dbAll = (query, params = []) => {
+export const dbAll = async (query, params = []) => {
+  if (pgPool) {
+    try {
+      const pgQuery = convertToPgQuery(query);
+      const res = await pgPool.query(pgQuery, params);
+      return camelizeObject(res.rows || []);
+    } catch (err) {
+      console.error("PostgreSQL dbAll error:", err.message, "Query:", query);
+      throw err;
+    }
+  }
+
+  const sDb = await getSqliteDb();
+  if (!sDb) return [];
   return new Promise((resolve, reject) => {
-    db.all(query, params, (err, rows) => {
+    sDb.all(query, params, (err, rows) => {
       if (err) return reject(err);
       resolve(camelizeObject(rows || []));
     });
   });
 };
 
-export const dbGet = (query, params = []) => {
+export const dbGet = async (query, params = []) => {
+  if (pgPool) {
+    try {
+      const pgQuery = convertToPgQuery(query);
+      const res = await pgPool.query(pgQuery, params);
+      const row = res.rows && res.rows.length > 0 ? res.rows[0] : null;
+      return camelizeObject(row) || null;
+    } catch (err) {
+      console.error("PostgreSQL dbGet error:", err.message, "Query:", query);
+      throw err;
+    }
+  }
+
+  const sDb = await getSqliteDb();
+  if (!sDb) return null;
   return new Promise((resolve, reject) => {
-    db.get(query, params, (err, row) => {
+    sDb.get(query, params, (err, row) => {
       if (err) return reject(err);
       resolve(camelizeObject(row) || null);
     });
@@ -145,6 +229,194 @@ export const dbGet = (query, params = []) => {
 
 // Initialize Database Tables
 export const initDB = async () => {
+  if (pgPool) {
+    // Ensure all tables exist in PostgreSQL
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS doctors (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        specialty TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        lastlogindate TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS staff (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        role TEXT NOT NULL,
+        password TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS patients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        gender TEXT NOT NULL,
+        contact TEXT NOT NULL,
+        email TEXT,
+        address TEXT,
+        assignedDoctorId INTEGER,
+        status TEXT NOT NULL,
+        diagnosis TEXT,
+        prescription TEXT,
+        issuedMedication TEXT,
+        paymentStatus TEXT NOT NULL,
+        wardBedId TEXT,
+        fatherOrHusbandName TEXT,
+        motherOrGuardianName TEXT,
+        bedAdmissionPending INTEGER DEFAULT 0,
+        alternatePhone TEXT,
+        tokenNumber INTEGER,
+        registrationDate TEXT,
+        prescriptionImg TEXT,
+        height TEXT,
+        weight TEXT,
+        bp TEXT,
+        hr TEXT,
+        spo2 TEXT,
+        grbs TEXT,
+        temp TEXT,
+        complaints TEXT,
+        pastHistory TEXT,
+        examination TEXT,
+        investigation TEXT,
+        bmi TEXT,
+        paidAmount NUMERIC DEFAULT 0,
+        feeBreakdown TEXT,
+        isChild INTEGER DEFAULT 0,
+        childGa TEXT,
+        childBirthDate TEXT,
+        childBirthWeight TEXT,
+        childPlaceOfBirth TEXT,
+        childDeliveryType TEXT,
+        childNicuHistory TEXT,
+        specialInvestigation INTEGER DEFAULT 0,
+        specialInvestigationNotes TEXT,
+        dob TEXT,
+        respiratoryRate TEXT,
+        painScale TEXT,
+        headCircumference TEXT,
+        avpu TEXT,
+        pharmacyStatus TEXT DEFAULT 'N/A',
+        injectionStatus TEXT DEFAULT 'N/A',
+        trackingHistory TEXT,
+        previousDoctor TEXT,
+        pendingReassignment TEXT,
+        reassignmentDeclined TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS patient_history (
+        id SERIAL PRIMARY KEY,
+        patientId TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        visitId BIGINT,
+        date TEXT NOT NULL,
+        doctorName TEXT NOT NULL,
+        diagnosis TEXT,
+        prescription TEXT,
+        prescriptionImg TEXT,
+        issuedMedication TEXT,
+        paymentStatus TEXT,
+        status TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS staff_attendance (
+        id SERIAL PRIMARY KEY,
+        staffId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        status TEXT NOT NULL,
+        markedBy TEXT,
+        shift TEXT DEFAULT 'Day'
+      )`,
+      `CREATE TABLE IF NOT EXISTS directory_ledger (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        details TEXT,
+        amount REAL DEFAULT 0
+      )`,
+      `CREATE TABLE IF NOT EXISTS housekeeping_checklist (
+        id SERIAL PRIMARY KEY,
+        placeName TEXT NOT NULL,
+        date TEXT NOT NULL,
+        isCleaned INTEGER DEFAULT 0,
+        isPlantsWatered INTEGER DEFAULT 0,
+        notes TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS medical_waste (
+        id SERIAL PRIMARY KEY,
+        date TEXT NOT NULL,
+        wasteType TEXT NOT NULL,
+        weight REAL NOT NULL,
+        agencyName TEXT NOT NULL,
+        billAmount REAL DEFAULT 0,
+        billAttachment TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS pharmacy_ledger (
+        id SERIAL PRIMARY KEY,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        agencyName TEXT,
+        paymentMethod TEXT DEFAULT 'Cash'
+      )`,
+      `CREATE TABLE IF NOT EXISTS lab_logs (
+        id SERIAL PRIMARY KEY,
+        patientId TEXT NOT NULL,
+        testName TEXT NOT NULL,
+        dateOrdered TEXT NOT NULL,
+        status TEXT NOT NULL,
+        reportNotes TEXT,
+        reportImg TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS vaccinations_log (
+        id SERIAL PRIMARY KEY,
+        patientId TEXT NOT NULL,
+        vaccineName TEXT NOT NULL,
+        dateGiven TEXT NOT NULL,
+        dosage TEXT,
+        nextDueDate TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS injections_log (
+        id SERIAL PRIMARY KEY,
+        patientId TEXT NOT NULL,
+        injectionName TEXT NOT NULL,
+        dosage TEXT NOT NULL,
+        route TEXT DEFAULT 'IV',
+        frequency TEXT DEFAULT 'STAT',
+        isStat INTEGER DEFAULT 1,
+        administeredBy TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        status TEXT DEFAULT 'Pending',
+        dateGiven TEXT
+      )`
+    ];
+
+    for (const tSql of tables) {
+      try { await pgPool.query(tSql); } catch (e) { console.error("Postgres table init error:", e.message); }
+    }
+
+    // Ensure injection and lab default staff accounts exist in PostgreSQL
+    try {
+      await pgPool.query(
+        `INSERT INTO staff (name, email, role, password) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING`,
+        ['Injection Desk Nurse', 'injection@vijayas.com', 'injection', 'password123']
+      );
+      await pgPool.query(
+        `INSERT INTO staff (name, email, role, password) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING`,
+        ['Lab Investigation Staff', 'lab@vijayas.com', 'lab', 'password123']
+      );
+    } catch (e) {}
+
+    // Reset sequences for all serial tables to prevent ID collisions
+    const serialTables = ['doctors', 'staff', 'patient_history', 'staff_attendance', 'directory_ledger', 'housekeeping_checklist', 'medical_waste', 'pharmacy_ledger', 'lab_logs', 'vaccinations_log', 'injections_log'];
+    for (const st of serialTables) {
+      try {
+        await pgPool.query(`SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM ${st}`, [st]);
+      } catch (e) {}
+    }
+    return;
+  }
+
   // Create Doctors
   await dbRun(`
     CREATE TABLE IF NOT EXISTS doctors (
@@ -175,6 +447,7 @@ export const initDB = async () => {
       age INTEGER NOT NULL,
       gender TEXT NOT NULL,
       contact TEXT NOT NULL,
+      email TEXT,
       address TEXT,
       assignedDoctorId INTEGER,
       status TEXT NOT NULL,
@@ -207,6 +480,7 @@ export const initDB = async () => {
 
   // Migration for adding optional columns
   const alterColumns = [
+    `ALTER TABLE patients ADD COLUMN email TEXT`,
     `ALTER TABLE patients ADD COLUMN motherOrGuardianName TEXT`,
     `ALTER TABLE patients ADD COLUMN bedAdmissionPending INTEGER DEFAULT 0`,
     `ALTER TABLE patients ADD COLUMN paidAmount NUMERIC DEFAULT 0`,
@@ -562,6 +836,7 @@ export const getPatients = async () => {
     age: pat.age,
     gender: pat.gender,
     contact: pat.contact,
+    email: pat.email || '',
     address: pat.address,
     assignedDoctorId: pat.assigneddoctorid !== undefined && pat.assigneddoctorid !== null ? parseInt(pat.assigneddoctorid) : (pat.assignedDoctorId !== undefined && pat.assignedDoctorId !== null ? parseInt(pat.assignedDoctorId) : null),
     status: pat.status,
@@ -705,6 +980,7 @@ export const getPatientById = async (id) => {
     age: pat.age,
     gender: pat.gender,
     contact: pat.contact,
+    email: pat.email || '',
     address: pat.address,
     assignedDoctorId: pat.assignedDoctorId,
     status: pat.status,
@@ -783,15 +1059,12 @@ export const getPatientById = async (id) => {
 };
 
 const getNextPatientId = async () => {
-  const patients = await dbAll(`SELECT id FROM patients`);
+  const latest = await dbAll(`SELECT id FROM patients WHERE id LIKE 'VH%' OR id LIKE 'vh%'`);
   let maxNum = 0;
-  for (const pat of patients) {
-    const idStr = String(pat.id);
-    if (idStr.startsWith('VH')) {
-      const num = parseInt(idStr.substring(2));
-      if (!isNaN(num) && num > maxNum) {
-        maxNum = num;
-      }
+  for (const pat of latest) {
+    const num = parseInt(String(pat.id).replace(/\D/g, ''), 10);
+    if (!isNaN(num) && num > maxNum) {
+      maxNum = num;
     }
   }
   const nextNum = maxNum + 1;
@@ -801,14 +1074,15 @@ const getNextPatientId = async () => {
 export const addPatient = async (pat) => {
   const id = pat.id || (await getNextPatientId());
   await dbRun(
-    `INSERT INTO patients (id, name, age, gender, contact, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes, previousDoctor)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO patients (id, name, age, gender, contact, email, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes, previousDoctor)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       pat.name,
       pat.age,
       pat.gender,
       pat.contact,
+      pat.email || '',
       pat.address || '',
       pat.assignedDoctorId,
       pat.status || 'In Queue',
@@ -855,6 +1129,7 @@ export const addPatient = async (pat) => {
     age: pat.age,
     gender: pat.gender,
     contact: pat.contact,
+    email: pat.email || '',
     address: pat.address || '',
     assignedDoctorId: pat.assignedDoctorId,
     status: pat.status || 'In Queue',
@@ -906,7 +1181,7 @@ export const updatePatient = async (id, data) => {
   const params = [];
 
   const keys = [
-    'name', 'age', 'gender', 'contact', 'address',
+    'name', 'age', 'gender', 'contact', 'email', 'address',
     'assignedDoctorId', 'status', 'diagnosis',
     'prescription', 'issuedMedication', 'paymentStatus', 'wardBedId', 'bedAdmissionPending',
     'fatherOrHusbandName', 'motherOrGuardianName', 'alternatePhone', 'tokenNumber', 'registrationDate',
@@ -918,7 +1193,7 @@ export const updatePatient = async (id, data) => {
 
   for (const k of keys) {
     if (data[k] !== undefined) {
-      fields.push(`"${k}" = ?`);
+      fields.push(`${k.toLowerCase()} = ?`);
       if (k === 'prescription' || k === 'trackingHistory' || k === 'pendingReassignment' || k === 'reassignmentDeclined') {
         params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
@@ -1009,8 +1284,22 @@ export const addPharmacyLedger = async (ledger) => {
 };
 
 // Lab Logs
-export const getLabLogs = () => dbAll(`SELECT * FROM lab_logs`);
+export const getLabLogs = () => dbAll(`SELECT * FROM lab_logs ORDER BY id DESC`);
 export const addLabLog = async (log) => {
+  const cleanPid = String(log.patientId || '').trim().toUpperCase();
+  const cleanTest = String(log.testName || '').trim().toUpperCase();
+  
+  // Check if active/pending duplicate already exists
+  const existing = await dbAll(
+    `SELECT * FROM lab_logs WHERE UPPER(TRIM(patientId)) = ? AND UPPER(TRIM(testName)) = ? AND status IN ('Ordered', 'Sample Collected')`,
+    [cleanPid, cleanTest]
+  );
+  if (existing && existing.length > 0) {
+    const err = new Error(`Lab test "${log.testName}" is already pending for patient ${log.patientId}. Duplicate entries are not allowed.`);
+    err.status = 409;
+    throw err;
+  }
+
   const result = await dbRun(
     `INSERT INTO lab_logs (patientId, testName, dateOrdered, status, reportNotes, reportImg) VALUES (?, ?, ?, ?, ?, ?)`,
     [log.patientId, log.testName, log.dateOrdered, log.status || 'Ordered', log.reportNotes || '', log.reportImg || null]
@@ -1021,6 +1310,7 @@ export const updateLabLogStatus = (id, status, reportNotes, reportImg) => dbRun(
   `UPDATE lab_logs SET status = ?, reportNotes = ?, reportImg = ? WHERE id = ?`,
   [status, reportNotes, reportImg || null, id]
 );
+export const deleteLabLog = (id) => dbRun(`DELETE FROM lab_logs WHERE id = ?`, [id]);
 
 // Vaccinations
 export const getVaccinesByPatient = (patientId) => dbAll(`SELECT * FROM vaccinations_log WHERE patientId = ?`, [patientId]);

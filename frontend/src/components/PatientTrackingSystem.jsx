@@ -120,24 +120,24 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
   // Clean, professional neutral badge styling
   const getBadgeStyle = (status) => {
     if (status === 'Completed') {
-      return { bg: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0', label: 'Completed' };
+      return { bg: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.3)', label: 'Completed' };
     }
     if (status === 'Consulting' || status === 'Dispensing' || status === 'Administering') {
-      return { bg: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', label: status };
+      return { bg: 'rgba(56, 189, 248, 0.15)', color: 'var(--primary)', border: '1px solid rgba(56, 189, 248, 0.3)', label: status };
     }
     if (status === 'Pending' || status === 'In Queue' || status === 'Reviewing') {
-      return { bg: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', label: status };
+      return { bg: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)', label: status };
     }
-    return { bg: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', label: 'N/A' };
+    return { bg: 'rgba(148, 163, 184, 0.15)', color: 'var(--text-muted)', border: '1px solid var(--border)', label: 'N/A' };
   };
 
   return (
-    <div style={{ padding: '1.5rem', background: '#f8fafc', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: '#0f172a' }}>
+    <div style={{ padding: '1.5rem', background: 'var(--bg-dark, #0b1329)', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)' }}>
       
       {/* ===== SIMPLE PROFESSIONAL HEADER ===== */}
       <div style={{ 
-        background: '#ffffff', 
-        border: '1px solid #e2e8f0', 
+        background: 'var(--bg-card, #111c30)', 
+        border: '1px solid var(--border)', 
         borderRadius: '12px', 
         padding: '1.25rem 1.5rem', 
         marginBottom: '1.25rem',
@@ -146,20 +146,20 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: '1rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
       }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={22} style={{ color: 'var(--primary)' }} />
             Patient Workflow Tracking
           </h2>
-          <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+          <p style={{ margin: '0.2rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
             Track real-time patient status across Doctor, Pharmacy & Injection desks.
           </p>
         </div>
 
-        <div style={{ fontSize: '0.88rem', color: '#475569', fontWeight: 600, background: '#f1f5f9', padding: '0.4rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          Active Patients: <strong style={{ color: '#0f172a' }}>{activePatients.length}</strong>
+        <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600, background: 'var(--bg-dark, rgba(0,0,0,0.2))', padding: '0.4rem 0.85rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+          Active Patients: <strong style={{ color: 'var(--primary)' }}>{activePatients.length}</strong>
         </div>
       </div>
 
@@ -169,80 +169,85 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
         <div 
           onClick={() => setActiveTab('all')}
           style={{ 
-            background: activeTab === 'all' ? '#0f172a' : '#ffffff', 
-            color: activeTab === 'all' ? '#ffffff' : '#0f172a',
+            background: activeTab === 'all' ? 'var(--primary)' : 'var(--bg-card, #111c30)', 
+            color: activeTab === 'all' ? '#ffffff' : 'var(--text-primary)',
             padding: '1rem', 
             borderRadius: '10px', 
-            border: activeTab === 'all' ? '1px solid #0f172a' : '1px solid #e2e8f0', 
+            border: activeTab === 'all' ? '1px solid var(--primary)' : '1px solid var(--border)', 
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}
         >
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.8 }}>All Patients</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.9 }}>All Patients</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '0.2rem' }}>{activePatients.length}</div>
         </div>
 
         <div 
           onClick={() => setActiveTab('doctor_pending')}
           style={{ 
-            background: activeTab === 'doctor_pending' ? '#0f172a' : '#ffffff', 
-            color: activeTab === 'doctor_pending' ? '#ffffff' : '#0f172a',
+            background: activeTab === 'doctor_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)', 
+            color: activeTab === 'doctor_pending' ? '#ffffff' : 'var(--text-primary)',
             padding: '1rem', 
             borderRadius: '10px', 
-            border: activeTab === 'doctor_pending' ? '1px solid #0f172a' : '1px solid #e2e8f0', 
+            border: activeTab === 'doctor_pending' ? '1px solid var(--primary)' : '1px solid var(--border)', 
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}
         >
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.8 }}>Doctor Queue</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.9 }}>Doctor Queue</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '0.2rem' }}>{doctorPendingCount}</div>
         </div>
 
         <div 
           onClick={() => setActiveTab('pharmacy_pending')}
           style={{ 
-            background: activeTab === 'pharmacy_pending' ? '#0f172a' : '#ffffff', 
-            color: activeTab === 'pharmacy_pending' ? '#ffffff' : '#0f172a',
+            background: activeTab === 'pharmacy_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)', 
+            color: activeTab === 'pharmacy_pending' ? '#ffffff' : 'var(--text-primary)',
             padding: '1rem', 
             borderRadius: '10px', 
-            border: activeTab === 'pharmacy_pending' ? '1px solid #0f172a' : '1px solid #e2e8f0', 
+            border: activeTab === 'pharmacy_pending' ? '1px solid var(--primary)' : '1px solid var(--border)', 
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}
         >
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.8 }}>Pharmacy Queue</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.9 }}>Pharmacy Queue</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '0.2rem' }}>{pharmacyPendingCount}</div>
         </div>
 
         <div 
           onClick={() => setActiveTab('injection_pending')}
           style={{ 
-            background: activeTab === 'injection_pending' ? '#0f172a' : '#ffffff', 
-            color: activeTab === 'injection_pending' ? '#ffffff' : '#0f172a',
+            background: activeTab === 'injection_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)', 
+            color: activeTab === 'injection_pending' ? '#ffffff' : 'var(--text-primary)',
             padding: '1rem', 
             borderRadius: '10px', 
-            border: activeTab === 'injection_pending' ? '1px solid #0f172a' : '1px solid #e2e8f0', 
+            border: activeTab === 'injection_pending' ? '1px solid var(--primary)' : '1px solid var(--border)', 
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}
         >
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.8 }}>Injection Queue</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.9 }}>Injection Queue</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '0.2rem' }}>{injectionPendingCount}</div>
         </div>
 
         <div 
           onClick={() => setActiveTab('completed')}
           style={{ 
-            background: activeTab === 'completed' ? '#0f172a' : '#ffffff', 
-            color: activeTab === 'completed' ? '#ffffff' : '#0f172a',
+            background: activeTab === 'completed' ? 'var(--primary)' : 'var(--bg-card, #111c30)', 
+            color: activeTab === 'completed' ? '#ffffff' : 'var(--text-primary)',
             padding: '1rem', 
             borderRadius: '10px', 
-            border: activeTab === 'completed' ? '1px solid #0f172a' : '1px solid #e2e8f0', 
+            border: activeTab === 'completed' ? '1px solid var(--primary)' : '1px solid var(--border)', 
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}
         >
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.8 }}>Completed Desks</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, opacity: 0.9 }}>Completed Desks</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '0.2rem' }}>{completedCount}</div>
         </div>
 
@@ -261,9 +266,9 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               fontSize: '0.82rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: activeTab === 'all' ? '#0f172a' : '#ffffff',
-              color: activeTab === 'all' ? '#ffffff' : '#334155'
+              border: '1px solid var(--border)',
+              background: activeTab === 'all' ? 'var(--primary)' : 'var(--bg-card, #111c30)',
+              color: activeTab === 'all' ? '#ffffff' : 'var(--text-secondary)'
             }}
             onClick={() => setActiveTab('all')}
           >
@@ -277,9 +282,9 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               fontSize: '0.82rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: activeTab === 'doctor_pending' ? '#0f172a' : '#ffffff',
-              color: activeTab === 'doctor_pending' ? '#ffffff' : '#334155'
+              border: '1px solid var(--border)',
+              background: activeTab === 'doctor_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)',
+              color: activeTab === 'doctor_pending' ? '#ffffff' : 'var(--text-secondary)'
             }}
             onClick={() => setActiveTab('doctor_pending')}
           >
@@ -293,9 +298,9 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               fontSize: '0.82rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: activeTab === 'pharmacy_pending' ? '#0f172a' : '#ffffff',
-              color: activeTab === 'pharmacy_pending' ? '#ffffff' : '#334155'
+              border: '1px solid var(--border)',
+              background: activeTab === 'pharmacy_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)',
+              color: activeTab === 'pharmacy_pending' ? '#ffffff' : 'var(--text-secondary)'
             }}
             onClick={() => setActiveTab('pharmacy_pending')}
           >
@@ -309,9 +314,9 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               fontSize: '0.82rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: activeTab === 'injection_pending' ? '#0f172a' : '#ffffff',
-              color: activeTab === 'injection_pending' ? '#ffffff' : '#334155'
+              border: '1px solid var(--border)',
+              background: activeTab === 'injection_pending' ? 'var(--primary)' : 'var(--bg-card, #111c30)',
+              color: activeTab === 'injection_pending' ? '#ffffff' : 'var(--text-secondary)'
             }}
             onClick={() => setActiveTab('injection_pending')}
           >
@@ -325,9 +330,9 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               fontSize: '0.82rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: activeTab === 'completed' ? '#0f172a' : '#ffffff',
-              color: activeTab === 'completed' ? '#ffffff' : '#334155'
+              border: '1px solid var(--border)',
+              background: activeTab === 'completed' ? 'var(--primary)' : 'var(--bg-card, #111c30)',
+              color: activeTab === 'completed' ? '#ffffff' : 'var(--text-secondary)'
             }}
             onClick={() => setActiveTab('completed')}
           >
@@ -337,11 +342,11 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
 
         {/* Search Input */}
         <div style={{ position: 'relative', minWidth: '280px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
             className="form-input"
-            style={{ paddingLeft: '2.4rem', fontSize: '0.88rem', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1' }}
+            style={{ paddingLeft: '2.4rem', fontSize: '0.88rem', borderRadius: '6px' }}
             placeholder="Search by Name, Phone or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -353,10 +358,10 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
       {/* ===== PATIENT WORKFLOW CARDS ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {filteredPatients.length === 0 ? (
-          <div style={{ background: '#ffffff', padding: '3rem 1.5rem', borderRadius: '12px', textAlign: 'center', border: '1px border #e2e8f0' }}>
-            <Activity size={40} style={{ color: '#94a3b8', marginBottom: '0.5rem' }} />
-            <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>No Matching Workflow Records</h4>
-            <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>No patient tracking records match the selected filter.</p>
+          <div style={{ background: 'var(--bg-card, #111c30)', padding: '3rem 1.5rem', borderRadius: '12px', textAlign: 'center', border: '1px dashed var(--border)' }}>
+            <Activity size={40} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
+            <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>No Matching Workflow Records</h4>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>No patient tracking records match the selected filter.</p>
           </div>
         ) : (
           filteredPatients.map(patient => {
@@ -373,21 +378,21 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
               <div 
                 key={patient.id}
                 style={{
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
+                  background: 'var(--bg-card, #111c30)',
+                  border: '1px solid var(--border)',
                   borderRadius: '12px',
                   padding: '1.25rem 1.5rem',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.02)'
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
                 }}
               >
-                {/* Patient Header: PROMINENT PATIENT ID & CLEAN METADATA (NO EMOJIS, NO TOKEN TAG) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingBottom: '0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+                {/* Patient Header: PROMINENT PATIENT ID & CLEAN METADATA */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingBottom: '0.85rem', borderBottom: '1px solid var(--border)' }}>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     
                     {/* Patient ID Badge - Highly Visible */}
                     <div style={{
-                      background: '#0f172a',
+                      background: 'var(--primary)',
                       color: '#ffffff',
                       fontWeight: 800,
                       fontSize: '0.9rem',
@@ -401,21 +406,21 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
 
                     <div>
                       {/* Patient Name */}
-                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
                         {patient.name}
                       </div>
 
-                      {/* Clean Metadata Pills - NO EMOJIS */}
+                      {/* Clean Metadata Pills */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#475569', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.78rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 600, border: '1px solid var(--border)' }}>
                           {patient.age} Yrs ({patient.gender})
                         </span>
                         
-                        <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#475569', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.78rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 600, border: '1px solid var(--border)' }}>
                           {patient.contact}
                         </span>
 
-                        <span style={{ fontSize: '0.78rem', background: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 700 }}>
+                        <span style={{ fontSize: '0.78rem', background: 'rgba(56, 189, 248, 0.12)', color: 'var(--primary)', padding: '0.15rem 0.55rem', borderRadius: '4px', fontWeight: 700, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
                           Doctor: {docObj ? docObj.name : 'Unassigned'}
                         </span>
                       </div>
@@ -426,11 +431,11 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                   {/* View Audit History Button */}
                   <button
                     type="button"
-                    className="btn"
-                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', gap: '0.35rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155', fontWeight: 600 }}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', gap: '0.35rem', borderRadius: '6px', fontWeight: 600 }}
                     onClick={() => setSelectedPatientHistory(patient)}
                   >
-                    <History size={14} style={{ color: '#475569' }} /> View Audit History ({trackingList.length})
+                    <History size={14} style={{ color: 'var(--primary)' }} /> View Audit History ({trackingList.length})
                   </button>
 
                 </div>
@@ -440,18 +445,18 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                   
                   {/* 1. Doctor Desk */}
                   <div style={{ 
-                    background: '#f8fafc', 
+                    background: 'var(--bg-dark, rgba(0,0,0,0.2))', 
                     padding: '1rem', 
                     borderRadius: '8px', 
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <Stethoscope size={16} style={{ color: '#0284c7' }} />
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Stethoscope size={16} style={{ color: 'var(--primary)' }} />
                           Doctor Desk
                         </div>
                         <span style={{ fontSize: '0.75rem', background: docBadge.bg, color: docBadge.color, border: docBadge.border, padding: '0.15rem 0.55rem', borderRadius: '6px', fontWeight: 700 }}>
@@ -459,27 +464,23 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '0.85rem', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: '1.4' }}>
                         {patient.diagnosis ? (
-                          <div><strong>Diagnosis:</strong> {patient.diagnosis}</div>
+                          <div><strong style={{ color: 'var(--text-primary)' }}>Diagnosis:</strong> {patient.diagnosis}</div>
                         ) : (
-                          <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>Awaiting Examination</div>
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Awaiting Examination</div>
                         )}
                       </div>
                     </div>
 
                     <button
                       type="button"
+                      className="btn btn-secondary"
                       style={{ 
                         width: '100%', 
                         padding: '0.45rem 0.65rem', 
                         fontSize: '0.8rem', 
-                        fontWeight: 700, 
-                        color: '#0f172a', 
-                        background: '#ffffff', 
-                        border: '1px solid #cbd5e1', 
-                        borderRadius: '6px',
-                        cursor: 'pointer'
+                        fontWeight: 700
                       }}
                       onClick={() => handleOpenStatusModal(patient, 'doctor')}
                     >
@@ -489,18 +490,18 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
 
                   {/* 2. Pharmacy Desk */}
                   <div style={{ 
-                    background: '#f8fafc', 
+                    background: 'var(--bg-dark, rgba(0,0,0,0.2))', 
                     padding: '1rem', 
                     borderRadius: '8px', 
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <Pill size={16} style={{ color: '#d97706' }} />
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Pill size={16} style={{ color: 'var(--warning)' }} />
                           Pharmacy Desk
                         </div>
                         <span style={{ fontSize: '0.75rem', background: pharmBadge.bg, color: pharmBadge.color, border: pharmBadge.border, padding: '0.15rem 0.55rem', borderRadius: '6px', fontWeight: 700 }}>
@@ -508,27 +509,23 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '0.85rem', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: '1.4' }}>
                         {patient.prescription && Array.isArray(patient.prescription) && patient.prescription.length > 0 ? (
-                          <div><strong>Prescription:</strong> {patient.prescription.length} items to issue</div>
+                          <div><strong style={{ color: 'var(--text-primary)' }}>Prescription:</strong> {patient.prescription.length} items to issue</div>
                         ) : (
-                          <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>No Medicines Prescribed</div>
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No Medicines Prescribed</div>
                         )}
                       </div>
                     </div>
 
                     <button
                       type="button"
+                      className="btn btn-secondary"
                       style={{ 
                         width: '100%', 
                         padding: '0.45rem 0.65rem', 
                         fontSize: '0.8rem', 
-                        fontWeight: 700, 
-                        color: '#0f172a', 
-                        background: '#ffffff', 
-                        border: '1px solid #cbd5e1', 
-                        borderRadius: '6px',
-                        cursor: 'pointer'
+                        fontWeight: 700
                       }}
                       onClick={() => handleOpenStatusModal(patient, 'pharmacy')}
                     >
@@ -538,18 +535,18 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
 
                   {/* 3. Injection Desk */}
                   <div style={{ 
-                    background: '#f8fafc', 
+                    background: 'var(--bg-dark, rgba(0,0,0,0.2))', 
                     padding: '1rem', 
                     borderRadius: '8px', 
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <Syringe size={16} style={{ color: '#e11d48' }} />
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Syringe size={16} style={{ color: 'var(--danger)' }} />
                           Injection Desk
                         </div>
                         <span style={{ fontSize: '0.75rem', background: injBadge.bg, color: injBadge.color, border: injBadge.border, padding: '0.15rem 0.55rem', borderRadius: '6px', fontWeight: 700 }}>
@@ -557,27 +554,23 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '0.85rem', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: '1.4' }}>
                         {injStatus !== 'N/A' ? (
-                          <div><strong>Status:</strong> {injStatus}</div>
+                          <div><strong style={{ color: 'var(--text-primary)' }}>Status:</strong> {injStatus}</div>
                         ) : (
-                          <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>No Injection Ordered</div>
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No Injection Ordered</div>
                         )}
                       </div>
                     </div>
 
                     <button
                       type="button"
+                      className="btn btn-secondary"
                       style={{ 
                         width: '100%', 
                         padding: '0.45rem 0.65rem', 
                         fontSize: '0.8rem', 
-                        fontWeight: 700, 
-                        color: '#0f172a', 
-                        background: '#ffffff', 
-                        border: '1px solid #cbd5e1', 
-                        borderRadius: '6px',
-                        cursor: 'pointer'
+                        fontWeight: 700
                       }}
                       onClick={() => handleOpenStatusModal(patient, 'injection')}
                     >
@@ -595,13 +588,13 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
 
       {/* ===== UPDATE STATUS MODAL ===== */}
       {editingPatient && (
-        <div className="modal-overlay" style={{ zIndex: 1100, background: 'rgba(15, 23, 42, 0.5)' }}>
-          <div className="modal-content" style={{ maxWidth: '440px', padding: '1.5rem', borderRadius: '12px' }}>
-            <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+        <div className="modal-overlay" style={{ zIndex: 1100, background: 'rgba(11, 19, 41, 0.85)', backdropFilter: 'blur(8px)' }}>
+          <div className="modal-content" style={{ maxWidth: '440px', padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card, #111c30)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+            <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
               Update {updateDesk.toUpperCase()} Status
             </h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>
-              Patient: <strong>{editingPatient.name}</strong> (ID: #{editingPatient.id})
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Patient: <strong style={{ color: 'var(--primary)' }}>{editingPatient.name}</strong> (ID: #{editingPatient.id})
             </p>
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
@@ -677,16 +670,16 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
       {selectedPatientHistory && (() => {
         const historyList = getTrackingHistoryArray(selectedPatientHistory);
         return (
-          <div className="modal-overlay" style={{ zIndex: 1100, background: 'rgba(15, 23, 42, 0.5)' }}>
-            <div className="modal-content" style={{ maxWidth: '580px', padding: '1.5rem', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+          <div className="modal-overlay" style={{ zIndex: 1100, background: 'rgba(11, 19, 41, 0.85)', backdropFilter: 'blur(8px)' }}>
+            <div className="modal-content" style={{ maxWidth: '580px', padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card, #111c30)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <History size={18} style={{ color: '#0284c7' }} />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <History size={18} style={{ color: 'var(--primary)' }} />
                     Tracking Audit History ({historyList.length})
                   </h3>
-                  <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.15rem' }}>
-                    Patient: <strong>{selectedPatientHistory.name}</strong> (ID: #{selectedPatientHistory.id})
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Patient: <strong style={{ color: 'var(--primary)' }}>{selectedPatientHistory.name}</strong> (ID: #{selectedPatientHistory.id})
                   </div>
                 </div>
                 <button
@@ -705,33 +698,33 @@ const PatientTrackingSystem = ({ patients = [], doctors = [], onUpdatePatientTra
                     <div 
                       key={idx} 
                       style={{ 
-                        border: '1px solid #e2e8f0', 
+                        border: '1px solid var(--border)', 
                         padding: '0.85rem 1rem', 
                         borderRadius: '8px', 
-                        background: '#ffffff'
+                        background: 'var(--bg-dark, rgba(0,0,0,0.2))'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                           {item.desk}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                           ⏱ {item.timestamp}
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.82rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ background: '#f1f5f9', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ background: 'var(--bg-card, #111c30)', border: '1px solid var(--border)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600, color: 'var(--text-primary)' }}>
                           {item.previousStatus}
                         </span>
-                        <ArrowRight size={14} style={{ color: '#94a3b8' }} />
-                        <span style={{ background: '#dcfce7', color: '#15803d', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                        <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                           {item.newStatus}
                         </span>
                       </div>
 
                       {item.notes && (
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.35rem', fontStyle: 'italic' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontStyle: 'italic' }}>
                           Note: {item.notes}
                         </div>
                       )}

@@ -8,30 +8,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sqliteDbPath = path.join(__dirname, 'hospital.db');
 
-// Load environment variables from .env.local
-try {
-  const envPath = path.join(__dirname, '.env.local');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf-8');
-    envContent.split(/\r?\n/).forEach(line => {
-      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-      if (match) {
-        const key = match[1];
-        let val = match[2] || '';
-        if (val.startsWith('"') && val.endsWith('"')) {
-          val = val.substring(1, val.length - 1);
-        } else if (val.startsWith("'") && val.endsWith("'")) {
-          val = val.substring(1, val.length - 1);
+// Load environment variables from .env and .env.local
+['.env', '.env.local'].forEach(envFile => {
+  try {
+    const envPath = path.join(__dirname, envFile);
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      envContent.split(/\r?\n/).forEach(line => {
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+        if (match) {
+          const key = match[1];
+          let val = match[2] || '';
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.substring(1, val.length - 1);
+          } else if (val.startsWith("'") && val.endsWith("'")) {
+            val = val.substring(1, val.length - 1);
+          }
+          process.env[key] = val.trim();
         }
-        process.env[key] = val;
-      }
-    });
+      });
+    }
+  } catch (e) {
+    console.log(`No ${envFile} file loaded:`, e.message);
   }
-} catch (e) {
-  console.log("No .env.local file loaded:", e.message);
-}
+});
 
-let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hospital_db';
+let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:rpntechworld24@db.keofupiarihqkxnnmloy.supabase.co:5432/postgres';
 
 if (connectionString.includes('sslmode=')) {
   connectionString = connectionString.replace(/[\?&]sslmode=[^&]+/gi, '');
@@ -361,8 +363,17 @@ const runMigration = async () => {
 
       console.log(`Found ${rowsToInsert.length} records in SQLite for ${table.name}. Transferring...`);
 
-      // Build dynamic INSERT query
+      // Ensure all columns exist in PostgreSQL
       const columns = Object.keys(rowsToInsert[0]);
+      for (const col of columns) {
+        try {
+          await pgClient.query(`ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS "${col.toLowerCase()}" TEXT`);
+        } catch (e) {
+          // ignore if already exists
+        }
+      }
+
+      // Build dynamic INSERT query
       const columnsCsv = columns.map(c => `"${c.toLowerCase()}"`).join(', ');
       const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
       const insertQuery = `INSERT INTO ${table.name} (${columnsCsv}) VALUES (${placeholders})`;

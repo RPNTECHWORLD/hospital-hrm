@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import nodemailer from 'nodemailer';
 import {
   initDB,
   getDoctors,
@@ -29,6 +30,7 @@ import {
   getLabLogs,
   addLabLog,
   updateLabLogStatus,
+  deleteLabLog,
   getVaccinesByPatient,
   addVaccine,
   getInjections,
@@ -373,8 +375,23 @@ app.get('/api/lab', async (req, res) => {
 });
 app.post('/api/lab', async (req, res) => {
   try {
+    const { patientId, testName } = req.body;
+    if (!patientId || !testName) {
+      return res.status(400).json({ message: 'Patient ID and Test Name are required.' });
+    }
     const log = await addLabLog(req.body);
     res.status(201).json(log);
+  } catch (err) {
+    if (err.status === 409) {
+      return res.status(409).json({ message: err.message });
+    }
+    res.status(500).json({ message: err.message });
+  }
+});
+app.delete('/api/lab/:id', async (req, res) => {
+  try {
+    await deleteLabLog(parseInt(req.params.id));
+    res.json({ message: 'Lab log deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -471,6 +488,153 @@ app.put('/api/injections/patient/:patientId/complete', async (req, res) => {
     res.json({ message: 'Patient pending injections marked as administered' });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Email Transporter (Supports Gmail App Password or SMTP ENV variables)
+const createMailTransporter = async () => {
+  const gmailUser = process.env.GMAIL_USER?.trim();
+  const gmailPass = (process.env.GMAIL_PASSKEY || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '').trim();
+
+  if (gmailUser && gmailPass) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass
+      }
+    });
+  }
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+  }
+
+  // If no SMTP configured, use nodemailer test transport / dev account
+  try {
+    const testAccount = await nodemailer.createTestAccount();
+    return nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+  } catch (e) {
+    return nodemailer.createTransport({
+      jsonTransport: true
+    });
+  }
+};
+
+app.post('/api/send-prescription-email', async (req, res) => {
+  try {
+    const { patientId, patientEmail, patientName, patient, customEmail } = req.body;
+    const targetEmail = (patientEmail || customEmail || (patient && patient.email) || '').trim();
+
+    if (!targetEmail) {
+      return res.status(400).json({ message: 'Patient recipient email address is required.' });
+    }
+
+    const pat = patient || (patientId ? await getPatientById(patientId) : null);
+    if (!pat) {
+      return res.status(404).json({ message: 'Patient details not found.' });
+    }
+
+    // Build Exact Official Letterhead HTML Template matching printable prescription paper
+    const dateStr = pat.registrationDate || new Date().toLocaleDateString('en-GB');
+    const patId = String(pat.id || '').replace(/^#/, '');
+    
+    // Attachments array for Nodemailer
+    const attachments = [];
+    const snapshotBase64 = req.body.prescriptionSnapshot || pat.prescriptionImg;
+
+    let prescriptionImageHtml = '';
+    if (snapshotBase64 && typeof snapshotBase64 === 'string' && snapshotBase64.includes(';base64,')) {
+      const base64Data = snapshotBase64.split(';base64,').pop();
+      const imgBuffer = Buffer.from(base64Data, 'base64');
+      const cidName = 'official_prescription_sheet_' + Date.now();
+
+      attachments.push({
+        filename: `Prescription_${pat.name || patId}.png`,
+        content: imgBuffer,
+        cid: cidName,
+        contentType: 'image/png',
+        disposition: 'inline'
+      });
+
+      prescriptionImageHtml = `
+        <div style="text-align: center; margin: 15px 0;">
+          <img src="cid:${cidName}" alt="Official Digital Prescription" style="max-width: 100%; width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);" />
+        </div>
+      `;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 20px 10px; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif;">
+        <div style="max-width: 780px; margin: 0 auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+          
+          <div style="padding: 14px 20px; background: #008099; color: #ffffff; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 16px; font-weight: 800; letter-spacing: 0.5px;">VIJAYA'S HEALTH CARE - OFFICIAL PRESCRIPTION</div>
+            <div style="font-size: 13px; font-weight: 600;">Patient: ${pat.name} (#${patId})</div>
+          </div>
+
+          <div style="padding: 16px 14px; background: #fafafa;">
+            ${prescriptionImageHtml || '<p style="text-align: center; color: #64748b;">Official prescription attached.</p>'}
+          </div>
+
+          <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; text-align: center;">
+            Vijaya's Health Care • 24/7 Emergency & Pharmacy Support: <strong>+91 94890 48507</strong> | <strong>04564-271393</strong>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 3px;">Please find your official prescription document above.</div>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const transporter = await createMailTransporter();
+    const fromAddress = (process.env.GMAIL_USER || process.env.SMTP_FROM || 'vijayashealthcare@gmail.com').trim();
+    const mailOptions = {
+      from: `"Vijaya's Health Care" <${fromAddress}>`,
+      to: targetEmail,
+      subject: `Digital Prescription - ${pat.name} (#${pat.id}) | Vijaya's Health Care`,
+      html: htmlContent,
+      attachments: attachments
+    };
+
+    const isRealSmtp = !!((process.env.GMAIL_USER && (process.env.GMAIL_PASSKEY || process.env.GMAIL_APP_PASSWORD)) || process.env.SMTP_USER);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Prescription email sent successfully to ${targetEmail} (Real SMTP: ${isRealSmtp}):`, info ? (info.messageId || 'Sent') : 'Sent');
+
+    res.json({
+      success: true,
+      isSandbox: !isRealSmtp,
+      message: `Prescription successfully sent to ${targetEmail}`,
+      targetEmail
+    });
+  } catch (err) {
+    console.error("Error sending prescription email:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to send prescription email.'
+    });
   }
 });
 

@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout, UserX, RotateCcw } from 'lucide-react';
+import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout, UserX, RotateCcw, FileText, ArrowRight } from 'lucide-react';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import { TN_LOCATIONS } from '../utils/locationHelper';
 
+
+const getSavedReceptionDraft = () => {
+  try {
+    const saved = localStorage.getItem('reception_patient_form_draft');
+    return saved ? JSON.parse(saved) : {};
+  } catch (e) {
+    return {};
+  }
+};
 
 const ReceptionistDashboard = ({
   patients,
@@ -17,19 +26,22 @@ const ReceptionistDashboard = ({
   onDeletePatient,
   onAdmitToWard
 }) => {
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('');
-  const [gender, setGender] = useState('Male');
-  const [countryCode, setCountryCode] = useState('+91');
-  const [contact, setContact] = useState('');
-  const [fatherOrHusbandName, setFatherOrHusbandName] = useState('');
-  const [motherName, setMotherName] = useState('');
-  const [guardianName, setGuardianName] = useState('');
-  const [altCountryCode, setAltCountryCode] = useState('+91');
-  const [alternatePhone, setAlternatePhone] = useState('');
-  const [dob, setDob] = useState('');
+  const savedDraft = React.useMemo(() => getSavedReceptionDraft(), []);
+
+  const [name, setName] = useState(savedDraft.name || '');
+  const [age, setAge] = useState(savedDraft.age || '');
+  const [gender, setGender] = useState(savedDraft.gender || 'Male');
+  const [countryCode, setCountryCode] = useState(savedDraft.countryCode || '+91');
+  const [contact, setContact] = useState(savedDraft.contact || '');
+  const [fatherOrHusbandName, setFatherOrHusbandName] = useState(savedDraft.fatherOrHusbandName || '');
+  const [motherName, setMotherName] = useState(savedDraft.motherName || '');
+  const [guardianName, setGuardianName] = useState(savedDraft.guardianName || '');
+  const [altCountryCode, setAltCountryCode] = useState(savedDraft.altCountryCode || '+91');
+  const [alternatePhone, setAlternatePhone] = useState(savedDraft.alternatePhone || '');
+  const [email, setEmail] = useState(savedDraft.email || '');
+  const [dob, setDob] = useState(savedDraft.dob || '');
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const [returningPatientId, setReturningPatientId] = useState(null);
+  const [returningPatientId, setReturningPatientId] = useState(savedDraft.returningPatientId || null);
   const [showNameSuggestions, setShowNameSuggestions] = useState(true);
   const [tableFilter, setTableFilter] = useState('all');
   const [alreadyInQueuePatient, setAlreadyInQueuePatient] = useState(null);
@@ -64,8 +76,13 @@ const ReceptionistDashboard = ({
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
 
   // Helper to check if a patient is already active in today's queue
-  const getActiveQueuePatient = (patientIdOrName, phone = '') => {
-    if (!patientIdOrName && !phone) return null;
+  const getActiveQueuePatient = (patientIdOrName, phone = '', patientName = '') => {
+    const targetName = (patientName || name || '').trim().toLowerCase();
+    const targetPhone = String(phone || contact || '').replace(/\D/g, '');
+    const targetId = patientIdOrName ? String(patientIdOrName).replace(/#/g, '').trim().toLowerCase() : '';
+
+    if (!targetId && !targetName && !targetPhone) return null;
+
     return (patients || []).find(p => {
       if (!p || p.status === 'Inactive') return false;
 
@@ -76,27 +93,31 @@ const ReceptionistDashboard = ({
       const isCurrentlyActiveInQueue = (isToday && !isCompleted) || isReviewing;
       if (!isCurrentlyActiveInQueue) return false;
 
+      const cleanDbId = String(p.id || '').replace(/#/g, '').trim().toLowerCase();
+      const cleanDbName = String(p.name || '').trim().toLowerCase();
+      const cleanDbPhone = String(p.contact || '').replace(/\D/g, '');
+
       // 1. Match by Patient ID
-      if (patientIdOrName) {
-        const cleanIdA = String(patientIdOrName).replace(/#/g, '').trim().toLowerCase();
-        const cleanIdB = String(p.id).replace(/#/g, '').trim().toLowerCase();
-        if (cleanIdA && cleanIdB && cleanIdA === cleanIdB) return p;
+      if (targetId && cleanDbId && targetId === cleanDbId) {
+        return p;
       }
 
-      // 2. Match by Name & Phone
-      if (name && phone) {
-        const cleanPhoneA = String(phone).replace(/\D/g, '');
-        const cleanPhoneB = (p.contact || '').replace(/\D/g, '');
-        const nameA = (name || '').trim().toLowerCase();
-        const nameB = (p.name || '').trim().toLowerCase();
-        if (cleanPhoneA && cleanPhoneB && cleanPhoneA.slice(-10) === cleanPhoneB.slice(-10) && nameA && nameB && nameA === nameB) {
-          return p;
-        }
+      // 2. Match by exact 10-digit Phone number
+      if (targetPhone.length >= 10 && cleanDbPhone.length >= 10 && targetPhone.slice(-10) === cleanDbPhone.slice(-10)) {
+        return p;
+      }
+
+      // 3. Match by exact Name (case-insensitive) if active in today's queue
+      if (targetName && cleanDbName && targetName === cleanDbName) {
+        return p;
       }
 
       return false;
     });
   };
+
+  // Registration Submitting State
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Housekeeping Modal & Form States
   const [showHousekeepingModal, setShowHousekeepingModal] = useState(false);
@@ -222,6 +243,8 @@ const ReceptionistDashboard = ({
       setAlternatePhone('');
     }
 
+    setEmail(p.email || '');
+
     if (p.address) {
       const addrParts = p.address.split(' | ');
       setStreet(addrParts[0] || '');
@@ -286,12 +309,12 @@ const ReceptionistDashboard = ({
       setAlternatePhone(val);
     }
   };
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [pincode, setPincode] = useState('');
+  const [street, setStreet] = useState(savedDraft.street || '');
+  const [city, setCity] = useState(savedDraft.city || '');
+  const [pincode, setPincode] = useState(savedDraft.pincode || '');
   const [showStreetSuggestions, setShowStreetSuggestions] = useState(false);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-  const [assignedDoctorId, setAssignedDoctorId] = useState(doctors[0]?.id || '');
+  const [assignedDoctorId, setAssignedDoctorId] = useState(savedDraft.assignedDoctorId || (doctors[0]?.id || ''));
   const [previewImage, setPreviewImage] = useState(null);
 
   // Payment Collection Modal States
@@ -411,18 +434,18 @@ const ReceptionistDashboard = ({
   };
 
   // Vitals States
-  const [height, setHeight] = useState('');
-  const [weight, setWeight] = useState('');
-  const [bp, setBp] = useState('');
-  const [hr, setHr] = useState('');
-  const [spo2, setSpo2] = useState('');
-  const [grbs, setGrbs] = useState('');
-  const [temp, setTemp] = useState('');
-  const [respiratoryRate, setRespiratoryRate] = useState('');
-  const [painScale, setPainScale] = useState('');
-  const [headCircumference, setHeadCircumference] = useState('');
-  const [avpu, setAvpu] = useState('Alert');
-  const [bmi, setBmi] = useState('');
+  const [height, setHeight] = useState(savedDraft.height || '');
+  const [weight, setWeight] = useState(savedDraft.weight || '');
+  const [bp, setBp] = useState(savedDraft.bp || '');
+  const [hr, setHr] = useState(savedDraft.hr || '');
+  const [spo2, setSpo2] = useState(savedDraft.spo2 || '');
+  const [grbs, setGrbs] = useState(savedDraft.grbs || '');
+  const [temp, setTemp] = useState(savedDraft.temp || '');
+  const [respiratoryRate, setRespiratoryRate] = useState(savedDraft.respiratoryRate || '');
+  const [painScale, setPainScale] = useState(savedDraft.painScale || '');
+  const [headCircumference, setHeadCircumference] = useState(savedDraft.headCircumference || '');
+  const [avpu, setAvpu] = useState(savedDraft.avpu || 'Alert');
+  const [bmi, setBmi] = useState(savedDraft.bmi || '');
 
   React.useEffect(() => {
     if (height && weight) {
@@ -439,23 +462,97 @@ const ReceptionistDashboard = ({
   }, [height, weight]);
 
   // Search & Re-queue States
-  const [receptionistTab, setReceptionistTab] = useState('new'); // 'new', 'returning' or 'child'
+  const [receptionistTab, setReceptionistTab] = useState(savedDraft.receptionistTab || 'new'); // 'new', 'returning' or 'child'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
   const [reRegisterDoctorId, setReRegisterDoctorId] = useState(doctors[0]?.id || '');
   const [successPatient, setSuccessPatient] = useState(null);
 
   // Child Register specific states
-  const [childGa, setChildGa] = useState('');
-  const [childBirthDate, setChildBirthDate] = useState('');
-  const [childBirthWeight, setChildBirthWeight] = useState('');
-  const [childPlaceOfBirth, setChildPlaceOfBirth] = useState('');
-  const [childDeliveryType, setChildDeliveryType] = useState('NVD');
-  const [childNicuHistory, setChildNicuHistory] = useState('No');
+  const [childGa, setChildGa] = useState(savedDraft.childGa || '');
+  const [childBirthDate, setChildBirthDate] = useState(savedDraft.childBirthDate || '');
+  const [childBirthWeight, setChildBirthWeight] = useState(savedDraft.childBirthWeight || '');
+  const [childPlaceOfBirth, setChildPlaceOfBirth] = useState(savedDraft.childPlaceOfBirth || '');
+  const [childDeliveryType, setChildDeliveryType] = useState(savedDraft.childDeliveryType || 'NVD');
+  const [childNicuHistory, setChildNicuHistory] = useState(savedDraft.childNicuHistory || 'No');
 
   // Special Investigation
-  const [specialInvestigation, setSpecialInvestigation] = useState(false);
-  const [specialInvestigationNotes, setSpecialInvestigationNotes] = useState('');
+  const [specialInvestigation, setSpecialInvestigation] = useState(savedDraft.specialInvestigation || false);
+  const [specialInvestigationNotes, setSpecialInvestigationNotes] = useState(savedDraft.specialInvestigationNotes || '');
+
+  // Auto-save form draft to localStorage on any changes
+  useEffect(() => {
+    const hasData = !!(
+      name || age || contact || email || fatherOrHusbandName || motherName || guardianName ||
+      alternatePhone || dob || street || city || pincode || returningPatientId ||
+      height || weight || bp || hr || spo2 || grbs || temp || respiratoryRate ||
+      painScale || headCircumference || childGa || childBirthDate || childBirthWeight ||
+      childPlaceOfBirth || specialInvestigationNotes || specialInvestigation
+    );
+
+    if (hasData) {
+      const draft = {
+        name,
+        age,
+        gender,
+        countryCode,
+        contact,
+        email,
+        fatherOrHusbandName,
+        motherName,
+        guardianName,
+        altCountryCode,
+        alternatePhone,
+        dob,
+        returningPatientId,
+        street,
+        city,
+        pincode,
+        assignedDoctorId,
+        receptionistTab,
+        height,
+        weight,
+        bp,
+        hr,
+        spo2,
+        grbs,
+        temp,
+        respiratoryRate,
+        painScale,
+        headCircumference,
+        avpu,
+        bmi,
+        childGa,
+        childBirthDate,
+        childBirthWeight,
+        childPlaceOfBirth,
+        childDeliveryType,
+        childNicuHistory,
+        specialInvestigation,
+        specialInvestigationNotes
+      };
+      try {
+        localStorage.setItem('reception_patient_form_draft', JSON.stringify(draft));
+      } catch (e) {}
+    } else {
+      try {
+        localStorage.removeItem('reception_patient_form_draft');
+      } catch (e) {}
+    }
+  }, [
+    name, age, gender, countryCode, contact, email, fatherOrHusbandName, motherName, guardianName,
+    altCountryCode, alternatePhone, dob, returningPatientId, street, city, pincode,
+    assignedDoctorId, receptionistTab, height, weight, bp, hr, spo2, grbs, temp,
+    respiratoryRate, painScale, headCircumference, avpu, bmi, childGa, childBirthDate,
+    childBirthWeight, childPlaceOfBirth, childDeliveryType, childNicuHistory,
+    specialInvestigation, specialInvestigationNotes
+  ]);
+
+  const clearFormDraft = () => {
+    try {
+      localStorage.removeItem('reception_patient_form_draft');
+    } catch (e) {}
+  };
 
   // Vitals validation helpers (All optional)
   const isValidWeight = (val) => !val || !val.trim() || /^\d+(\.\d+)?$/.test(val.trim());
@@ -515,6 +612,7 @@ const ReceptionistDashboard = ({
       age: calculatedAge,
       gender,
       contact: fullContact,
+      email: email.trim().toLowerCase(),
       fatherOrHusbandName,
       motherOrGuardianName: motherOrGuardianValue,
       alternatePhone: fullAltPhone,
@@ -545,35 +643,41 @@ const ReceptionistDashboard = ({
     };
 
     let registered;
-    if (returningPatientId) {
-      const activeInQueue = getActiveQueuePatient(returningPatientId);
-      if (activeInQueue) {
-        setAlreadyInQueuePatient(activeInQueue);
-        return;
+    setIsSubmitting(true);
+    try {
+      if (returningPatientId) {
+        const activeInQueue = getActiveQueuePatient(returningPatientId, fullContact, name);
+        if (activeInQueue) {
+          setAlreadyInQueuePatient(activeInQueue);
+          setIsSubmitting(false);
+          return;
+        }
+        registered = await onReRegisterPatient(returningPatientId, parseInt(assignedDoctorId), patientPayload);
+      } else {
+        const activeInQueue = getActiveQueuePatient(null, fullContact, name);
+        if (activeInQueue) {
+          setAlreadyInQueuePatient(activeInQueue);
+          setIsSubmitting(false);
+          return;
+        }
+        registered = await onRegisterPatient(patientPayload);
       }
-      registered = await onReRegisterPatient(returningPatientId, parseInt(assignedDoctorId), patientPayload);
-    } else {
-      const activeInQueue = getActiveQueuePatient(null, fullContact);
-      if (activeInQueue) {
-        setAlreadyInQueuePatient(activeInQueue);
-        return;
-      }
-      registered = await onRegisterPatient(patientPayload);
-    }
 
-    if (registered) {
-      setSuccessPatient(registered);
-      setFormSubmitted(false);
-      setReturningPatientId(null);
-      // Reset Form
-      setName('');
-      setAge('');
-      setGender('Male');
-      setContact('');
-      setCountryCode('+91');
-      setFatherOrHusbandName('');
-      setMotherName('');
-      setGuardianName('');
+      if (registered) {
+        clearFormDraft();
+        setSuccessPatient(registered);
+        setFormSubmitted(false);
+        setReturningPatientId(null);
+        // Reset Form
+        setName('');
+        setAge('');
+        setGender('Male');
+        setContact('');
+        setEmail('');
+        setCountryCode('+91');
+        setFatherOrHusbandName('');
+        setMotherName('');
+        setGuardianName('');
       setAlternatePhone('');
       setAltCountryCode('+91');
       setStreet('');
@@ -599,8 +703,13 @@ const ReceptionistDashboard = ({
       setChildPlaceOfBirth('');
       setChildDeliveryType('NVD');
       setChildNicuHistory('No');
-      setSpecialInvestigation(false);
-      setSpecialInvestigationNotes('');
+        setSpecialInvestigation(false);
+        setSpecialInvestigationNotes('');
+      }
+    } catch (err) {
+      console.error("Registration error:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -788,10 +897,12 @@ const ReceptionistDashboard = ({
                     className="btn btn-secondary"
                     style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
                     onClick={() => {
+                      clearFormDraft();
                       setReturningPatientId(null);
                       setName('');
                       setAge('');
                       setContact('');
+                      setEmail('');
                       setFatherOrHusbandName('');
                       setMotherName('');
                       setGuardianName('');
@@ -812,6 +923,14 @@ const ReceptionistDashboard = ({
                       setHeadCircumference('');
                       setAvpu('Alert');
                       setBmi('');
+                      setChildGa('');
+                      setChildBirthDate('');
+                      setChildBirthWeight('');
+                      setChildPlaceOfBirth('');
+                      setChildDeliveryType('NVD');
+                      setChildNicuHistory('No');
+                      setSpecialInvestigation(false);
+                      setSpecialInvestigationNotes('');
                       setFormSubmitted(false);
                     }}
                   >
@@ -1090,6 +1209,17 @@ const ReceptionistDashboard = ({
                       </span>
                     )}
                   </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.25rem' }}>
+                  <label className="form-label">Email ID (Optional - For sending digital prescriptions)</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="e.g. patient@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
 
                 {/* Address Fields with Location Auto-suggest */}
@@ -1563,8 +1693,13 @@ const ReceptionistDashboard = ({
                   </select>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  Register & Queue Patient
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={isSubmitting} 
+                  style={{ width: '100%', opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+                >
+                  {isSubmitting ? 'Registering & Queuing Patient...' : 'Register & Queue Patient'}
                 </button>
               </form>
             </>
@@ -1593,19 +1728,19 @@ const ReceptionistDashboard = ({
               {searchQuery.trim() && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '480px', overflowY: 'auto', paddingRight: '4px' }}>
                   {filteredPatients.length === 0 ? (
-                    <div style={{ textStyle: 'center', padding: '2rem 1rem', background: 'rgba(248, 250, 252, 0.8)', borderRadius: '10px', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>No matching patient record found for "<strong>{searchQuery}</strong>".</p>
+                    <div style={{ padding: '2rem 1rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', borderRadius: '10px', border: '1px dashed var(--border)', textAlign: 'center' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>No matching patient record found for "<strong>{searchQuery}</strong>".</p>
                     </div>
                   ) : (
                     filteredPatients.map(p => (
                       <div 
                         key={p.id} 
                         style={{ 
-                          border: '1px solid rgba(99, 102, 241, 0.2)', 
+                          border: '1px solid var(--border)', 
                           padding: '1.15rem', 
                           borderRadius: '12px', 
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                          background: 'var(--bg-card, #111c30)',
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
                           transition: 'all 0.25s ease'
                         }}
                       >
@@ -1629,11 +1764,11 @@ const ReceptionistDashboard = ({
                               {p.name ? p.name.charAt(0).toUpperCase() : 'P'}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', letterSpacing: '-0.01em' }}>
+                              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                                 {p.name}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
-                                Last Visit: <span style={{ fontWeight: 600, color: '#334155' }}>{p.registrationDate || 'Previous Visit'}</span>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                                Last Visit: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.registrationDate || 'Previous Visit'}</span>
                               </div>
                             </div>
                           </div>
@@ -1641,11 +1776,11 @@ const ReceptionistDashboard = ({
                           <span style={{ 
                             fontSize: '0.8rem', 
                             fontWeight: 700, 
-                            background: 'rgba(99, 102, 241, 0.12)', 
-                            color: '#4f46e5', 
+                            background: 'rgba(56, 189, 248, 0.12)', 
+                            color: 'var(--primary)', 
                             padding: '0.3rem 0.65rem', 
                             borderRadius: '20px',
-                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
                             letterSpacing: '0.02em',
                             flexShrink: 0
                           }}>
@@ -1655,13 +1790,13 @@ const ReceptionistDashboard = ({
 
                         {/* Demographic Info Pills */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-                          <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                          <span style={{ fontSize: '0.78rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', color: 'var(--text-primary)', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600, border: '1px solid var(--border)' }}>
                             {p.age} Yrs
                           </span>
-                          <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                          <span style={{ fontSize: '0.78rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', color: 'var(--text-primary)', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600, border: '1px solid var(--border)' }}>
                             {p.gender}
                           </span>
-                          <span style={{ fontSize: '0.78rem', background: 'rgba(14, 165, 233, 0.1)', color: '#0284c7', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600 }}>
+                          <span style={{ fontSize: '0.78rem', background: 'rgba(14, 165, 233, 0.12)', color: 'var(--primary)', padding: '0.2rem 0.55rem', borderRadius: '6px', fontWeight: 600, border: '1px solid rgba(14, 165, 233, 0.2)' }}>
                             📞 {p.contact}
                           </span>
                         </div>
@@ -1670,36 +1805,37 @@ const ReceptionistDashboard = ({
                         {(p.fatherOrHusbandName || p.motherOrGuardianName || p.alternatePhone) && (
                           <div style={{ 
                             fontSize: '0.8rem', 
-                            color: '#475569', 
-                            background: 'rgba(241, 245, 249, 0.7)', 
+                            color: 'var(--text-secondary)', 
+                            background: 'var(--bg-dark, rgba(0,0,0,0.2))', 
                             padding: '0.5rem 0.75rem', 
                             borderRadius: '6px', 
                             marginBottom: '1rem',
-                            lineHeight: '1.4' 
+                            lineHeight: '1.4',
+                            border: '1px solid var(--border)'
                           }}>
-                            {p.fatherOrHusbandName && <div><strong>Father/Husband:</strong> {p.fatherOrHusbandName}</div>}
+                            {p.fatherOrHusbandName && <div><strong style={{ color: 'var(--text-primary)' }}>Father/Husband:</strong> {p.fatherOrHusbandName}</div>}
                             {p.motherOrGuardianName && (
                               <div>
                                 {p.motherOrGuardianName.includes(' | Guardian: ') ? (
                                   <>
-                                    <div><strong>Mother:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
-                                    <div><strong>Guardian:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
+                                    <div><strong style={{ color: 'var(--text-primary)' }}>Mother:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[0].replace('Mother: ', '')}</div>
+                                    <div><strong style={{ color: 'var(--text-primary)' }}>Guardian:</strong> {p.motherOrGuardianName.split(' | Guardian: ')[1]}</div>
                                   </>
                                 ) : p.motherOrGuardianName.startsWith('Mother: ') ? (
-                                  <div><strong>Mother:</strong> {p.motherOrGuardianName.replace('Mother: ', '')}</div>
+                                  <div><strong style={{ color: 'var(--text-primary)' }}>Mother:</strong> {p.motherOrGuardianName.replace('Mother: ', '')}</div>
                                 ) : p.motherOrGuardianName.startsWith('Guardian: ') ? (
-                                  <div><strong>Guardian:</strong> {p.motherOrGuardianName.replace('Guardian: ', '')}</div>
+                                  <div><strong style={{ color: 'var(--text-primary)' }}>Guardian:</strong> {p.motherOrGuardianName.replace('Guardian: ', '')}</div>
                                 ) : (
-                                  <div><strong>Mother/Guardian:</strong> {p.motherOrGuardianName}</div>
+                                  <div><strong style={{ color: 'var(--text-primary)' }}>Mother/Guardian:</strong> {p.motherOrGuardianName}</div>
                                 )}
                               </div>
                             )}
-                            {p.alternatePhone && <div><strong>Alt Phone:</strong> {p.alternatePhone}</div>}
+                            {p.alternatePhone && <div><strong style={{ color: 'var(--text-primary)' }}>Alt Phone:</strong> {p.alternatePhone}</div>}
                           </div>
                         )}
 
                         {/* Action Buttons Side-by-Side */}
-                        <div style={{ display: 'grid', gridTemplateColumns: ((p.history && p.history.length > 0) || p.diagnosis) ? '1fr 1fr' : '1fr', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: ((p.history && p.history.length > 0) || p.diagnosis) ? '1fr 1fr' : '1fr', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
                           {((p.history && p.history.length > 0) || p.diagnosis) && (
                             <button
                               type="button"
@@ -1711,39 +1847,29 @@ const ReceptionistDashboard = ({
                                 } else {
                                   const currentVisitMock = {
                                     name: p.name,
-                                    history: [{
-                                      visitId: p.id,
-                                      date: 'Last Visit Details',
-                                      doctorName: doctors.find(d => d.id === p.assignedDoctorId)?.name || 'Unknown',
-                                      diagnosis: p.diagnosis,
-                                      prescription: p.prescription || [],
-                                      issuedMedication: p.issuedMedication || 'None',
-                                      paymentStatus: p.paymentStatus,
-                                      status: p.status
-                                    }]
+                                    age: p.age,
+                                    gender: p.gender,
+                                    contact: p.contact,
+                                    date: p.registrationDate || 'Current Visit',
+                                    diagnosis: p.diagnosis,
+                                    prescription: p.prescription,
+                                    prescriptionImg: p.prescriptionImg || null,
+                                    doctorName: p.assignedDoctorName || 'Dr. Vijayan'
                                   };
-                                  setSelectedPatientForHistory(currentVisitMock);
+                                  setViewingPrescription(currentVisitMock);
                                 }
                               }}
                             >
-                              <History size={14} /> Clinical History
+                              <FileText size={14} /> History
                             </button>
                           )}
-
                           <button
                             type="button"
                             className="btn btn-primary"
-                            style={{ 
-                              padding: '0.5rem 0.85rem', 
-                              fontSize: '0.82rem', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              gap: '0.4rem'
-                            }}
-                            onClick={() => handleSelectReturningPatient(p)}
+                            style={{ padding: '0.5rem 0.65rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                            onClick={() => handleSelectExistingPatient(p)}
                           >
-                            <UserPlus size={15} /> Re-Register Patient
+                            <ArrowRight size={14} /> Re-admit
                           </button>
                         </div>
                       </div>

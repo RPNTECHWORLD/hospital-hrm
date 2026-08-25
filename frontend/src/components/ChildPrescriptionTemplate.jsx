@@ -49,7 +49,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
     <div className="rx-paper-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {/* Toggle Controls (Hidden during printing) */}
       <div className="no-print" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.85rem' }}>
-        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#334155' }}>
+        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)' }}>
           <input
             type="checkbox"
             checked={showBgImage}
@@ -58,7 +58,7 @@ const ChildPrescriptionTemplate = ({ patient }) => {
           />
           Show Background Prescription Template Image
         </label>
-        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>(Uncheck if printing on pre-printed letterhead paper)</span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>(Uncheck if printing on pre-printed letterhead paper)</span>
       </div>
 
       {/* Main Printable Prescription Paper Container (Fixed 723:1024 Aspect Ratio matching image) */}

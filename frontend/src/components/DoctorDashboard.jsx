@@ -499,6 +499,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [isHistoryPreview, setIsHistoryPreview] = useState(false);
   const [padDesignMode, setPadDesignMode] = useState('auto');
   const [toast, setToast] = useState(null);
+  const [isSendingPrescription, setIsSendingPrescription] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -688,6 +689,18 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
       showToast('Please type a test name first!', 'danger');
       return;
     }
+
+    const cleanTest = orderTestName.trim().toUpperCase();
+    const isDuplicate = patientLabLogs.some(
+      log => String(log.testName).trim().toUpperCase() === cleanTest &&
+             (log.status === 'Ordered' || log.status === 'Sample Collected')
+    );
+
+    if (isDuplicate) {
+      showToast(`Lab Test "${orderTestName.trim()}" is already ordered/pending for this patient! Duplicate requests are not allowed.`, 'warning');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/api/lab`, {
         method: 'POST',
@@ -711,7 +724,8 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           setPatientLabLogs(patLabs);
         }
       } else {
-        showToast('Failed to order lab test.', 'danger');
+        const errData = await response.json().catch(() => ({}));
+        showToast(errData.message || 'Failed to order lab test.', 'danger');
       }
     } catch (err) {
       console.error("Failed to order lab test:", err);
@@ -895,21 +909,6 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
         showToast('Please write something on the digital drawing board first!', 'danger');
         return;
       }
-      
-      const finalDiagnosis = diagnosis || 'Handwritten Prescription Sheet';
-      
-      setSharePatient({
-        ...activePatient,
-        diagnosis: finalDiagnosis,
-        prescription: null,
-        prescriptionImg: canvasDataUrl,
-        complaints,
-        pastHistory,
-        examination,
-        investigation,
-        wardBedId: recommendAdmission ? targetBedId : null,
-        bedAdmissionPending: recommendAdmission ? 1 : 0
-      });
     } else {
       if (!diagnosis) {
         showToast('Please enter a diagnosis first!', 'danger');
@@ -919,21 +918,23 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
         showToast('Please complete medicine details!', 'danger');
         return;
       }
-      
-      setSharePatient({
-        ...activePatient,
-        diagnosis,
-        prescription: medicines,
-        prescriptionImg: null,
-        complaints,
-        pastHistory,
-        examination,
-        investigation,
-        wardBedId: recommendAdmission ? targetBedId : null,
-        bedAdmissionPending: recommendAdmission ? 1 : 0
-      });
     }
 
+    const finalDiagnosis = diagnosis || (prescriptionMode === 'drawing' ? 'Handwritten Prescription Sheet' : 'Clinical Consultation Completed');
+    const prescData = {
+      ...activePatient,
+      diagnosis: finalDiagnosis,
+      prescription: prescriptionMode === 'drawing' ? null : medicines,
+      prescriptionImg: prescriptionMode === 'drawing' ? canvasDataUrl : null,
+      complaints,
+      pastHistory,
+      examination,
+      investigation,
+      wardBedId: recommendAdmission ? targetBedId : null,
+      bedAdmissionPending: recommendAdmission ? 1 : 0
+    };
+
+    setSharePatient(prescData);
     setIsHistoryPreview(false);
   };
 
@@ -2501,13 +2502,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             animation: 'fade-in 0.2s ease-out'
           }} onClick={() => setShowAllHistoryModal(false)}>
             <div style={{
-              background: '#ffffff',
+              background: 'var(--bg-card, #111c30)',
               color: 'var(--text-primary)',
               width: '100%',
               maxWidth: '650px',
               maxHeight: '85vh',
               borderRadius: '16px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
@@ -2521,7 +2522,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 alignItems: 'center',
                 padding: '1.25rem 1.5rem',
                 borderBottom: '1px solid var(--border)',
-                background: '#f8fafc'
+                background: 'var(--bg-card, #111c30)'
               }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
@@ -2535,12 +2536,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   type="button"
                   onClick={() => setShowAllHistoryModal(false)}
                   style={{
-                    background: 'rgba(0,0,0,0.05)',
+                    background: 'rgba(128, 128, 128, 0.15)',
                     border: 'none',
                     borderRadius: '50%',
                     width: '32px',
                     height: '32px',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -2557,7 +2558,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               <div style={{
                 padding: '0.75rem 1.5rem',
                 borderBottom: '1px solid var(--border)',
-                background: '#f8fafc',
+                background: 'var(--bg-card, #111c30)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -2578,7 +2579,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         fontSize: '0.8rem',
                         outline: 'none',
                         color: 'var(--text-primary)',
-                        background: '#ffffff'
+                        background: 'var(--bg-dark, #0b1329)'
                       }}
                     />
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
@@ -2593,7 +2594,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         fontSize: '0.8rem',
                         outline: 'none',
                         color: 'var(--text-primary)',
-                        background: '#ffffff'
+                        background: 'var(--bg-dark, #0b1329)'
                       }}
                     />
                   </div>
@@ -2614,22 +2615,22 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               </div>
 
               {/* Scrollable Content */}
-              <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, background: '#fcfcfd', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, background: 'var(--bg-dark, #0b1329)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredHistoryItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', background: '#ffffff', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+                  <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'var(--bg-card, #111c30)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
                     No records found for the selected date range.
                   </div>
                 ) : filteredHistoryItems.map((item, index) => {
                   if (item.type === 'current') {
                     return (
-                      <div key={index} style={{ background: 'rgba(255,255,255,0.9)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderLeft: '4px solid var(--warning)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)' }}>
+                      <div key={index} style={{ background: 'var(--bg-card, #111c30)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderLeft: '4px solid var(--warning)', boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                           <span>Active / Last Checkup</span>
                           <span>Doctor's diagnosis</span>
                         </div>
                         <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '0.35rem', color: 'var(--text-primary)' }}>Diagnosis: {item.diagnosis}</div>
                         
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             Status: {item.status} • Payment: {item.paymentStatus}
                           </span>
@@ -2654,14 +2655,14 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     );
                   } else {
                     return (
-                      <div key={index} style={{ background: '#ffffff', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)' }}>
+                      <div key={index} style={{ background: 'var(--bg-card, #111c30)', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                           <span>{item.date}</span>
                           <span>Doc: {item.doctorName}</span>
                         </div>
                         <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '0.35rem', color: 'var(--text-primary)' }}>Diagnosis: {item.diagnosis}</div>
                         
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
                           <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             <span>Status: {item.status}</span>
                             <span>Payment: {item.paymentStatus}</span>
@@ -2706,7 +2707,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               <div style={{
                 padding: '0.75rem 1.5rem',
                 borderTop: '1px solid var(--border)',
-                background: '#f8fafc',
+                background: 'var(--bg-card, #111c30)',
                 display: 'flex',
                 justifyContent: 'flex-end'
               }}>
@@ -2745,13 +2746,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           setIsHistoryPreview(false);
         }}>
           <div style={{
-            background: '#ffffff',
+            background: 'var(--bg-card, #ffffff)',
             color: 'var(--text-primary)',
             width: '100%',
             maxWidth: '680px',
             maxHeight: '90vh',
             borderRadius: '16px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -2766,7 +2767,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               alignItems: 'center',
               padding: '1.25rem 1.5rem',
               borderBottom: '1px solid var(--border)',
-              background: '#f8fafc'
+              background: 'var(--bg-card, #f8fafc)'
             }}>
               <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 800, color: 'var(--primary)' }}>
                 {isHistoryPreview ? "View Previous Prescription" : "Review & Send Prescription"}
@@ -2775,12 +2776,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 type="button" 
                 className="btn btn-secondary" 
                 style={{
-                  background: 'rgba(0,0,0,0.05)',
+                  background: 'rgba(128, 128, 128, 0.15)',
                   border: 'none',
                   borderRadius: '50%',
                   width: '32px',
                   height: '32px',
-                  color: 'var(--text-secondary)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2798,7 +2799,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             </div>
 
             {/* Scrollable Content wrapper */}
-            <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(90vh - 130px)', background: '#f8fafc' }}>
+            <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(90vh - 130px)', background: 'var(--bg-dark, #f8fafc)' }}>
               
               <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', fontSize: '0.9rem', marginTop: 0 }}>
                 {isHistoryPreview 
@@ -2808,7 +2809,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
               {/* Official Prescription Paper (Adult vs Child Template Switcher) */}
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Select Pad Design:</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Select Pad Design:</span>
                 <button
                   type="button"
                   className={`btn ${ (padDesignMode === 'adult' || (padDesignMode === 'auto' && !(sharePatient?.patientCategory === 'child' || (sharePatient?.age && parseInt(sharePatient.age) <= 12)))) ? 'btn-primary' : 'btn-secondary'}`}
@@ -2839,7 +2840,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             <div className="doc-rx-modal-footer" style={{
               padding: '1rem 1.5rem',
               borderTop: '1px solid var(--border)',
-              background: '#f8fafc',
+              background: 'var(--bg-card, #f8fafc)',
               display: 'flex',
               gap: '1rem',
               justifyContent: 'flex-end'
@@ -2934,44 +2935,61 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   <button 
                     type="button"
                     className="btn btn-primary" 
-                    style={{ flexGrow: 1 }}
+                    disabled={isSendingPrescription}
+                    style={{ flexGrow: 1, opacity: isSendingPrescription ? 0.7 : 1, cursor: isSendingPrescription ? 'not-allowed' : 'pointer' }}
                     onClick={async () => {
-                      const success = await onSubmitPrescription(activePatient.id, sharePatient);
-                      if (success) {
-                        setSharePatient(null);
-                        showToast(`Prescription successfully sent to Pharmacy!`, 'success');
-                        
-                        if (previousStateBeforeEdit) {
-                          setActivePatient(previousStateBeforeEdit.activePatient);
-                          if (previousStateBeforeEdit.activePatient) {
-                            setDiagnosis(previousStateBeforeEdit.diagnosis || '');
-                            setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
-                            setComplaints(previousStateBeforeEdit.complaints || '');
-                            setPastHistory(previousStateBeforeEdit.pastHistory || '');
-                            setExamination(previousStateBeforeEdit.examination || '');
-                            setInvestigation(previousStateBeforeEdit.investigation || '');
-                            setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
-                            setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
-                            setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
-                            setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
+                      if (isSendingPrescription) return;
+                      const targetPatientId = activePatient?.id || sharePatient?.id;
+                      if (!targetPatientId) {
+                        showToast('Patient record not found. Please re-select the patient.', 'danger');
+                        return;
+                      }
+
+                      setIsSendingPrescription(true);
+                      try {
+                        const success = await onSubmitPrescription(targetPatientId, sharePatient);
+                        if (success) {
+                          setSharePatient(null);
+                          showToast(`Prescription successfully sent to Pharmacy!`, 'success');
+                          
+                          if (previousStateBeforeEdit) {
+                            setActivePatient(previousStateBeforeEdit.activePatient);
+                            if (previousStateBeforeEdit.activePatient) {
+                              setDiagnosis(previousStateBeforeEdit.diagnosis || '');
+                              setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
+                              setComplaints(previousStateBeforeEdit.complaints || '');
+                              setPastHistory(previousStateBeforeEdit.pastHistory || '');
+                              setExamination(previousStateBeforeEdit.examination || '');
+                              setInvestigation(previousStateBeforeEdit.investigation || '');
+                              setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
+                              setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
+                              setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
+                              setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
+                            }
+                            if (previousStateBeforeEdit.showAllHistoryModal) {
+                              setShowAllHistoryModal(true);
+                            }
+                            setPreviousStateBeforeEdit(null);
+                          } else {
+                            setActivePatient(null);
                           }
-                          if (previousStateBeforeEdit.showAllHistoryModal) {
-                            setShowAllHistoryModal(true);
-                          }
-                          setPreviousStateBeforeEdit(null);
                         } else {
-                          setActivePatient(null);
+                          showToast(`Failed to send prescription. Please try again!`, 'danger');
                         }
-                      } else {
-                        showToast(`Failed to send prescription. Please try again!`, 'danger');
+                      } catch (err) {
+                        console.error("Error sending prescription:", err);
+                        showToast(`Error sending prescription: ${err.message}`, 'danger');
+                      } finally {
+                        setIsSendingPrescription(false);
                       }
                     }}
                   >
-                    <Send size={16} /> Send to Pharmacy
+                    <Send size={16} /> {isSendingPrescription ? 'Sending to Pharmacy...' : 'Send to Pharmacy'}
                   </button>
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
+                    disabled={isSendingPrescription}
                     onClick={() => {
                       setSharePatient(null);
                     }}

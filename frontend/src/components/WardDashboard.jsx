@@ -41,16 +41,16 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
     e.preventDefault();
     if (!selectedBed || !selectedPatientId) return;
 
-    const patientIdInt = parseInt(selectedPatientId);
+    const patientIdVal = selectedPatientId;
     const updatedBeds = beds.map(b => {
       if (b.id === selectedBed.id) {
-        return { ...b, patientId: patientIdInt };
+        return { ...b, patientId: patientIdVal };
       }
       return b;
     });
 
     setBeds(updatedBeds);
-    onAssignBed(patientIdInt, selectedBed.id);
+    onAssignBed(patientIdVal, selectedBed.id);
     setSelectedBed(null);
   };
 
@@ -270,7 +270,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                         {isPending ? 'Requested Admission:' : 'Admitted Patient:'}
                       </div>
                       <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{patient.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patient.gender} • {patient.age} Yrs</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patient.gender} • {patient.age} Yrs • Reg: {patient.registrationDate || '--'}</div>
                       
                       {isPending ? (
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
@@ -349,7 +349,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                     <option value="" disabled>Select patient from active list</option>
                     {eligiblePatients.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.age} Yrs - Status: {p.status})
+                        {p.name} ({p.age} Yrs - Status: {p.status} - Reg Date: {p.registrationDate || 'N/A'})
                       </option>
                     ))}
                   </select>

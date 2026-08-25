@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer } from 'lucide-react';
+import PrescriptionTemplate from './PrescriptionTemplate';
+import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
 // Helper: extract city from address string "street | city | pincode"
 const extractCity = (address) => {
@@ -103,6 +105,7 @@ const AdminPatientRecords = ({
   // Selected Patient for Details Overlay Modal
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [activePrescriptionPreview, setActivePrescriptionPreview] = useState(null);
+  const [padDesignMode, setPadDesignMode] = useState('auto');
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -650,29 +653,57 @@ const AdminPatientRecords = ({
       {/* Patient Details Audit Modal */}
       {selectedPatient && (() => {
         const historyItems = [];
-        if (selectedPatient.diagnosis) {
+        if (selectedPatient.diagnosis || selectedPatient.prescription) {
           historyItems.push({
-            date: selectedPatient.registrationDate || 'Current Checkup',
+            date: selectedPatient.registrationDate ? `${selectedPatient.registrationDate} (Current Visit)` : 'Current Visit',
             doctorName: doctors.find(d => d.id === selectedPatient.assignedDoctorId)?.name || 'Dr. Vijayan',
-            diagnosis: selectedPatient.diagnosis,
+            diagnosis: selectedPatient.diagnosis || 'General Checkup',
             prescription: selectedPatient.prescription,
             status: selectedPatient.status,
             paymentStatus: selectedPatient.paymentStatus,
             issuedMedication: selectedPatient.issuedMedication,
-            prescriptionImg: selectedPatient.prescriptionImg
+            prescriptionImg: selectedPatient.prescriptionImg,
+            complaints: selectedPatient.complaints,
+            examination: selectedPatient.examination,
+            pastHistory: selectedPatient.pastHistory,
+            investigation: selectedPatient.investigation,
+            bp: selectedPatient.bp,
+            hr: selectedPatient.hr,
+            spo2: selectedPatient.spo2,
+            temp: selectedPatient.temp,
+            grbs: selectedPatient.grbs,
+            weight: selectedPatient.weight,
+            height: selectedPatient.height,
+            patientCategory: selectedPatient.patientCategory,
+            age: selectedPatient.age,
+            gender: selectedPatient.gender
           });
         }
         if (selectedPatient.history) {
           selectedPatient.history.slice().reverse().forEach(visit => {
             historyItems.push({
               date: visit.date,
-              doctorName: visit.doctorName,
-              diagnosis: visit.diagnosis,
+              doctorName: visit.doctorName || 'Dr. Vijayan',
+              diagnosis: visit.diagnosis || 'Checkup Completed',
               prescription: visit.prescription,
               status: visit.status,
               paymentStatus: visit.paymentStatus,
               issuedMedication: visit.issuedMedication,
-              prescriptionImg: visit.prescriptionImg
+              prescriptionImg: visit.prescriptionImg,
+              complaints: visit.complaints,
+              examination: visit.examination,
+              pastHistory: visit.pastHistory,
+              investigation: visit.investigation,
+              bp: visit.bp,
+              hr: visit.hr,
+              spo2: visit.spo2,
+              temp: visit.temp,
+              grbs: visit.grbs,
+              weight: visit.weight,
+              height: visit.height,
+              patientCategory: visit.patientCategory,
+              age: visit.age,
+              gender: visit.gender
             });
           });
         }
@@ -689,7 +720,7 @@ const AdminPatientRecords = ({
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
+            background: 'rgba(15, 23, 42, 0.75)',
             backdropFilter: 'blur(8px)',
             zIndex: 9999,
             display: 'flex',
@@ -699,13 +730,13 @@ const AdminPatientRecords = ({
             animation: 'fade-in 0.2s ease-out'
           }} onClick={() => setSelectedPatient(null)}>
             <div className="audit-modal-container" style={{
-              background: '#ffffff',
+              background: 'var(--bg-card, #111c30)',
               color: 'var(--text-primary)',
               width: '100%',
               maxWidth: '850px',
               maxHeight: '94vh',
               borderRadius: '16px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
@@ -719,7 +750,7 @@ const AdminPatientRecords = ({
                 alignItems: 'center',
                 padding: '1.25rem 1.5rem',
                 borderBottom: '1px solid var(--border)',
-                background: '#f8fafc'
+                background: 'var(--bg-card, #111c30)'
               }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -733,12 +764,12 @@ const AdminPatientRecords = ({
                   type="button"
                   onClick={() => setSelectedPatient(null)}
                   style={{
-                    background: 'rgba(0,0,0,0.05)',
+                    background: 'rgba(128, 128, 128, 0.15)',
                     border: 'none',
                     borderRadius: '50%',
                     width: '32px',
                     height: '32px',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -753,30 +784,30 @@ const AdminPatientRecords = ({
               </div>
 
               {/* Modal Content Area */}
-              <div className="audit-modal-body" style={{ padding: '1.25rem', overflowY: 'auto', flex: 1, background: '#fcfcfd' }}>
+              <div className="audit-modal-body" style={{ padding: '1.25rem', overflowY: 'auto', flex: 1, background: 'var(--bg-dark, #0b1329)' }}>
 
                 {/* Info Grid splits */}
                 <div className="audit-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
 
                   {/* Demographics card */}
                   <div style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
+                    background: 'var(--bg-card, #111c30)',
+                    border: '1px solid var(--border)',
                     borderRadius: '10px',
                     padding: '1rem 1.25rem',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                   }}>
                     <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Demographics & Relatives
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Age / Gender:</span>
-                        <strong style={{ textTransform: 'capitalize' }}>{selectedPatient.age} Yrs • {selectedPatient.gender}</strong>
+                        <strong style={{ textTransform: 'capitalize', color: 'var(--text-primary)' }}>{selectedPatient.age} Yrs • {selectedPatient.gender}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Father / Husband:</span>
-                        <strong>{selectedPatient.fatherOrHusbandName || '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.fatherOrHusbandName || '--'}</strong>
                       </div>
                       {(() => {
                         const val = selectedPatient.motherOrGuardianName || '';
@@ -797,66 +828,66 @@ const AdminPatientRecords = ({
                         }
                         return (
                           <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Mother's Name:</span>
-                              <strong>{motherVal}</strong>
+                              <strong style={{ color: 'var(--text-primary)' }}>{motherVal}</strong>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Guardian's Name:</span>
-                              <strong>{guardianVal}</strong>
+                              <strong style={{ color: 'var(--text-primary)' }}>{guardianVal}</strong>
                             </div>
                           </>
                         );
                       })()}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Primary Contact:</span>
-                        <strong>{selectedPatient.contact || '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.contact || '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Alternate Phone:</span>
-                        <strong>{selectedPatient.alternatePhone || '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.alternatePhone || '--'}</strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Address:</span>
-                        <strong>{selectedPatient.address || '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.address || '--'}</strong>
                       </div>
                     </div>
                   </div>
 
                   {/* Vitals card */}
                   <div style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
+                    background: 'var(--bg-card, #111c30)',
+                    border: '1px solid var(--border)',
                     borderRadius: '10px',
                     padding: '1rem 1.25rem',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                   }}>
                     <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Checked Vitals Triage
                     </h4>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem', fontStyle: 'italic' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem', fontStyle: 'italic' }}>
                       Recorded on: {vitalsDate}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>BP / Heart Rate:</span>
-                        <strong>{selectedPatient.bp || '--'} • {selectedPatient.hr || '--'} bpm</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.bp || '--'} • {selectedPatient.hr || '--'} bpm</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Oxygen SPO2:</span>
-                        <strong>{selectedPatient.spo2 ? `${selectedPatient.spo2}%` : '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.spo2 ? `${selectedPatient.spo2}%` : '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Temperature:</span>
-                        <strong>{selectedPatient.temp ? `${selectedPatient.temp} °F` : '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.temp ? `${selectedPatient.temp} °F` : '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>GRBS Glucose:</span>
-                        <strong>{selectedPatient.grbs || '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.grbs || '--'}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Height / Weight:</span>
-                        <strong>{selectedPatient.height ? `${selectedPatient.height} cm` : '--'} / {selectedPatient.weight ? `${selectedPatient.weight} kg` : '--'}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.height ? `${selectedPatient.height} cm` : '--'} / {selectedPatient.weight ? `${selectedPatient.weight} kg` : '--'}</strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Calculated BMI:</span>
@@ -869,15 +900,15 @@ const AdminPatientRecords = ({
 
                 {/* Doctor Review & Clinical Consultation Audit Card */}
                 <div style={{
-                  background: selectedPatient.status === 'Reviewing' ? 'rgba(139, 92, 246, 0.06)' : '#ffffff',
-                  border: selectedPatient.status === 'Reviewing' ? '1.5px solid rgba(139, 92, 246, 0.35)' : '1px solid #cbd5e1',
+                  background: selectedPatient.status === 'Reviewing' ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card, #111c30)',
+                  border: selectedPatient.status === 'Reviewing' ? '1.5px solid rgba(139, 92, 246, 0.4)' : '1px solid var(--border)',
                   borderRadius: '12px',
                   padding: '1.25rem',
                   marginBottom: '1.25rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: selectedPatient.status === 'Reviewing' ? '#6d28d9' : 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: selectedPatient.status === 'Reviewing' ? '#a78bfa' : 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <Stethoscope size={18} />
                       {selectedPatient.status === 'Reviewing' ? '📋 Doctor Review Details (Follow-Up)' : '🩺 Primary Clinical Consultation Details'}
                     </h4>
@@ -887,7 +918,7 @@ const AdminPatientRecords = ({
                   </div>
 
                   {/* Doctor & Fulfillment Summary Header */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: 'var(--bg-dark, rgba(0,0,0,0.2))', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '0.85rem' }}>
                     <div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Assigned Doctor</span>
                       <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
@@ -896,7 +927,7 @@ const AdminPatientRecords = ({
                     </div>
                     <div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Pharmacy Fulfillment</span>
-                      <strong style={{ fontSize: '0.9rem', color: selectedPatient.issuedMedication ? '#059669' : '#d97706' }}>
+                      <strong style={{ fontSize: '0.9rem', color: selectedPatient.issuedMedication ? 'var(--success)' : 'var(--warning)' }}>
                         {selectedPatient.issuedMedication || 'Pending / None Issued'}
                       </strong>
                     </div>
@@ -911,7 +942,7 @@ const AdminPatientRecords = ({
                   {/* Consultation / Review Details Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                     {/* Diagnosis */}
-                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: 'var(--bg-card, #111c30)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                         Diagnosis / Doctor Assessment
                       </span>
@@ -923,7 +954,7 @@ const AdminPatientRecords = ({
                     </div>
 
                     {/* Chief Complaints */}
-                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: 'var(--bg-card, #111c30)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                         Chief Complaints
                       </span>
@@ -935,7 +966,7 @@ const AdminPatientRecords = ({
                     </div>
 
                     {/* Examination */}
-                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: 'var(--bg-card, #111c30)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                         Clinical Examination
                       </span>
@@ -947,7 +978,7 @@ const AdminPatientRecords = ({
                     </div>
 
                     {/* Investigation / Lab Orders */}
-                    <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: 'var(--bg-card, #111c30)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                         Ordered Investigation / Lab Tests
                       </span>
@@ -968,7 +999,7 @@ const AdminPatientRecords = ({
                       Audited Checkup History logs
                     </h4>
                     <span style={{
-                      background: 'rgba(21, 115, 136, 0.1)',
+                      background: 'rgba(56, 189, 248, 0.12)',
                       color: 'var(--primary)',
                       fontWeight: 800,
                       fontSize: '0.75rem',
@@ -983,7 +1014,7 @@ const AdminPatientRecords = ({
                     <div style={{
                       padding: '2.5rem',
                       textAlign: 'center',
-                      background: '#ffffff',
+                      background: 'var(--bg-card, #111c30)',
                       borderRadius: '10px',
                       border: '1.5px dashed var(--border)',
                       color: 'var(--text-muted)'
@@ -996,12 +1027,12 @@ const AdminPatientRecords = ({
                         <div
                           key={index}
                           style={{
-                            background: visit.date.includes('Current') ? 'rgba(245, 158, 11, 0.04)' : '#ffffff',
-                            border: '1.5px solid #cbd5e1',
-                            borderLeft: visit.date.includes('Current') ? '4px solid var(--warning)' : '1.5px solid #cbd5e1',
+                            background: visit.date.includes('Current') ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card, #111c30)',
+                            border: '1px solid var(--border)',
+                            borderLeft: visit.date.includes('Current') ? '4px solid var(--warning)' : '1px solid var(--border)',
                             padding: '1rem',
                             borderRadius: '8px',
-                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)'
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
@@ -1012,7 +1043,7 @@ const AdminPatientRecords = ({
                           <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             Diagnosis: <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{visit.diagnosis || 'None'}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #cbd5e1', paddingTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                               <span>Status: {visit.status}</span>
                               <span>Payment: {visit.paymentStatus}</span>
@@ -1033,10 +1064,35 @@ const AdminPatientRecords = ({
                                 fontWeight: 700,
                                 cursor: 'pointer'
                               }}
-                              onClick={() => setActivePrescriptionPreview({
-                                patientName: selectedPatient.name,
-                                visit
-                              })}
+                              onClick={() => {
+                                const isChild = selectedPatient.patientCategory === 'child' || (selectedPatient.age && parseInt(selectedPatient.age) <= 12) || (visit.patientCategory === 'child') || (visit.age && parseInt(visit.age) <= 12);
+                                const combinedPatient = {
+                                  ...selectedPatient,
+                                  patientCategory: isChild ? 'child' : (selectedPatient.patientCategory || 'adult'),
+                                  registrationDate: visit.date ? (visit.date.includes('(') ? visit.date.split('(')[0].trim() : visit.date) : selectedPatient.registrationDate,
+                                  assignedDoctorName: visit.doctorName || selectedPatient.assignedDoctorName || 'Dr. Vijayan',
+                                  diagnosis: visit.diagnosis || selectedPatient.diagnosis || '',
+                                  prescription: visit.prescription || (selectedPatient.prescription && Array.isArray(selectedPatient.prescription) ? selectedPatient.prescription : []),
+                                  prescriptionImg: visit.prescriptionImg || selectedPatient.prescriptionImg || null,
+                                  complaints: visit.complaints || selectedPatient.complaints || '',
+                                  pastHistory: visit.pastHistory || selectedPatient.pastHistory || '',
+                                  examination: visit.examination || selectedPatient.examination || '',
+                                  investigation: visit.investigation || selectedPatient.investigation || '',
+                                  bp: visit.bp || selectedPatient.bp || '',
+                                  hr: visit.hr || selectedPatient.hr || '',
+                                  spo2: visit.spo2 || selectedPatient.spo2 || '',
+                                  temp: visit.temp || selectedPatient.temp || '',
+                                  grbs: visit.grbs || selectedPatient.grbs || '',
+                                  weight: visit.weight || selectedPatient.weight || '',
+                                  height: visit.height || selectedPatient.height || '',
+                                };
+                                setActivePrescriptionPreview({
+                                  patientName: selectedPatient.name,
+                                  patient: combinedPatient,
+                                  visit
+                                });
+                                setPadDesignMode('auto');
+                              }}
                             >
                               <FileText size={12} /> Open Prescription
                             </button>
@@ -1072,13 +1128,13 @@ const AdminPatientRecords = ({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {reassignmentLogs.map((log, i) => (
                           <div key={log.id || i} style={{
-                            background: 'rgba(99, 102, 241, 0.04)',
-                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                            background: 'rgba(56, 189, 248, 0.08)',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
                             borderRadius: '8px',
                             padding: '0.85rem 1rem',
                             fontSize: '0.85rem'
                           }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', borderBottom: '1px dashed rgba(0,0,0,0.1)', paddingBottom: '0.35rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', borderBottom: '1px dashed var(--border)', paddingBottom: '0.35rem' }}>
                               <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.85rem' }}>
                                 🔄 Reassigned: {log.previousDoctor || 'Unassigned'} ➔ {log.newDoctor || 'New Doctor'}
                               </span>
@@ -1087,8 +1143,8 @@ const AdminPatientRecords = ({
                               </span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                              <div><strong>Changed By:</strong> {log.changedBy || 'System User'}</div>
-                              <div><strong>Reason:</strong> {log.reason || 'Routine Reassignment'}</div>
+                              <div><strong style={{ color: 'var(--text-primary)' }}>Changed By:</strong> {log.changedBy || 'System User'}</div>
+                              <div><strong style={{ color: 'var(--text-primary)' }}>Reason:</strong> {log.reason || 'Routine Reassignment'}</div>
                             </div>
                           </div>
                         ))}
@@ -1103,7 +1159,7 @@ const AdminPatientRecords = ({
               <div className="audit-footer" style={{
                 padding: '0.85rem 1.25rem',
                 borderTop: '1px solid var(--border)',
-                background: '#f8fafc',
+                background: 'var(--bg-card, #111c30)',
                 display: 'flex',
                 justifyContent: 'flex-end'
               }}>
@@ -1125,9 +1181,15 @@ const AdminPatientRecords = ({
         );
       })()}
 
-      {/* Prescription Preview Sub-Modal */}
+      {/* Full Prescription Preview Modal */}
       {activePrescriptionPreview && (() => {
-        const { patientName, visit } = activePrescriptionPreview;
+        const rxPatient = activePrescriptionPreview.patient || {
+          ...selectedPatient,
+          ...(activePrescriptionPreview.visit || {}),
+          name: activePrescriptionPreview.patientName || selectedPatient?.name
+        };
+        const isPediatric = padDesignMode === 'child' || (padDesignMode === 'auto' && (rxPatient?.patientCategory === 'child' || (rxPatient?.age && parseInt(rxPatient.age) <= 12)));
+
         return (
           <div className="rx-modal-backdrop" style={{
             position: 'fixed',
@@ -1135,23 +1197,23 @@ const AdminPatientRecords = ({
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(15, 23, 42, 0.45)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 10000,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 10001,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '0.5rem',
+            padding: '1rem',
             animation: 'fade-in 0.15s ease-out'
           }} onClick={() => setActivePrescriptionPreview(null)}>
             <div className="rx-modal-container" style={{
-              background: '#ffffff',
+              background: 'var(--bg-card, #111c30)',
               color: 'var(--text-primary)',
               width: '100%',
-              maxWidth: '500px',
-              maxHeight: '92vh',
-              borderRadius: '12px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05)',
+              maxWidth: '860px',
+              maxHeight: '94vh',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
@@ -1163,110 +1225,106 @@ const AdminPatientRecords = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '0.85rem 1rem',
+                padding: '1rem 1.5rem',
                 borderBottom: '1px solid var(--border)',
-                background: '#f8fafc'
+                background: 'var(--bg-card, #111c30)'
               }}>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    Prescription Sheet
+                  <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FileText size={20} style={{ color: 'var(--primary)' }} />
+                    Official Prescription Sheet
                   </h4>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                    Patient: {patientName} • {visit.date}
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                    Patient: <strong style={{ color: 'var(--primary)' }}>{rxPatient.name}</strong> • UHID: #{rxPatient.id || rxPatient.patientId || '--'} • Date: {activePrescriptionPreview.visit?.date || rxPatient.registrationDate || '--'}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActivePrescriptionPreview(null)}
                   style={{
-                    background: 'rgba(0,0,0,0.05)',
+                    background: 'rgba(128, 128, 128, 0.15)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '28px',
-                    height: '28px',
-                    color: 'var(--text-secondary)',
+                    width: '34px',
+                    height: '34px',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 'bold',
-                    fontSize: '0.75rem'
+                    fontSize: '0.9rem'
                   }}
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Prescription Content */}
-              <div style={{ padding: '1.25rem', overflowY: 'auto', maxHeight: '70vh', background: '#ffffff' }}>
-                {visit.prescriptionImg ? (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontStyle: 'italic' }}>
-                      Handwritten Prescription Canvas:
-                    </div>
-                    <img
-                      src={visit.prescriptionImg}
-                      alt="Handwritten prescription sheet"
-                      style={{
-                        width: '100%',
-                        maxHeight: '400px',
-                        objectFit: 'contain',
-                        border: 'none',
-                        background: 'transparent'
-                      }}
-                    />
-                  </div>
-                ) : visit.prescription && visit.prescription.length > 0 ? (
-                  <div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: 600 }}>
-                      Rx Digital Prescription:
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                      {visit.prescription.map((med, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '0.65rem 0.85rem',
-                            background: '#f8fafc',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.85rem'
-                          }}
-                        >
-                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{med.name}</span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {med.dosage} • <strong>{med.duration} Days</strong>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
-                    No prescription details recorded for this checkout log.
-                  </div>
-                )}
+              {/* Pad Selection & Prescription Body */}
+              <div className="rx-modal-body" style={{ padding: '1.25rem', overflowY: 'auto', maxHeight: '74vh', background: 'var(--bg-dark, #0b1329)' }}>
+                
+                {/* Pad Design Switcher */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Select Pad Design:</span>
+                  <button
+                    type="button"
+                    className={`btn ${!isPediatric ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                    onClick={() => setPadDesignMode('adult')}
+                  >
+                    Standard Adult Pad
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${isPediatric ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                    onClick={() => setPadDesignMode('child')}
+                  >
+                    Pediatric / Child Pad (Vijaya's)
+                  </button>
+                </div>
+
+                {/* Prescription Component */}
+                <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                  {isPediatric ? (
+                    <ChildPrescriptionTemplate patient={rxPatient} />
+                  ) : (
+                    <PrescriptionTemplate patient={rxPatient} />
+                  )}
+                </div>
               </div>
 
               {/* Footer */}
-              <div style={{
-                padding: '0.75rem 1.25rem',
+              <div className="rx-modal-footer" style={{
+                padding: '0.9rem 1.5rem',
                 borderTop: '1px solid var(--border)',
-                background: '#f8fafc',
+                background: 'var(--bg-card, #111c30)',
                 display: 'flex',
-                justifyContent: 'flex-end'
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem'
               }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setActivePrescriptionPreview(null)}
-                  style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
-                >
-                  Close Prescription
-                </button>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Doctor: <strong style={{ color: 'var(--text-primary)' }}>{rxPatient.assignedDoctorName || rxPatient.doctorName || 'Dr. Vijayan'}</strong>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => window.print()}
+                    style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <Printer size={16} /> Print Prescription
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setActivePrescriptionPreview(null)}
+                    style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
 
             </div>

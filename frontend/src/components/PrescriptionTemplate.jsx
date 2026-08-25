@@ -24,7 +24,8 @@ export const VijayasHospitalLogo = ({ width = 245, height = 62 }) => {
   );
 };
 
-const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
+// Helper to calculate tablet quantity from dosage and duration
+export const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
   const str = (dosageStr || '').toLowerCase();
   let frequency = 2;
   const fourPartMatch = str.match(/\b([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\s*[-:]\s*([0-9])\b/);
@@ -42,6 +43,218 @@ const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
   }
   if (frequency <= 0) frequency = 1;
   return frequency * (parseInt(durationDays) || 1);
+};
+
+// Helper to generate full composite prescription image with template background
+export const generateFullPrescriptionImage = async (patient) => {
+  return new Promise((resolve) => {
+    try {
+      if (!patient) return resolve(null);
+      const isChild = patient?.isChild === 1 || patient?.patientCategory === 'child' || (patient?.age && parseInt(patient.age) <= 12);
+      const bgSrc = isChild ? '/child-prescription-bg.png' : '/vijayas-prescription-bg.png';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 1700;
+      const ctx = canvas.getContext('2d');
+
+      const bgImg = new Image();
+      bgImg.crossOrigin = 'anonymous';
+      bgImg.onload = () => {
+        // 1. Draw Background Template
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+        // 2. Format Values
+        const formattedDate = new Date(patient.registrationDate || Date.now()).toLocaleDateString('en-GB');
+        const patientId = String(patient.patientId || patient.id || '').replace(/^#/, '');
+        const name = (patient.name || '--').toUpperCase();
+        const age = patient.age ? `${patient.age} Yrs` : '--';
+        const gender = patient.gender || patient.sex || '--';
+        const height = patient.height ? (String(patient.height).includes('cm') ? patient.height : `${patient.height} cm`) : '--';
+        const weight = patient.weight ? (String(patient.weight).includes('kg') ? patient.weight : `${patient.weight} kg`) : '--';
+        const rawPhone = patient.phone || patient.mobile || patient.contact || '--';
+        const phone = String(rawPhone).replace(/^\+?91\s*/, '').trim() || '--';
+
+        const bp = patient.bp || '--';
+        const hr = patient.hr || patient.pulse ? (String(patient.hr || patient.pulse).includes('bpm') ? (patient.hr || patient.pulse) : `${patient.hr || patient.pulse} bpm`) : '--';
+        const spo2 = patient.spo2 ? (String(patient.spo2).includes('%') ? patient.spo2 : `${patient.spo2}%`) : '--';
+        const grbs = patient.grbs || patient.rbs ? (String(patient.grbs || patient.rbs).includes('mg') ? (patient.grbs || patient.rbs) : `${patient.grbs || patient.rbs} mg/dL`) : '--';
+        const temp = patient.temp || patient.temperature ? (String(patient.temp || patient.temperature).includes('°') ? (patient.temp || patient.temperature) : `${patient.temp || patient.temperature} °F`) : '--';
+
+        // Dynamic layout coordinates tailored for Child Template vs Adult Template
+        const dateY = isChild ? canvas.height * 0.286 : canvas.height * 0.276;
+        const dateX = isChild ? canvas.width * 0.135 : canvas.width * 0.115;
+
+        const patIdY = isChild ? canvas.height * 0.286 : canvas.height * 0.276;
+        const patIdX = isChild ? canvas.width * 0.745 : canvas.width * 0.730;
+
+        const row2Y = isChild ? canvas.height * 0.329 : canvas.height * 0.309;
+        const nameX = isChild ? canvas.width * 0.200 : canvas.width * 0.175;
+        const ageX = isChild ? canvas.width * 0.395 : canvas.width * 0.395;
+        const genderX = isChild ? canvas.width * 0.535 : canvas.width * 0.528;
+        const heightX = isChild ? canvas.width * 0.635 : canvas.width * 0.630;
+        const weightX = isChild ? canvas.width * 0.735 : canvas.width * 0.730;
+        const phoneX = isChild ? canvas.width * 0.850 : canvas.width * 0.850;
+
+        const row3Y = isChild ? canvas.height * 0.371 : canvas.height * 0.350;
+        const bpX = isChild ? canvas.width * 0.092 : canvas.width * 0.092;
+        const hrX = isChild ? canvas.width * 0.260 : canvas.width * 0.260;
+        const spo2X = isChild ? canvas.width * 0.435 : canvas.width * 0.435;
+        const grbsX = isChild ? canvas.width * 0.665 : canvas.width * 0.665;
+        const tempX = isChild ? canvas.width * 0.855 : canvas.width * 0.845;
+
+        // 3. Draw Dynamic Details
+        ctx.fillStyle = isChild ? '#007C91' : '#008099';
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+        // Date
+        ctx.fillText(formattedDate, dateX, dateY);
+        // Patient ID
+        ctx.fillText(`#${patientId}`, patIdX, patIdY);
+
+        // Row 2
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(name, nameX, row2Y);
+        ctx.fillText(age, ageX, row2Y);
+        ctx.fillText(gender, genderX, row2Y);
+        ctx.fillText(height, heightX, row2Y);
+        ctx.fillText(weight, weightX, row2Y);
+        ctx.fillText(phone, phoneX, row2Y);
+
+        // Row 3 (Vitals)
+        ctx.font = 'bold 19px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(bp, bpX, row3Y);
+        ctx.fillText(hr, hrX, row3Y);
+        ctx.fillText(spo2, spo2X, row3Y);
+        ctx.fillStyle = '#dc2626';
+        ctx.fillText(grbs, grbsX, row3Y);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(temp, tempX, row3Y);
+
+        // 4. Draw Doctor Handwritten Canvas or Styled Medicine Table
+        if (patient.prescriptionImg) {
+          const drawImg = new Image();
+          drawImg.crossOrigin = 'anonymous';
+          drawImg.onload = () => {
+            const canvasY = isChild ? canvas.height * 0.448 : canvas.height * 0.400;
+            const canvasH = isChild ? canvas.height * 0.350 : canvas.height * 0.480;
+            ctx.drawImage(drawImg, canvas.width * 0.07, canvasY, canvas.width * 0.86, canvasH);
+            resolve(canvas.toDataURL('image/png', 0.95));
+          };
+          drawImg.onerror = () => {
+            resolve(canvas.toDataURL('image/png', 0.95));
+          };
+          drawImg.src = patient.prescriptionImg;
+        } else {
+          // Parse medicines
+          let meds = [];
+          if (Array.isArray(patient.prescription)) meds = patient.prescription;
+          else if (typeof patient.prescription === 'string') {
+            try { meds = JSON.parse(patient.prescription); } catch (e) {}
+          }
+
+          if (meds && meds.length > 0) {
+            const tableX = isChild ? canvas.width * 0.070 : canvas.width * 0.050;
+            const tableWidth = isChild ? canvas.width * 0.860 : canvas.width * 0.900;
+            const tableY = isChild ? canvas.height * 0.448 : canvas.height * 0.430;
+            const headerHeight = 44;
+            const rowHeight = 58;
+
+            // Header Background
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillRect(tableX, tableY, tableWidth, headerHeight);
+
+            // Header Bottom Line
+            ctx.fillStyle = isChild ? '#007C91' : '#008099';
+            ctx.fillRect(tableX, tableY + headerHeight - 3, tableWidth, 3);
+
+            // Header Columns
+            ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+            ctx.fillStyle = isChild ? '#007C91' : '#008099';
+            ctx.textAlign = 'left';
+            ctx.fillText('Medicine Name & Strength', tableX + 16, tableY + 28);
+            ctx.fillText('Route', tableX + (tableWidth * 0.32), tableY + 28);
+            ctx.fillText('Dosage / Frequency', tableX + (tableWidth * 0.47), tableY + 28);
+            ctx.fillText('Instructions', tableX + (tableWidth * 0.70), tableY + 28);
+            ctx.textAlign = 'center';
+            ctx.fillText('Duration & Qty', tableX + (tableWidth * 0.92), tableY + 28);
+            ctx.textAlign = 'left';
+
+            let curY = tableY + headerHeight;
+
+            meds.forEach((m, idx) => {
+              const strength = m.strength || (m.name.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg)\b/i)?.[0] || '');
+              const route = m.route || (m.isSyrup || m.name.toLowerCase().includes('syrup') ? 'Oral (Syrup)' : m.name.toLowerCase().includes('inj') ? 'IV' : 'Oral (Tab)');
+              const dosage = m.dosage || '--';
+              const instructions = m.instructions || (dosage.toLowerCase().includes('before food') ? 'Before Food' : dosage.toLowerCase().includes('after food') ? 'After Food' : dosage.toLowerCase().includes('sos') ? 'SOS' : 'After Food');
+              const qty = m.quantity || (m.isSyrup || m.name.toLowerCase().includes('syrup') ? '1 Bottle' : `${calculateTabletQty(dosage, m.duration || 1)} Tabs`);
+              const duration = m.duration ? `${m.duration} Days` : '1 Days';
+
+              // Row Background
+              ctx.fillStyle = idx % 2 === 0 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(248, 250, 252, 0.95)';
+              ctx.fillRect(tableX, curY, tableWidth, rowHeight);
+
+              // Row Bottom Border
+              ctx.fillStyle = '#e2e8f0';
+              ctx.fillRect(tableX, curY + rowHeight - 1, tableWidth, 1);
+
+              // Medicine Name
+              ctx.fillStyle = '#0f172a';
+              ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(m.name || '--', tableX + 16, curY + 35);
+
+              // Strength
+              if (strength && !m.name.toLowerCase().includes(strength.toLowerCase())) {
+                const nameW = ctx.measureText(m.name || '').width;
+                ctx.fillStyle = isChild ? '#007C91' : '#008099';
+                ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
+                ctx.fillText(` (${strength})`, tableX + 16 + nameW + 4, curY + 35);
+              }
+
+              // Route
+              ctx.fillStyle = '#475569';
+              ctx.font = '16px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(route, tableX + (tableWidth * 0.32), curY + 35);
+
+              // Dosage / Frequency
+              ctx.fillStyle = '#334155';
+              ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(dosage, tableX + (tableWidth * 0.47), curY + 35);
+
+              // Instructions
+              ctx.fillStyle = '#059669';
+              ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(instructions, tableX + (tableWidth * 0.70), curY + 35);
+
+              // Duration & Qty (Centered)
+              ctx.textAlign = 'center';
+              ctx.fillStyle = '#e11d48';
+              ctx.font = 'bold 17px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(duration, tableX + (tableWidth * 0.92), curY + 24);
+
+              ctx.fillStyle = '#475569';
+              ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+              ctx.fillText(`(${qty})`, tableX + (tableWidth * 0.92), curY + 46);
+              ctx.textAlign = 'left';
+
+              curY += rowHeight;
+            });
+          }
+
+          resolve(canvas.toDataURL('image/png', 0.95));
+        }
+      };
+      bgImg.onerror = () => {
+        resolve(null);
+      };
+      bgImg.src = bgSrc;
+    } catch (e) {
+      console.error('Error generating prescription composite:', e);
+      resolve(null);
+    }
+  });
 };
 
 const PrescriptionTemplate = ({ patient }) => {
@@ -69,7 +282,7 @@ const PrescriptionTemplate = ({ patient }) => {
     <div className="rx-paper-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {/* Toggle Controls (Hidden during printing) */}
       <div className="no-print" style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.85rem' }}>
-        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#334155' }}>
+        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)' }}>
           <input
             type="checkbox"
             checked={showBgImage}
@@ -78,7 +291,7 @@ const PrescriptionTemplate = ({ patient }) => {
           />
           Show Uploaded Letterhead Template Image Background
         </label>
-        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>(Uncheck if printing on pre-printed paper)</span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>(Uncheck if printing on pre-printed paper)</span>
       </div>
 
       {/* Main Printable Container with Aspect Ratio matching uploaded image */}

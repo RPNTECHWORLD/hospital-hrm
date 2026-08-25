@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Pill, Activity, Clock, Award, CheckSquare, ShieldAlert, Printer, Mail, History, ChevronDown, ChevronUp, Plus, Trash2, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
@@ -82,6 +83,85 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('1-0-1 - After Food');
   const [newMedDuration, setNewMedDuration] = useState('5');
+
+  // Email modal & toast states
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailModalError, setEmailModalError] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailToast, setEmailToast] = useState(null); // { message, type }
+
+  React.useEffect(() => {
+    if (emailToast) {
+      const timer = setTimeout(() => setEmailToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [emailToast]);
+
+  const handleEmailPrescriptionClick = async () => {
+    if (!activePatient) return;
+    const fullPatient = (patients || []).find(p => String(p.id).toUpperCase() === String(activePatient.id).toUpperCase()) || activePatient;
+    const existingEmail = (fullPatient.email || activePatient.email || '').trim();
+
+    if (existingEmail) {
+      setIsSendingEmail(true);
+      try {
+        const res = await onEmailPrescription(fullPatient, existingEmail);
+        if (res && res.success) {
+          setEmailToast({
+            type: 'success',
+            message: `✓ Digital Prescription emailed successfully to ${existingEmail}!`
+          });
+        } else {
+          setEmailToast({
+            type: 'danger',
+            message: res?.message || `Failed to send email to ${existingEmail}.`
+          });
+        }
+      } catch (err) {
+        setEmailToast({
+          type: 'danger',
+          message: 'Error sending email. Please check network connection.'
+        });
+      } finally {
+        setIsSendingEmail(false);
+      }
+    } else {
+      // Open in-app modal
+      setEmailInput('');
+      setEmailModalError('');
+      setShowEmailModal(true);
+    }
+  };
+
+  const handleSendCustomEmailModal = async (e) => {
+    e.preventDefault();
+    if (!emailInput.trim() || !emailInput.includes('@')) {
+      setEmailModalError('Please enter a valid email address.');
+      return;
+    }
+    const fullPatient = (patients || []).find(p => String(p.id).toUpperCase() === String(activePatient.id).toUpperCase()) || activePatient;
+    const targetEmail = emailInput.trim().toLowerCase();
+
+    setIsSendingEmail(true);
+    setEmailModalError('');
+    try {
+      const res = await onEmailPrescription(fullPatient, targetEmail);
+      if (res && res.success) {
+        setShowEmailModal(false);
+        setEmailToast({
+          type: 'success',
+          message: `✓ Digital Prescription emailed successfully to ${targetEmail}!`
+        });
+      } else {
+        setEmailModalError(res?.message || 'Failed to dispatch email.');
+      }
+    } catch (err) {
+      setEmailModalError('Connection error sending email.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   // Injection states
   const [requiresInjection, setRequiresInjection] = useState(false);
@@ -382,13 +462,19 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
-                      onClick={() => {
-                        onEmailPrescription(activePatient);
-                        alert(`Prescription successfully emailed to patient's contact email!`);
-                      }}
+                      disabled={isSendingEmail}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: isSendingEmail ? 'not-allowed' : 'pointer' }}
+                      onClick={handleEmailPrescriptionClick}
                     >
-                      <Mail size={14} /> Email Prescription
+                      {isSendingEmail ? (
+                        <>
+                          <Loader2 size={14} className="spin" /> Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail size={14} /> Email Prescription
+                        </>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -475,31 +561,31 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                         if (!hist) return null;
                         const prevRx = hist.prescription || [];
                         return (
-                          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.98)', color: '#1e293b', fontFamily: 'serif' }}>
+                          <div style={{ padding: '1rem', background: 'var(--bg-card, #111c30)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
                             {/* Header */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '2px solid #b91c1c' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '2px solid var(--primary)' }}>
                               <div>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c' }}>PREVIOUS VISIT PRESCRIPTION</div>
-                                <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.2rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>PREVIOUS VISIT PRESCRIPTION</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                                   Date: {new Date(hist.date).toLocaleString()} &nbsp;|&nbsp; Dr: {hist.doctorName}
                                 </div>
                                 {hist.diagnosis && (
-                                  <div style={{ fontSize: '0.7rem', color: '#0f172a', marginTop: '0.2rem' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
                                     <strong>Dx:</strong> {hist.diagnosis}
                                   </div>
                                 )}
                               </div>
-                              <div style={{ fontSize: '0.65rem', color: '#64748b', textAlign: 'right' }}>
-                                <div>Status: <strong>{hist.status}</strong></div>
-                                <div>Payment: <strong>{hist.paymentStatus}</strong></div>
-                                {hist.issuedMedication && <div>Issued: <strong>{hist.issuedMedication}</strong></div>}
+                              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                                <div>Status: <strong style={{ color: 'var(--text-primary)' }}>{hist.status}</strong></div>
+                                <div>Payment: <strong style={{ color: 'var(--text-primary)' }}>{hist.paymentStatus}</strong></div>
+                                {hist.issuedMedication && <div>Issued: <strong style={{ color: 'var(--text-primary)' }}>{hist.issuedMedication}</strong></div>}
                               </div>
                             </div>
 
                             {/* Rx Symbol + medicines */}
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b91c1c', marginBottom: '0.5rem' }}>℞</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '0.5rem' }}>℞</div>
                             {hist.prescriptionImg ? (
-                              <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                              <div style={{ textAlign: 'center', marginTop: '0.5rem', background: '#ffffff', padding: '0.75rem', borderRadius: '8px' }}>
                                 <img
                                   src={hist.prescriptionImg}
                                   style={{ maxWidth: '100%', maxHeight: '3.5in', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'zoom-in' }}
@@ -508,13 +594,13 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                 />
                               </div>
                             ) : prevRx.length === 0 ? (
-                              <div style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
                                 No structured prescription — handwritten sheet used.
                               </div>
                             ) : (
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                 <thead>
-                                  <tr style={{ borderBottom: '1.5px solid #000', textAlign: 'left' }}>
+                                  <tr style={{ borderBottom: '1.5px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
                                     <th style={{ padding: '0.4rem 0', width: '50%' }}>Medicine</th>
                                     <th style={{ padding: '0.4rem 0', width: '30%' }}>Dosage</th>
                                     <th style={{ padding: '0.4rem 0', textAlign: 'right', width: '20%' }}>Duration</th>
@@ -522,10 +608,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                 </thead>
                                 <tbody>
                                   {prevRx.map((m, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-primary)' }}>
                                       <td style={{ padding: '0.5rem 0', fontWeight: 600 }}>{m.name}</td>
-                                      <td style={{ padding: '0.5rem 0' }}>{m.dosage}</td>
-                                      <td style={{ padding: '0.5rem 0', textAlign: 'right' }}>{m.duration} Days</td>
+                                      <td style={{ padding: '0.5rem 0', color: 'var(--text-secondary)' }}>{m.dosage}</td>
+                                      <td style={{ padding: '0.5rem 0', textAlign: 'right', color: 'var(--text-secondary)' }}>{m.duration} Days</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -587,22 +673,16 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                           const remDays = totalDays - issuedDays;
 
                           return (
-                            <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                              <td style={{ padding: '0.45rem 0.2rem', fontWeight: 600, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                                <input 
-                                  type="text" 
-                                  value={m.name} 
-                                  onChange={(e) => handlePharmacyMedChange(i, 'name', e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    fontWeight: 600,
-                                    fontSize: '0.76rem',
-                                    color: 'var(--text-primary)',
-                                    outline: 'none'
-                                  }}
-                                />
+                            <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                                  {m.name || 'Unnamed Medicine'}
+                                </div>
+                                {m.dosage && (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 500 }}>
+                                    {m.dosage}
+                                  </div>
+                                )}
                               </td>
                               <td style={{ padding: '0.45rem 0.2rem', textAlign: 'center' }}>
                                 <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatMedUnitQty(m, totalQty, totalDays)}</span>
@@ -612,7 +692,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                 {issueType === 'full' ? (
                                   <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--success)' }}>{totalDays} Days (Full)</span>
                                 ) : (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', flexWrap: 'nowrap' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
                                     <input 
                                       type="number"
                                       className="no-spin"
@@ -623,21 +703,21 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
                                       value={rawInputValue}
                                       onChange={(e) => handleMedicineDaysChange(i, e.target.value, totalDays)}
                                       style={{
-                                        width: '45px',
-                                        padding: '0.15rem 0.2rem',
-                                        borderRadius: '4px',
+                                        width: '48px',
+                                        padding: '0.25rem 0.3rem',
+                                        borderRadius: '6px',
                                         border: '1.5px solid var(--primary)',
                                         fontWeight: 800,
                                         textAlign: 'center',
-                                        fontSize: '0.76rem',
-                                        background: 'var(--bg-card)',
-                                        color: 'var(--text-primary)',
+                                        fontSize: '0.8rem',
+                                        background: 'var(--bg-card, #1e293b)',
+                                        color: 'var(--text-primary, #ffffff)',
                                         MozAppearance: 'textfield',
                                         WebkitAppearance: 'none',
                                         appearance: 'textfield'
                                       }}
                                     />
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Days</span>
+                                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)' }}>Days</span>
                                   </div>
                                 )}
                               </td>
@@ -1030,6 +1110,220 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
             />
           </div>
         </div>
+      )}
+      {/* ===== Floating In-App Toast Notification ===== */}
+      {emailToast && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 999999,
+          background: emailToast.type === 'success' ? '#065f46' : '#991b1b',
+          color: '#ffffff',
+          padding: '0.85rem 1.25rem',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          fontSize: '0.9rem',
+          fontWeight: 700,
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          animation: 'fade-in 0.3s ease-out'
+        }}>
+          {emailToast.type === 'success' ? <CheckCircle2 size={18} color="#34d399" /> : <AlertCircle size={18} color="#f87171" />}
+          <span>{emailToast.message}</span>
+          <button
+            type="button"
+            onClick={() => setEmailToast(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              cursor: 'pointer',
+              marginLeft: '0.5rem',
+              opacity: 0.8,
+              padding: 0,
+              display: 'flex'
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* ===== In-App Custom Email Modal (Centered via Portal) ===== */}
+      {showEmailModal && activePatient && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 9999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          boxSizing: 'border-box'
+        }} onClick={() => !isSendingEmail && setShowEmailModal(false)}>
+          <div style={{
+            background: 'var(--bg-card, #111c30)',
+            color: 'var(--text-primary)',
+            width: '100%',
+            maxWidth: '480px',
+            borderRadius: '16px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+            margin: 'auto'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.25rem 1.5rem',
+              borderBottom: '1px solid var(--border)',
+              background: 'var(--bg-card, #111c30)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  color: 'var(--primary)',
+                  padding: '0.45rem',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Mail size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Email Digital Prescription
+                  </h4>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    Patient: <strong>{activePatient.name}</strong> (#{activePatient.id})
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSendingEmail && setShowEmailModal(false)}
+                style={{
+                  background: 'rgba(128, 128, 128, 0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSendCustomEmailModal}>
+              <div style={{ padding: '1.5rem' }}>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  This patient does not have an Email ID registered in their profile. Please enter the recipient's email address below to send the official prescription:
+                </p>
+
+                {emailModalError && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--danger)',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}>
+                    <AlertCircle size={16} />
+                    <span>{emailModalError}</span>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Recipient Email Address</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="e.g. patient@gmail.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    required
+                    autoFocus
+                    disabled={isSendingEmail}
+                    style={{ fontSize: '0.95rem', padding: '0.65rem 0.85rem' }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                    💡 This email will automatically be saved to the patient's record for future visits.
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{
+                padding: '1rem 1.5rem',
+                borderTop: '1px solid var(--border)',
+                background: 'var(--bg-card, #111c30)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowEmailModal(false)}
+                  disabled={isSendingEmail}
+                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSendingEmail}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <Loader2 size={16} className="spin" /> Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={16} /> Send Email
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

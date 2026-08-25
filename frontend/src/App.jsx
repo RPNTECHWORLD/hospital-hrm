@@ -13,6 +13,7 @@ import InjectionRoom from './components/InjectionRoom';
 import LabDashboard from './components/LabDashboard';
 import DirectoryLedger from './components/DirectoryLedger';
 import UtilityLogs from './components/UtilityLogs';
+import { generateFullPrescriptionImage } from './components/PrescriptionTemplate';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import {
@@ -626,7 +627,8 @@ function App() {
         ...vitalsData
       };
 
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPatientData)
@@ -634,7 +636,7 @@ function App() {
 
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(prev => normalizeTokensForPatients(prev.map(p => p.id === patientId ? updatedPatient : p)));
+        setPatients(prev => normalizeTokensForPatients(prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p)));
         return updatedPatient;
       }
     } catch (err) {
@@ -644,22 +646,23 @@ function App() {
 
   const handleUpdatePaymentStatus = async (patientId, newStatus, paidAmount = 0, feeBreakdown = '') => {
     try {
-      const patient = patients.find(p => p.id === patientId);
+      const patient = patients.find(p => isSameId(p.id, patientId));
       if (!patient) return;
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
       const updatedData = {
         paymentStatus: newStatus,
         status: (newStatus && newStatus.startsWith('Paid')) && patient.status === 'Completed' ? 'Completed' : patient.status,
         paidAmount: parseFloat(paidAmount) || 0,
         feeBreakdown: feeBreakdown
       };
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
       }
     } catch (err) {
       console.error("Error updating payment status:", err);
@@ -668,16 +671,17 @@ function App() {
 
   const handleUpdatePatientStatus = async (patientId, newStatus) => {
     try {
-      const patient = patients.find(p => p.id === patientId);
+      const patient = patients.find(p => isSameId(p.id, patientId));
       if (!patient) return;
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(prev => normalizeTokensForPatients(prev.map(p => p.id === patientId ? updatedPatient : p)));
+        setPatients(prev => normalizeTokensForPatients(prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p)));
       }
     } catch (err) {
       console.error("Error updating patient status:", err);
@@ -687,6 +691,7 @@ function App() {
   // Doctor Actions
   const handleSubmitPrescription = async (patientId, data) => {
     try {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
       const updatedData = {
         status: 'At Pharmacy',
         diagnosis: data.diagnosis,
@@ -695,14 +700,14 @@ function App() {
         wardBedId: data.wardBedId !== undefined ? data.wardBedId : null,
         bedAdmissionPending: data.bedAdmissionPending !== undefined ? data.bedAdmissionPending : 0
       };
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
         return true;
       }
       return false;
@@ -714,19 +719,20 @@ function App() {
 
   const handleSubmitReview = async (patientId, data) => {
     try {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
       const updatedData = {
         status: 'Completed',
         followUpNotes: data?.followUpNotes || '',
         nextVisitDate: data?.nextVisitDate || ''
       };
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
 
         // Automatically update any pending injections for this patient to 'Administered' (Given ✅)
         const dateStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
@@ -1093,8 +1099,84 @@ function App() {
     window.print();
   };
 
-  const handleEmailPrescription = (sharePatient) => {
-    console.log(`Emailed prescription to ${sharePatient.name} at patient@gmail.com`);
+  const handleEmailPrescription = async (sharePatient, customEmail = null) => {
+    if (!sharePatient) return { success: false, message: 'No patient selected' };
+
+    // Check sharePatient or lookup from global patients list
+    const foundPat = (patients || []).find(p => isSameId(p.id, sharePatient.id));
+    let targetEmail = (customEmail || sharePatient.email || (foundPat && foundPat.email) || '').trim();
+
+    if (!targetEmail) {
+      return { success: false, needsEmail: true, message: 'Recipient email address is required.' };
+    }
+
+    targetEmail = targetEmail.toLowerCase();
+
+    // Automatically persist email into patient record if patient had none
+    if (!foundPat?.email || foundPat.email !== targetEmail) {
+      try {
+        const cleanId = String(sharePatient.id || '').replace(/#/g, '').trim();
+        await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: targetEmail })
+        });
+        setPatients(prev => prev.map(p => isSameId(p.id, sharePatient.id) ? { ...p, email: targetEmail } : p));
+      } catch (e) {}
+    }
+
+    try {
+      const fullPatient = {
+        ...(foundPat || {}),
+        ...sharePatient,
+        email: targetEmail
+      };
+
+      // Generate exact high-res visual prescription snapshot
+      let prescriptionSnapshot = null;
+      try {
+        prescriptionSnapshot = await generateFullPrescriptionImage(fullPatient);
+      } catch (e) {
+        console.warn('Could not generate canvas snapshot:', e);
+      }
+
+      const response = await fetch(`${API_BASE}/api/send-prescription-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: sharePatient.id,
+          patientEmail: targetEmail,
+          patientName: sharePatient.name,
+          patient: fullPatient,
+          prescriptionSnapshot: prescriptionSnapshot || fullPatient.prescriptionImg
+        })
+      });
+
+      const resData = await response.json().catch(() => ({}));
+      if (response.ok && resData.success) {
+        if (resData.isSandbox) {
+          // Open Web Gmail composer so the email can be dispatched for real with 1 click
+          const subject = `Digital Prescription - ${sharePatient.name} (#${sharePatient.id}) | Vijaya's Health Care`;
+          let medListText = '';
+          if (Array.isArray(sharePatient.prescription) && sharePatient.prescription.length > 0) {
+            medListText = sharePatient.prescription.map((m, i) => `${i + 1}. ${m.name || 'Medicine'} | Dose: ${m.dosage || '-'} | Duration: ${m.duration || 1} Days`).join('\n');
+          } else {
+            medListText = sharePatient.diagnosis || 'Prescription Details Attached';
+          }
+          const bodyText = `Dear ${sharePatient.name},\n\nHere is your official digital prescription from Vijaya's Health Care.\n\nPATIENT DETAILS:\n- Name: ${sharePatient.name}\n- Patient ID: #${sharePatient.id}\n- Age / Gender: ${sharePatient.age || '-'} Yrs / ${sharePatient.gender || '-'}\n- Diagnosis: ${sharePatient.diagnosis || 'General Consultation'}\n\nPRESCRIBED MEDICINES:\n${medListText}\n\nINSTRUCTIONS:\nPlease take medications strictly as advised by your doctor.\n\nVijaya's Health Care\nPhone: 04564-271393 | Mobile: 94890 48507\nEmail: vijayashealthcare@gmail.com`;
+
+          const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(targetEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+          window.open(gmailUrl, '_blank');
+          return { success: true, email: targetEmail, isSandbox: true, message: `Opened Gmail to send prescription to ${targetEmail}!` };
+        }
+        return { success: true, email: targetEmail, message: `Email sent successfully to ${targetEmail}` };
+      } else {
+        return { success: false, message: resData.message || `Failed to send email to ${targetEmail}.` };
+      }
+    } catch (err) {
+      console.error("Error sending prescription email:", err);
+      return { success: false, message: 'Connection error while dispatching email.' };
+    }
   };
 
   if (!user) {
@@ -1644,21 +1726,22 @@ function App() {
             <div
               onClick={e => e.stopPropagation()}
               style={{
-                background: '#fff',
-                color: '#111',
+                background: 'var(--bg-card, #111c30)',
+                color: 'var(--text-primary)',
                 borderRadius: '18px',
                 width: '100%',
                 maxWidth: '560px',
                 maxHeight: '90vh',
                 overflowY: 'auto',
-                boxShadow: '0 30px 60px rgba(0,0,0,0.25)',
-                display: 'flex', flexDirection: 'column'
+                boxShadow: '0 30px 60px rgba(0,0,0,0.5)',
+                display: 'flex', flexDirection: 'column',
+                border: '1px solid var(--border)'
               }}
             >
               {/* Header */}
               <div style={{
                 padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #e5e7eb',
+                borderBottom: '1px solid var(--border)',
                 background: 'linear-gradient(135deg, #0f766e 0%, #0e7490 100%)',
                 borderRadius: '18px 18px 0 0',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -1667,7 +1750,7 @@ function App() {
                   <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     🛏️ Admit to Ward Room
                   </h3>
-                  <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.82rem', marginTop: '0.2rem' }}>
+                  <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', marginTop: '0.2rem' }}>
                     Patient: <strong style={{ color: '#fff' }}>{wardAdmitPatient.name}</strong> • {wardAdmitPatient.age} Yrs • #{wardAdmitPatient.id}
                   </div>
                 </div>
@@ -1684,8 +1767,8 @@ function App() {
               </div>
 
               {/* Body */}
-              <div style={{ padding: '1.5rem' }}>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem', marginTop: 0 }}>
+              <div style={{ padding: '1.5rem', background: 'var(--bg-dark, #0b1329)' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', marginTop: 0 }}>
                   Select an available bed below to admit this patient directly.
                 </p>
 
@@ -1703,11 +1786,11 @@ function App() {
                           padding: '1rem',
                           borderRadius: '12px',
                           border: isSelected
-                            ? '2.5px solid #0f766e'
-                            : isOccupied ? '1.5px solid #fca5a5' : '1.5px solid #e2e8f0',
+                            ? '2.5px solid var(--primary)'
+                            : isOccupied ? '1.5px solid rgba(239, 68, 68, 0.4)' : '1.5px solid var(--border)',
                           background: isSelected
-                            ? 'linear-gradient(135deg, rgba(15,118,110,0.12), rgba(14,116,144,0.12))'
-                            : isOccupied ? '#fef2f2' : '#f8fafc',
+                            ? 'rgba(56, 189, 248, 0.15)'
+                            : isOccupied ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-card, #111c30)',
                           cursor: isOccupied ? 'not-allowed' : 'pointer',
                           textAlign: 'left',
                           transition: 'all 0.15s',
@@ -1715,8 +1798,8 @@ function App() {
                           position: 'relative'
                         }}
                       >
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room {bed.room}</div>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', color: isOccupied ? '#ef4444' : isSelected ? '#0f766e' : '#1e293b', marginTop: '0.15rem' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room {bed.room}</div>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', color: isOccupied ? '#ef4444' : isSelected ? 'var(--primary)' : 'var(--text-primary)', marginTop: '0.15rem' }}>
                           🛏 {bed.name}
                         </div>
                         <div style={{
@@ -1732,7 +1815,7 @@ function App() {
                         {isSelected && (
                           <div style={{
                             position: 'absolute', top: '8px', right: '10px',
-                            background: '#0f766e', color: '#fff',
+                            background: 'var(--primary)', color: '#fff',
                             borderRadius: '50%', width: '20px', height: '20px',
                             fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800
                           }}>✓</div>
@@ -1749,8 +1832,8 @@ function App() {
                     disabled={!wardAdmitBedId}
                     style={{
                       flex: 1, padding: '0.85rem',
-                      background: wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : '#e2e8f0',
-                      color: wardAdmitBedId ? '#fff' : '#94a3b8',
+                      background: wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : 'var(--border)',
+                      color: wardAdmitBedId ? '#fff' : 'var(--text-muted)',
                       border: 'none', borderRadius: '10px',
                       fontWeight: 800, fontSize: '0.95rem',
                       cursor: wardAdmitBedId ? 'pointer' : 'not-allowed',
@@ -1764,8 +1847,8 @@ function App() {
                     onClick={() => setWardAdmitPatient(null)}
                     style={{
                       padding: '0.85rem 1.25rem',
-                      background: 'transparent', border: '1.5px solid #e2e8f0',
-                      borderRadius: '10px', color: '#64748b',
+                      background: 'transparent', border: '1.5px solid var(--border)',
+                      borderRadius: '10px', color: 'var(--text-secondary)',
                       fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer'
                     }}
                   >Cancel</button>

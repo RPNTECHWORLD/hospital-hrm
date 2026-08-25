@@ -1916,35 +1916,44 @@ h6 {
   background: #475569;
 }
 
-/* 🌙 Dark Mode Popups & Overlay Audit Modals - White Container text contrast */
-[data-theme="dark"] .audit-modal-backdrop {
-  background: rgba(15, 23, 42, 0.75) !important;
+/* 🌙 Dark Mode Popups & Overlay Modals (Audit, Prescription, Timeline) */
+[data-theme="dark"] .audit-modal-backdrop,
+[data-theme="dark"] .rx-modal-backdrop {
+  background: rgba(11, 19, 41, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+[data-theme="dark"] .audit-modal-container,
+[data-theme="dark"] .rx-modal-container {
+  background: #111c30 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.1) !important;
+}
+
+[data-theme="dark"] .audit-modal-header,
+[data-theme="dark"] .rx-modal-header,
+[data-theme="dark"] .audit-footer,
+[data-theme="dark"] .rx-modal-footer {
+  background: #111c30 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .audit-modal-body,
+[data-theme="dark"] .rx-modal-body {
+  background: #0b1329 !important;
+  color: #cbd5e1 !important;
 }
 
 [data-theme="dark"] .audit-modal-container h3,
 [data-theme="dark"] .audit-modal-container h4,
-[data-theme="dark"] .audit-modal-container h5 {
-  color: #0f172a !important;
-  font-weight: 800 !important;
-}
-
-[data-theme="dark"] .audit-modal-container p,
-[data-theme="dark"] .audit-modal-container span,
-[data-theme="dark"] .audit-modal-container label,
-[data-theme="dark"] .audit-modal-container div {
-  color: #334155 !important;
+[data-theme="dark"] .rx-modal-container h4 {
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .audit-modal-container strong,
-[data-theme="dark"] .audit-modal-container b {
-  color: #000000 !important;
-  font-weight: 800 !important;
-}
-
-[data-theme="dark"] .audit-modal-container button,
-[data-theme="dark"] .audit-modal-container .btn {
-  color: #0f172a !important;
-  font-weight: 700 !important;
+[data-theme="dark"] .rx-modal-container strong {
+  color: #ffffff !important;
 }
 
 /* 🔄 Reassign Doctor Modal System */
