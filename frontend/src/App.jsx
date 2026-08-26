@@ -234,6 +234,72 @@ function App() {
   }, [user]);
 
   // Fetch initial data and start polling from Backend Node API
+  const pollData = async () => {
+    try {
+      const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/patients`),
+        fetch(`${API_BASE}/api/doctors`),
+        fetch(`${API_BASE}/api/staff`),
+        fetch(`${API_BASE}/api/injections`),
+        fetch(`${API_BASE}/api/lab`)
+      ]);
+
+      if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
+        const rawPatientsData = await patientsRes.value.json();
+        const patientsData = normalizeTokensForPatients(rawPatientsData);
+        setPatients(prev => {
+          if (!prev) return patientsData;
+          if (prev.length !== patientsData.length) return patientsData;
+          const prevStr = JSON.stringify(prev);
+          const nextStr = JSON.stringify(patientsData);
+          return prevStr !== nextStr ? patientsData : prev;
+        });
+      }
+      if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
+        const doctorsData = await doctorsRes.value.json();
+        if (Array.isArray(doctorsData)) {
+          setDoctorsList(prev => {
+            const prevStr = JSON.stringify(prev);
+            const nextStr = JSON.stringify(doctorsData);
+            return prevStr !== nextStr ? doctorsData : prev;
+          });
+        }
+      }
+      if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
+        const staffData = await staffRes.value.json();
+        if (Array.isArray(staffData)) {
+          setStaffList(prev => {
+            const prevStr = JSON.stringify(prev);
+            const nextStr = JSON.stringify(staffData);
+            return prevStr !== nextStr ? staffData : prev;
+          });
+        }
+      }
+      if (injRes.status === 'fulfilled' && injRes.value.ok) {
+        const injData = await injRes.value.json();
+        if (Array.isArray(injData)) {
+          setInjectionsList(prev => {
+            const prevStr = JSON.stringify(prev);
+            const nextStr = JSON.stringify(injData);
+            return prevStr !== nextStr ? injData : prev;
+          });
+        }
+      }
+      if (labRes.status === 'fulfilled' && labRes.value.ok) {
+        const labData = await labRes.value.json();
+        if (Array.isArray(labData)) {
+          setLabLogsList(prev => {
+            const prevStr = JSON.stringify(prev);
+            const nextStr = JSON.stringify(labData);
+            return prevStr !== nextStr ? labData : prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error polling data:", err);
+    }
+  };
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -277,62 +343,30 @@ function App() {
       }
     };
 
-    const pollData = async () => {
-      try {
-        const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/api/patients`),
-          fetch(`${API_BASE}/api/doctors`),
-          fetch(`${API_BASE}/api/staff`),
-          fetch(`${API_BASE}/api/injections`),
-          fetch(`${API_BASE}/api/lab`)
-        ]);
-
-        if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
-          const rawPatientsData = await patientsRes.value.json();
-          const patientsData = normalizeTokensForPatients(rawPatientsData);
-          setPatients(prev => {
-            if (!prev || prev.length !== patientsData.length) return patientsData;
-            const changed = prev.some((p, i) => {
-              const n = patientsData[i];
-              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId || p.tokenNumber !== n.tokenNumber || p.bedAdmissionPending !== n.bedAdmissionPending;
-            });
-            return changed ? patientsData : prev;
-          });
-        }
-        if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
-          const doctorsData = await doctorsRes.value.json();
-          if (Array.isArray(doctorsData) && doctorsData.length > 0) {
-            setDoctorsList(prev => {
-              const changed = prev.length !== doctorsData.length || prev.some((d, i) => d.lastLoginDate !== doctorsData[i]?.lastLoginDate || d.name !== doctorsData[i]?.name);
-              return changed ? doctorsData : prev;
-            });
-          }
-        }
-        if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
-          const staffData = await staffRes.value.json();
-          if (Array.isArray(staffData) && staffData.length > 0) {
-            setStaffList(prev => (prev.length !== staffData.length ? staffData : prev));
-          }
-        }
-        if (injRes.status === 'fulfilled' && injRes.value.ok) {
-          const injData = await injRes.value.json();
-          if (Array.isArray(injData)) setInjectionsList(injData);
-        }
-        if (labRes.status === 'fulfilled' && labRes.value.ok) {
-          const labData = await labRes.value.json();
-          if (Array.isArray(labData)) setLabLogsList(labData);
-        }
-      } catch (err) {
-        console.error("Error polling data:", err);
-      }
-    };
-
     if (user) {
       loadInitialData();
-      const interval = setInterval(pollData, 10000);
-      return () => clearInterval(interval);
+      // ⚡ High-speed auto-sync interval (every 2.5 seconds)
+      const interval = setInterval(pollData, 2500);
+
+      // ⚡ Instant live sync when user focuses the window or switches back to the browser tab
+      const handleFocusSync = () => pollData();
+      window.addEventListener('focus', handleFocusSync);
+      document.addEventListener('visibilitychange', handleFocusSync);
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('focus', handleFocusSync);
+        document.removeEventListener('visibilitychange', handleFocusSync);
+      };
     }
   }, [user]);
+
+  // ⚡ Instant live sync whenever the user navigates between modules / sidebar tabs
+  useEffect(() => {
+    if (user) {
+      pollData();
+    }
+  }, [adminActiveView, currentStaffView]);
 
   const handleLogin = (userData) => {
     setUser(userData);
