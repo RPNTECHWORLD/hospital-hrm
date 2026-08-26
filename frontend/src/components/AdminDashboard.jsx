@@ -106,18 +106,18 @@ const AdminDashboard = ({
             <UserPlus size={20} style={{ color: 'var(--primary)' }} />
             Add New User/Staff
           </h3>
-          <form onSubmit={handleAddUserSubmit}>
+          <form onSubmit={handleAddUserSubmit} autoComplete="off">
             <div className="form-group">
               <label className="form-label">Full Name</label>
-              <input type="text" className="form-input" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <input type="text" className="form-input" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="off" />
             </div>
             <div className="form-group">
               <label className="form-label">Email Address</label>
-              <input type="email" className="form-input" placeholder="email@vijayas.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input type="email" className="form-input" placeholder="email@vijayas.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="new-password" />
             </div>
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input type="password" className="form-input" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <input type="password" className="form-input" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
             </div>
             <div className="form-group">
               <label className="form-label">User Role</label>

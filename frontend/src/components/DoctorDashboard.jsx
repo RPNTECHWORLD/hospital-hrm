@@ -2412,9 +2412,35 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                                 </div>
                               </div>
                             </div>
-                            <span className="badge badge-success" style={{ padding: '0.35rem 0.75rem', fontWeight: 800 }}>
-                              Already Admitted
-                            </span>
+                            <button
+                              type="button"
+                              onClick={handleDoctorDischargeFromWard}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.45rem 0.95rem',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                                borderRadius: '8px',
+                                color: '#ef4444',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                whiteSpace: 'nowrap'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#ef4444';
+                                e.currentTarget.style.color = '#ffffff';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                e.currentTarget.style.color = '#ef4444';
+                              }}
+                            >
+                              <LogOut size={15} /> Discharge Patient
+                            </button>
                           </div>
                         </div>
                       );
@@ -2428,8 +2454,8 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
                     return (
                       <div className="form-group" style={{ 
-                        background: recommendAdmission ? 'rgba(99, 102, 241, 0.04)' : 'rgba(255,255,255,0.01)', 
-                        border: recommendAdmission ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid var(--border)', 
+                        background: recommendAdmission ? 'rgba(21, 115, 136, 0.08)' : 'rgba(128, 128, 128, 0.04)', 
+                        border: recommendAdmission ? '1px solid rgba(21, 115, 136, 0.35)' : '1px solid var(--border)', 
                         borderRadius: '10px', 
                         padding: '1.25rem',
                         marginBottom: '1.75rem',
@@ -2444,7 +2470,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ 
-                              background: recommendAdmission ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.05)',
+                              background: recommendAdmission ? 'rgba(21, 115, 136, 0.15)' : 'rgba(128, 128, 128, 0.12)',
                               color: recommendAdmission ? 'var(--primary)' : 'var(--text-secondary)',
                               width: '36px',
                               height: '36px',
@@ -2466,22 +2492,25 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           
                           {/* Toggle switch visual */}
                           <div style={{
-                            width: '40px',
-                            height: '22px',
-                            background: recommendAdmission ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                            borderRadius: '15px',
+                            width: '44px',
+                            height: '24px',
+                            background: recommendAdmission ? 'var(--primary)' : 'rgba(100, 116, 139, 0.3)',
+                            border: recommendAdmission ? '1px solid var(--primary)' : '1.5px solid rgba(100, 116, 139, 0.45)',
+                            borderRadius: '16px',
                             position: 'relative',
-                            transition: 'background 0.25s'
+                            transition: 'all 0.25s ease',
+                            flexShrink: 0
                           }}>
                             <div style={{
-                              width: '16px',
-                              height: '16px',
-                              background: '#fff',
+                              width: '18px',
+                              height: '18px',
+                              background: '#ffffff',
                               borderRadius: '50%',
                               position: 'absolute',
-                              top: '3px',
-                              left: recommendAdmission ? '21px' : '3px',
-                              transition: 'left 0.25s'
+                              top: '1.5px',
+                              left: recommendAdmission ? '21px' : '2px',
+                              transition: 'left 0.25s ease',
+                              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.25)'
                             }} />
                           </div>
                         </div>
@@ -2927,7 +2956,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       <button 
                         type="submit" 
                         className="btn btn-primary" 
-                        style={{ flexGrow: 1, background: '#10b981', borderColor: '#10b981', fontWeight: 800 }}
+                        style={{ flexGrow: 1, fontWeight: 700 }}
                       >
                         <CheckCircle2 size={16} /> Complete Lab Report Review
                       </button>
@@ -2935,7 +2964,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       <button 
                         type="submit" 
                         className="btn btn-primary" 
-                        style={{ flexGrow: 1, background: '#d97706', borderColor: '#d97706', fontWeight: 800 }}
+                        style={{ flexGrow: 1, fontWeight: 700 }}
                       >
                         <CheckCircle2 size={16} /> Complete Pharmacy Review
                       </button>

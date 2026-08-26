@@ -481,8 +481,22 @@ h6 {
 .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 10px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-glow);
   background: #ffffff;
+}
+
+/* Fix Browser Autofill (Chrome, Edge, Safari) from turning inputs light-blue */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active,
+select:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: var(--text-primary, #0f172a) !important;
+  caret-color: var(--text-primary, #0f172a) !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Tables */

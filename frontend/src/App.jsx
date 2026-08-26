@@ -2131,13 +2131,20 @@ function App() {
                     disabled={!wardAdmitBedId}
                     style={{
                       flex: 1, padding: '0.85rem',
-                      background: wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : 'var(--border)',
-                      color: wardAdmitBedId ? '#fff' : 'var(--text-muted)',
+                      background: themeMode === 'light'
+                        ? (wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : 'linear-gradient(135deg, #0f766e, #0e7490)')
+                        : (wardAdmitBedId ? 'linear-gradient(135deg, #0f766e, #0e7490)' : 'var(--border)'),
+                      color: themeMode === 'light'
+                        ? '#ffffff'
+                        : (wardAdmitBedId ? '#fff' : 'var(--text-muted)'),
+                      opacity: themeMode === 'light' && !wardAdmitBedId ? 0.6 : 1,
                       border: 'none', borderRadius: '10px',
                       fontWeight: 800, fontSize: '0.95rem',
                       cursor: wardAdmitBedId ? 'pointer' : 'not-allowed',
                       transition: 'all 0.2s',
-                      boxShadow: wardAdmitBedId ? '0 4px 15px rgba(15,118,110,0.3)' : 'none'
+                      boxShadow: wardAdmitBedId
+                        ? '0 4px 15px rgba(15,118,110,0.35)'
+                        : (themeMode === 'light' ? '0 2px 8px rgba(15,118,110,0.15)' : 'none')
                     }}
                   >
                     ✅ Confirm Ward Admission
@@ -2146,8 +2153,10 @@ function App() {
                     onClick={() => setWardAdmitPatient(null)}
                     style={{
                       padding: '0.85rem 1.25rem',
-                      background: 'transparent', border: '1.5px solid var(--border)',
-                      borderRadius: '10px', color: 'var(--text-secondary)',
+                      background: themeMode === 'light' ? '#ffffff' : 'transparent',
+                      border: '1.5px solid var(--border)',
+                      borderRadius: '10px',
+                      color: themeMode === 'light' ? '#334155' : 'var(--text-secondary)',
                       fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer'
                     }}
                   >Cancel</button>
