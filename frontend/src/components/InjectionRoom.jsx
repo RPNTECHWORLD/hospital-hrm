@@ -23,6 +23,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
   // Modal States
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdministerModal, setShowAdministerModal] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmText, onConfirm }
 
   const [activeInjection, setActiveInjection] = useState(null);
   const [nurseName, setNurseName] = useState('');
@@ -57,7 +58,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
     fetchInjections(true);
     const interval = setInterval(() => {
       fetchInjections(false);
-    }, 10000); // Poll database every 10s for real-time updates
+    }, 4000); // Poll database every 4s for real-time updates
 
     return () => clearInterval(interval);
   }, []);
@@ -97,8 +98,6 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
     }
   };
 
-
-
   // Open Edit Modal
   const openEditModal = (inj) => {
     setActiveInjection(inj);
@@ -125,13 +124,13 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isEdit: true,
-          patientId: formData.patientId,
-          injectionName: formData.injectionName,
-          dosage: formData.dosage,
+          patientId: formData.patientId.trim().toUpperCase(),
+          injectionName: formData.injectionName.trim(),
+          dosage: formData.dosage.trim(),
           route: formData.route,
           frequency: formData.frequency,
           isStat: formData.isStat ? 1 : 0,
-          notes: formData.notes
+          notes: formData.notes.trim()
         })
       });
 
@@ -141,24 +140,65 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
         fetchInjections(false);
       }
     } catch (err) {
-      console.error("Failed to edit injection:", err);
+      console.error("Failed to update injection:", err);
     }
   };
 
-  // Cancel / Delete Injection
-  const handleCancelInjection = async (inj) => {
-    if (!window.confirm(`Are you sure you want to cancel ${inj.injectionName} for Patient #${inj.patientId}?`)) {
+  // Submit Create New Injection
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.patientId || !formData.injectionName) {
+      alert("Please fill in patient ID and injection name.");
       return;
     }
 
+    try {
+      const response = await fetch(`${API_BASE}/api/injections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: formData.patientId.trim().toUpperCase(),
+          injectionName: formData.injectionName.trim(),
+          dosage: formData.dosage.trim(),
+          route: formData.route,
+          frequency: formData.frequency,
+          isStat: formData.isStat ? 1 : 0,
+          notes: formData.notes.trim(),
+          status: 'Pending',
+          dateGiven: ''
+        })
+      });
+
+      if (response.ok) {
+        setFormData({
+          patientId: '',
+          injectionName: '',
+          dosage: '',
+          route: 'IV',
+          frequency: 'STAT (Single / Immediate)',
+          isStat: true,
+          notes: ''
+        });
+        fetchInjections(false);
+      }
+    } catch (err) {
+      console.error("Failed to create injection:", err);
+    }
+  };
+
+  // Quick Direct Administer
+  const handleQuickAdminister = async (inj) => {
     try {
       const response = await fetch(`${API_BASE}/api/injections/${inj.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Cancelled',
-          dateGiven: `Cancelled on ${new Date().toLocaleString()}`,
-          administeredBy: currentUser?.name || 'Staff'
+          status: 'Administered',
+          dateGiven: new Date().toLocaleString('en-US', {
+            dateStyle: 'short',
+            timeStyle: 'medium'
+          }),
+          administeredBy: currentUser?.name || currentUser?.email || 'Injection Desk Nurse'
         })
       });
 
@@ -166,27 +206,60 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
         fetchInjections(false);
       }
     } catch (err) {
-      console.error("Failed to cancel injection:", err);
+      console.error("Failed to update injection status:", err);
     }
   };
 
   // Permanently Delete Injection Log
-  const handleDeleteInjection = async (inj) => {
-    if (!window.confirm(`Are you sure you want to delete log entry for ${inj.injectionName}?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/api/injections/${inj.id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        fetchInjections(false);
+  const handleDeleteInjection = (inj) => {
+    setConfirmDialog({
+      title: 'Delete Injection Record',
+      message: `Are you sure you want to permanently delete "${inj.injectionName}" for Patient #${inj.patientId}?`,
+      confirmText: 'Yes, Delete Record',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`${API_BASE}/api/injections/${inj.id}`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            fetchInjections(false);
+          }
+        } catch (err) {
+          console.error("Failed to delete injection record:", err);
+        } finally {
+          setConfirmDialog(null);
+        }
       }
-    } catch (err) {
-      console.error("Failed to delete injection record:", err);
-    }
+    });
+  };
+
+  // Cancel Injection
+  const handleCancelInjection = (inj) => {
+    setConfirmDialog({
+      title: 'Cancel Injection Order',
+      message: `Are you sure you want to cancel "${inj.injectionName}" for Patient #${inj.patientId}?`,
+      confirmText: 'Yes, Cancel Injection',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`${API_BASE}/api/injections/${inj.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'Cancelled',
+              dateGiven: `Cancelled on ${new Date().toLocaleString()}`,
+              administeredBy: currentUser?.name || currentUser?.email || 'Staff'
+            })
+          });
+          if (response.ok) {
+            fetchInjections(false);
+          }
+        } catch (err) {
+          console.error("Failed to cancel injection:", err);
+        } finally {
+          setConfirmDialog(null);
+        }
+      }
+    });
   };
 
   const filteredInjections = injections.filter(inj => {
@@ -200,7 +273,8 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
     return inj.status === filterStatus && matchSearch;
   });
 
-  const pendingCount = injections.filter(i => i.status === 'Pending').length;
+  const pendingInjectionsList = injections.filter(i => i.status === 'Pending');
+  const pendingCount = pendingInjectionsList.length;
   const givenCount = injections.filter(i => i.status === 'Administered').length;
 
   return (
@@ -216,8 +290,82 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
             Manage IM/IV injections, STAT single doses, daily frequencies, and nurse administration records.
           </p>
         </div>
-
       </div>
+
+      {/* Incoming Prescribed Injections Banner from Doctor Consultation */}
+      {pendingInjectionsList.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)',
+          border: '1.5px solid rgba(245, 158, 11, 0.35)',
+          borderLeft: '5px solid var(--warning)',
+          borderRadius: '14px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          boxShadow: '0 8px 24px -4px rgba(245, 158, 11, 0.12)'
+        }}>
+          <h4 style={{ margin: 0, color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800 }}>
+            <Syringe size={20} />
+            Incoming Injections from Doctor ({pendingInjectionsList.length})
+          </h4>
+          <p style={{ margin: '0.25rem 0 1rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            Doctor has prescribed injections for the following patients. Please administer and record.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '250px', overflowY: 'auto' }}>
+            {pendingInjectionsList.map(inj => {
+              const pat = patients.find(p => String(p.id).toUpperCase() === String(inj.patientId).toUpperCase());
+              return (
+                <div
+                  key={inj.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'var(--bg-card, #ffffff)',
+                    padding: '0.9rem 1.25rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      {pat ? pat.name : 'Patient'} <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>({inj.patientId})</span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#d97706', fontWeight: 700, marginTop: '0.15rem' }}>
+                      💉 {inj.injectionName} • <span style={{ color: 'var(--text-secondary)' }}>{inj.dosage || inj.route}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="btn"
+                      style={{
+                        padding: '0.45rem 1.1rem',
+                        fontSize: '0.82rem',
+                        background: '#10b981',
+                        border: 'none',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                      }}
+                      onClick={() => openAdministerModal(inj)}
+                    >
+                      ✓ Administer Injection
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Overview Stat Cards */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
@@ -645,6 +793,92 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Premium Confirmation Dialog Modal */}
+      {confirmDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10, 15, 29, 0.82)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            animation: 'fadeIn 0.15s ease'
+          }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="card fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '430px',
+              background: 'var(--bg-card, #111c30)',
+              border: '1.5px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '16px',
+              padding: '1.75rem',
+              boxShadow: '0 25px 60px -15px rgba(0,0,0,0.7)',
+              textAlign: 'center'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1rem'
+            }}>
+              <AlertCircle size={30} />
+            </div>
+
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {confirmDialog.title}
+            </h3>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 1.5rem 0' }}>
+              {confirmDialog.message}
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.88rem', fontWeight: 600, flex: 1 }}
+                onClick={() => setConfirmDialog(null)}
+              >
+                No, Keep
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  flex: 1,
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)'
+                }}
+                onClick={confirmDialog.onConfirm}
+              >
+                {confirmDialog.confirmText || 'Confirm'}
+              </button>
+            </div>
           </div>
         </div>
       )}

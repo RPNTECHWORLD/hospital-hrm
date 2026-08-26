@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Bed, UserCheck, ShieldAlert, LogOut, CheckCircle, Plus } from 'lucide-react';
+import { Bed, UserCheck, ShieldAlert, LogOut, CheckCircle, Plus, Loader2 } from 'lucide-react';
 
 const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
+  const [processingPatientId, setProcessingPatientId] = useState(null);
   // Let's configure a list of mock rooms and beds
   // 10 beds: Room 101 (Beds A, B), Room 102 (Beds A, B), Room 103 (Beds A, B), Room 104 (Beds A, B), Room 105 (Beds A, B)
   const [beds, setBeds] = useState([
@@ -19,6 +20,30 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
   const [selectedBed, setSelectedBed] = useState(null);
   const [selectedPatientId, setSelectedPatientId] = useState('');
+
+  const handleAcceptPendingAdmit = async (patientId, bedId) => {
+    setProcessingPatientId(patientId);
+    // Instant optimistic assignment to local bed card
+    setBeds(prev => prev.map(b => b.id === bedId ? { ...b, patientId } : b));
+    try {
+      await onAssignBed(patientId, bedId);
+    } catch (err) {
+      console.error("Failed to assign bed:", err);
+    } finally {
+      setProcessingPatientId(null);
+    }
+  };
+
+  const handleDeclinePendingAdmit = async (patientId) => {
+    setProcessingPatientId(patientId);
+    try {
+      await onDischargePatient(patientId);
+    } catch (err) {
+      console.error("Failed to decline pending bed admit:", err);
+    } finally {
+      setProcessingPatientId(null);
+    }
+  };
 
   // Sync beds state when patients prop changes
   React.useEffect(() => {
@@ -109,24 +134,30 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
       {/* Pending Bed Request Notification Banner */}
       {(() => {
-        const pendingRequests = patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive');
+        const pendingRequests = patients.filter(p => 
+          p.status !== 'Inactive' && 
+          (p.bedAdmissionPending == 1 || p.bedAdmissionPending === '1' || p.bedAdmissionPending === true)
+        );
         if (pendingRequests.length === 0) return null;
         
         return (
           <div style={{ 
-            background: 'rgba(245, 158, 11, 0.03)',
-            border: '1px solid rgba(245, 158, 11, 0.15)',
-            borderLeft: '4px solid var(--warning)',
-            borderRadius: '12px',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)',
+            border: '1.5px solid rgba(245, 158, 11, 0.35)',
+            borderLeft: '5px solid var(--warning)',
+            borderRadius: '14px',
             padding: '1.25rem 1.5rem',
             marginBottom: '2rem',
-            boxShadow: '0 4px 20px -2px rgba(245, 158, 11, 0.08)'
+            boxShadow: '0 8px 24px -4px rgba(245, 158, 11, 0.12)'
           }}>
-            <h4 style={{ margin: 0, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 700 }}>
+            <h4 style={{ margin: 0, color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800 }}>
               <ShieldAlert size={20} />
-              Admission Requests Needing Confirmation ({pendingRequests.length})
+              Incoming Bed Admission Requests ({pendingRequests.length})
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+            <p style={{ margin: '0.25rem 0 1rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Doctor has requested bed admissions for the following patients. Please confirm or decline.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {pendingRequests.map(p => {
                 const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'PT';
                 return (
@@ -136,40 +167,39 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                       display: 'flex', 
                       justifyContent: 'space-between', 
                       alignItems: 'center', 
-                      background: 'rgba(255, 255, 255, 0.02)',
+                      background: 'var(--bg-card, #ffffff)',
                       padding: '1rem 1.25rem',
                       borderRadius: '10px',
-                      border: '1px solid var(--border)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
                       flexWrap: 'wrap',
-                      gap: '1rem'
+                      gap: '1rem',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      {/* Avatar */}
                       <div style={{ 
                         width: '42px', 
                         height: '42px', 
                         borderRadius: '50%', 
                         background: 'rgba(245, 158, 11, 0.15)', 
-                        color: 'var(--warning)', 
+                        color: '#d97706', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        fontWeight: 700,
-                        fontSize: '0.9rem' 
+                        fontWeight: 800,
+                        fontSize: '0.95rem' 
                       }}>
                         {initials}
                       </div>
                       
-                      {/* Patient details */}
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
                           {p.name}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
                           <span>{p.age} Yrs • {p.gender}</span>
-                          <span style={{ color: 'var(--border)' }}>|</span>
-                          <span>Requested: <strong style={{ color: 'var(--primary)' }}>Room {p.wardBedId?.slice(0, 3)} • Bed {p.wardBedId?.slice(3)}</strong></span>
+                          <span style={{ color: 'var(--border)' }}>•</span>
+                          <span>Requested: <strong style={{ color: 'var(--primary)' }}>Room {p.wardBedId?.slice(0, 3)} - Bed {p.wardBedId?.slice(3)}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -177,42 +207,53 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button 
                         className="btn"
+                        disabled={processingPatientId === p.id}
                         style={{ 
                           padding: '0.5rem 1.25rem', 
-                          fontSize: '0.8rem', 
-                          background: 'var(--success)', 
-                          border: 'none',
+                          fontSize: '0.82rem', 
+                          background: '#10b981', 
+                          border: 'none', 
                           color: '#fff',
-                          borderRadius: '6px',
+                          borderRadius: '8px',
                           fontWeight: 700,
-                          cursor: 'pointer',
+                          cursor: processingPatientId === p.id ? 'not-allowed' : 'pointer',
+                          opacity: processingPatientId === p.id ? 0.75 : 1,
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.35rem',
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)'
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                          transition: 'all 0.15s ease'
                         }}
-                        onClick={() => onAssignBed(p.id, p.wardBedId)}
+                        onClick={() => handleAcceptPendingAdmit(p.id, p.wardBedId)}
                       >
-                        Confirm (OK)
+                        {processingPatientId === p.id ? (
+                          <>
+                            <Loader2 size={14} className="spin" /> Admitting...
+                          </>
+                        ) : (
+                          <>✓ Accept & Admit Bed</>
+                        )}
                       </button>
                       <button 
                         className="btn"
+                        disabled={processingPatientId === p.id}
                         style={{ 
                           padding: '0.5rem 1.25rem', 
-                          fontSize: '0.8rem', 
+                          fontSize: '0.82rem', 
                           background: 'transparent', 
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          color: 'var(--danger)',
-                          borderRadius: '6px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
+                          border: '1.5px solid rgba(239, 68, 68, 0.4)', 
+                          color: '#ef4444',
+                          borderRadius: '8px',
+                          fontWeight: 700,
+                          cursor: processingPatientId === p.id ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.35rem'
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
                         }}
-                        onClick={() => onDischargePatient(p.id)}
+                        onClick={() => handleDeclinePendingAdmit(p.id)}
                       >
-                        Reject
+                        ✕ Decline
                       </button>
                     </div>
                   </div>
@@ -235,7 +276,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
             {beds.map(bed => {
               const patient = patients.find(p => p.id === bed.patientId);
               const isOccupied = bed.patientId !== null;
-              const isPending = patient && patient.bedAdmissionPending === 1;
+              const isPending = patient && (patient.bedAdmissionPending == 1 || patient.bedAdmissionPending === '1' || patient.bedAdmissionPending === true);
 
               return (
                 <div 
@@ -243,8 +284,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                   className="card" 
                   style={{ 
                     padding: '1.25rem', 
-                    background: isPending ? 'rgba(245, 158, 11, 0.05)' : isOccupied ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255,255,255,0.01)',
-                    borderColor: isPending ? 'rgba(245, 158, 11, 0.3)' : isOccupied ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)',
+                    background: isPending ? 'rgba(245, 158, 11, 0.06)' : isOccupied ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255,255,255,0.01)',
+                    borderColor: isPending ? 'rgba(245, 158, 11, 0.4)' : isOccupied ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
@@ -255,50 +296,68 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Room {bed.room}</span>
-                      <h4 style={{ fontSize: '1.1rem' }}>{bed.name}</h4>
+                      <h4 style={{ fontSize: '1.1rem', margin: '0.1rem 0 0 0' }}>{bed.name}</h4>
                     </div>
                     <span className={`badge ${
                       isPending ? 'badge-pending' : isOccupied ? 'badge-danger' : 'badge-success'
                     }`}>
-                      {isPending ? 'Pending OK' : isOccupied ? 'Occupied' : 'Available'}
+                      {isPending ? 'Pending OK ⏳' : isOccupied ? 'Occupied' : 'Available'}
                     </span>
                   </div>
 
                   {isOccupied && patient ? (
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {isPending ? 'Requested Admission:' : 'Admitted Patient:'}
+                      <div style={{ fontSize: '0.82rem', color: isPending ? '#d97706' : 'var(--text-secondary)', fontWeight: 600 }}>
+                        {isPending ? 'Requested by Doctor:' : 'Admitted Patient:'}
                       </div>
-                      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{patient.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginTop: '0.1rem' }}>{patient.name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patient.gender} • {patient.age} Yrs • Reg: {patient.registrationDate || '--'}</div>
                       
                       {isPending ? (
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem' }}>
                           <button 
                             className="btn btn-primary" 
+                            disabled={processingPatientId === patient.id}
                             style={{ 
                               flexGrow: 1, 
-                              padding: '0.4rem', 
+                              padding: '0.45rem', 
                               fontSize: '0.8rem', 
-                              background: 'var(--success)', 
-                              borderColor: 'var(--success)' 
+                              background: '#10b981', 
+                              borderColor: '#10b981',
+                              fontWeight: 700,
+                              cursor: processingPatientId === patient.id ? 'not-allowed' : 'pointer',
+                              opacity: processingPatientId === patient.id ? 0.75 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              transition: 'all 0.15s ease'
                             }}
-                            onClick={() => onAssignBed(patient.id, bed.id)}
+                            onClick={() => handleAcceptPendingAdmit(patient.id, bed.id)}
                           >
-                            OK / Confirm
+                            {processingPatientId === patient.id ? (
+                              <>
+                                <Loader2 size={13} className="spin" /> Confirming...
+                              </>
+                            ) : (
+                              <>✓ Confirm</>
+                            )}
                           </button>
                           <button 
                             className="btn btn-secondary" 
+                            disabled={processingPatientId === patient.id}
                             style={{ 
                               flexGrow: 1, 
-                              padding: '0.4rem', 
+                              padding: '0.45rem', 
                               fontSize: '0.8rem', 
-                              color: 'var(--danger)', 
-                              borderColor: 'rgba(239, 68, 68, 0.2)' 
+                              color: '#ef4444', 
+                              borderColor: 'rgba(239, 68, 68, 0.3)',
+                              fontWeight: 700,
+                              cursor: processingPatientId === patient.id ? 'not-allowed' : 'pointer'
                             }}
                             onClick={() => handleDischarge(bed.id)}
                           >
-                            Cancel
+                            ✕ Decline
                           </button>
                         </div>
                       ) : (

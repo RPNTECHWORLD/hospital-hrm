@@ -400,19 +400,6 @@ app.put('/api/lab/:id', async (req, res) => {
   try {
     const { status, reportNotes, reportImg } = req.body;
     await updateLabLogStatus(parseInt(req.params.id), status, reportNotes, reportImg);
-
-    if (status === 'Report Delivered') {
-      const labLogs = await getLabLogs();
-      const currentLog = labLogs.find(l => l.id === parseInt(req.params.id));
-      if (currentLog) {
-        const patientId = currentLog.patientId;
-        const patient = await getPatientById(patientId);
-        if (patient) {
-          await updatePatient(patientId, { status: 'Reviewing' });
-        }
-      }
-    }
-
     res.json({ message: 'Lab status updated' });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -3,11 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run --prefix frontend dev\" \"node backend/server.js\""
+    "dev": "concurrently \"npm run --prefix frontend dev\" \"node backend/server.js\"",
+    "build": "npm run --prefix frontend build"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "nodemailer": "^9.0.5",
+    "pg": "^8.22.0",
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -705,9 +705,12 @@ const ReceptionistDashboard = ({
       setChildNicuHistory('No');
         setSpecialInvestigation(false);
         setSpecialInvestigationNotes('');
+      } else {
+        alert("Patient registration could not be completed. Please check server connection.");
       }
     } catch (err) {
       console.error("Registration error:", err);
+      alert("Error registering patient: " + (err.message || 'Please check your connection and try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1993,6 +1996,7 @@ const ReceptionistDashboard = ({
                               </div>
                             )}
                             {patient.alternatePhone && <div>Alt: {patient.alternatePhone}</div>}
+                            {patient.email && <div style={{ color: 'var(--primary)', wordBreak: 'break-all' }}>✉️ {patient.email}</div>}
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>

@@ -13,7 +13,7 @@ import InjectionRoom from './components/InjectionRoom';
 import LabDashboard from './components/LabDashboard';
 import DirectoryLedger from './components/DirectoryLedger';
 import UtilityLogs from './components/UtilityLogs';
-import { generateFullPrescriptionImage } from './components/PrescriptionTemplate';
+import { generateFullPrescriptionImage, capturePrescriptionDOMImage } from './components/PrescriptionTemplate';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import {
@@ -41,7 +41,9 @@ import {
   Bell,
   Sparkles,
   Layers,
-  Check
+  Check,
+  UserPlus,
+  CheckCircle
 } from 'lucide-react';
 
 // Setup default Doctors
@@ -127,10 +129,11 @@ function App() {
   const [adminActiveView, setAdminActiveView] = useState('admin');
   const [currentStaffView, setCurrentStaffView] = useState('');
   const [tvMode, setTvMode] = useState(false);
-
   const [patients, setPatients] = useState([]);
   const [doctorsList, setDoctorsList] = useState(DEFAULT_DOCTORS);
   const [staffList, setStaffList] = useState(DEFAULT_STAFF);
+  const [injectionsList, setInjectionsList] = useState([]);
+  const [labLogsList, setLabLogsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // UI / UX States: Theme, Density, Quick Search, Notifications
@@ -230,16 +233,17 @@ function App() {
     }
   }, [user]);
 
-
   // Fetch initial data and start polling from Backend Node API
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [patientsRes, doctorsRes, staffRes] = await Promise.allSettled([
+        const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
           fetch(`${API_BASE}/api/patients`),
           fetch(`${API_BASE}/api/doctors`),
-          fetch(`${API_BASE}/api/staff`)
+          fetch(`${API_BASE}/api/staff`),
+          fetch(`${API_BASE}/api/injections`),
+          fetch(`${API_BASE}/api/lab`)
         ]);
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
@@ -258,6 +262,14 @@ function App() {
             setStaffList(staffData);
           }
         }
+        if (injRes.status === 'fulfilled' && injRes.value.ok) {
+          const injData = await injRes.value.json();
+          if (Array.isArray(injData)) setInjectionsList(injData);
+        }
+        if (labRes.status === 'fulfilled' && labRes.value.ok) {
+          const labData = await labRes.value.json();
+          if (Array.isArray(labData)) setLabLogsList(labData);
+        }
       } catch (err) {
         console.error("Error loading data from server:", err);
       } finally {
@@ -267,10 +279,12 @@ function App() {
 
     const pollData = async () => {
       try {
-        const [patientsRes, doctorsRes, staffRes] = await Promise.allSettled([
+        const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
           fetch(`${API_BASE}/api/patients`),
           fetch(`${API_BASE}/api/doctors`),
-          fetch(`${API_BASE}/api/staff`)
+          fetch(`${API_BASE}/api/staff`),
+          fetch(`${API_BASE}/api/injections`),
+          fetch(`${API_BASE}/api/lab`)
         ]);
 
         if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
@@ -280,7 +294,7 @@ function App() {
             if (!prev || prev.length !== patientsData.length) return patientsData;
             const changed = prev.some((p, i) => {
               const n = patientsData[i];
-              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId || p.tokenNumber !== n.tokenNumber;
+              return !n || p.id !== n.id || p.status !== n.status || p.paymentStatus !== n.paymentStatus || p.diagnosis !== n.diagnosis || p.assignedDoctorId !== n.assignedDoctorId || p.tokenNumber !== n.tokenNumber || p.bedAdmissionPending !== n.bedAdmissionPending;
             });
             return changed ? patientsData : prev;
           });
@@ -299,6 +313,14 @@ function App() {
           if (Array.isArray(staffData) && staffData.length > 0) {
             setStaffList(prev => (prev.length !== staffData.length ? staffData : prev));
           }
+        }
+        if (injRes.status === 'fulfilled' && injRes.value.ok) {
+          const injData = await injRes.value.json();
+          if (Array.isArray(injData)) setInjectionsList(injData);
+        }
+        if (labRes.status === 'fulfilled' && labRes.value.ok) {
+          const labData = await labRes.value.json();
+          if (Array.isArray(labData)) setLabLogsList(labData);
         }
       } catch (err) {
         console.error("Error polling data:", err);
@@ -553,16 +575,22 @@ function App() {
         const newPatient = await response.json();
         setPatients(prev => normalizeTokensForPatients([...prev, newPatient]));
         return newPatient;
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData.message || `Server responded with status ${response.status}`;
+        console.error("Error registering patient:", msg);
+        throw new Error(msg);
       }
     } catch (err) {
       console.error("Error registering patient:", err);
+      throw err;
     }
   };
 
   const handleReRegisterPatient = async (patientId, doctorId, vitalsData = {}) => {
     try {
       const patient = patients.find(p => p.id === patientId);
-      if (!patient) return;
+      if (!patient) throw new Error("Patient record not found.");
 
       const doctors = doctorsList;
       let updatedHistory = patient.history || [];
@@ -638,9 +666,15 @@ function App() {
         const updatedPatient = await response.json();
         setPatients(prev => normalizeTokensForPatients(prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p)));
         return updatedPatient;
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData.message || `Server responded with status ${response.status}`;
+        console.error("Error re-registering patient:", msg);
+        throw new Error(msg);
       }
     } catch (err) {
       console.error("Error re-registering patient:", err);
+      throw err;
     }
   };
 
@@ -1063,6 +1097,8 @@ function App() {
 
   // Ward Staff Actions
   const handleAssignBed = async (patientId, bedId) => {
+    // Instant optimistic update
+    setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, wardBedId: bedId, bedAdmissionPending: 0 } : p));
     try {
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
@@ -1071,7 +1107,7 @@ function App() {
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
       }
     } catch (err) {
       console.error("Error assigning bed:", err);
@@ -1079,6 +1115,8 @@ function App() {
   };
 
   const handleDischargePatient = async (patientId) => {
+    // Instant optimistic update
+    setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, wardBedId: null, bedAdmissionPending: 0 } : p));
     try {
       const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: 'PUT',
@@ -1087,7 +1125,7 @@ function App() {
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
       }
     } catch (err) {
       console.error("Error discharging patient:", err);
@@ -1132,12 +1170,21 @@ function App() {
         email: targetEmail
       };
 
-      // Generate exact high-res visual prescription snapshot
+      // 1. Capture exact high-res on-screen DOM prescription image via html2canvas
       let prescriptionSnapshot = null;
       try {
-        prescriptionSnapshot = await generateFullPrescriptionImage(fullPatient);
+        prescriptionSnapshot = await capturePrescriptionDOMImage();
       } catch (e) {
-        console.warn('Could not generate canvas snapshot:', e);
+        console.warn('Could not capture direct DOM prescription:', e);
+      }
+
+      // 2. Fallback to composite generator if DOM element is not mounted
+      if (!prescriptionSnapshot) {
+        try {
+          prescriptionSnapshot = await generateFullPrescriptionImage(fullPatient);
+        } catch (e) {
+          console.warn('Could not generate canvas snapshot:', e);
+        }
       }
 
       const response = await fetch(`${API_BASE}/api/send-prescription-email`, {
@@ -1269,6 +1316,7 @@ function App() {
             onPrintPrescription={handlePrintPrescription}
             onEmailPrescription={handleEmailPrescription}
             onAdmitToWard={handleOpenWardAdmit}
+            onDischargePatient={handleDischargePatient}
             onReassignDoctor={handleReassignDoctor}
             onAcceptReassignment={handleAcceptReassignment}
             onDeclineReassignment={handleDeclineReassignment}
@@ -1641,51 +1689,302 @@ function App() {
             {/* Notification Center */}
             <div className="user-badge" style={{ position: 'relative' }}>
               {(() => {
-                const wardPendingCount = patients.filter(p => p.bedAdmissionPending === 1 && p.status !== 'Inactive').length;
-                const pharmacyPendingCount = patients.filter(p => p.pharmacyPending === 1 && p.status !== 'Inactive').length;
-                const queueWaitingCount = patients.filter(p => p.queueStatus === 'Waiting' && p.status !== 'Inactive').length;
-                const reassignPendingCount = patients.filter(p => p.doctorReassigned === 1 && p.status !== 'Inactive').length;
-                const totalAlerts = wardPendingCount + pharmacyPendingCount + reassignPendingCount;
+                const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+
+                // 1. Patients waiting in Queue today
+                const queueWaitingCount = patients.filter(p =>
+                  p.status !== 'Inactive' &&
+                  (p.status === 'In Queue' || p.status === 'Registered' || !p.status) &&
+                  isSameDayStr(p.registrationDate, todayStr)
+                ).length;
+
+                // 2. Patients in doctor Review today
+                const reviewingCount = patients.filter(p =>
+                  p.status !== 'Inactive' &&
+                  (p.status === 'Reviewing' || (p.status || '').toLowerCase() === 'review') &&
+                  isSameDayStr(p.registrationDate, todayStr)
+                ).length;
+
+                // 3. Pending pharmacy medication dispatch
+                const pharmacyPendingCount = patients.filter(p =>
+                  p.status !== 'Inactive' &&
+                  (p.status === 'At Pharmacy' || p.status === 'Pending Pharmacy' || p.pharmacyStatus === 'Pending')
+                ).length;
+
+                // 4. Pending Bed Admission requests
+                const wardPendingCount = patients.filter(p =>
+                  p.status !== 'Inactive' &&
+                  (p.bedAdmissionPending == 1 || p.bedAdmissionPending === '1' || p.bedAdmissionPending === true)
+                ).length;
+
+                // 5. Pending Lab Test Investigations
+                const labPendingCount = (labLogsList || []).filter(l =>
+                  l.status === 'Ordered' || l.status === 'Sample Collected' || l.status === 'Processing'
+                ).length;
+
+                // 6. Pending Injection Desk Administrations
+                const injectionPendingCount = (injectionsList || []).filter(i =>
+                  i.status === 'Pending'
+                ).length;
+
+                // 7. Pending Doctor Reassignments
+                const reassignPendingCount = patients.filter(p =>
+                  p.status !== 'Inactive' &&
+                  Boolean(p.pendingReassignment)
+                ).length;
+
+                const totalAlerts = queueWaitingCount + reviewingCount + pharmacyPendingCount + wardPendingCount + labPendingCount + injectionPendingCount + reassignPendingCount;
                 const hasActiveAlerts = totalAlerts > 0;
+
+                const handleNotifyNav = (viewName) => {
+                  if (user?.role === 'admin') {
+                    setAdminActiveView(viewName);
+                  } else {
+                    setCurrentStaffView(viewName);
+                  }
+                  setShowNotifications(false);
+                  setIsSidebarOpen(false);
+                };
 
                 return (
                   <>
-                    <button className="header-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications Center">
-                      <Bell size={15} />
+                    <button
+                      className="header-btn"
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      title="Notifications Center"
+                      style={{ position: 'relative' }}
+                    >
+                      <Bell size={16} />
                       {hasActiveAlerts && (
-                        <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }} />
+                        <span style={{
+                          position: 'absolute',
+                          top: -3,
+                          right: -3,
+                          background: '#ef4444',
+                          color: '#ffffff',
+                          borderRadius: '10px',
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          minWidth: '16px',
+                          height: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 3px',
+                          border: '2px solid var(--bg-card)',
+                          boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)'
+                        }}>
+                          {totalAlerts}
+                        </span>
                       )}
                     </button>
 
                     {showNotifications && (
                       <div style={{
-                        position: 'absolute', right: 0, top: '120%', width: 'min(320px, 85vw)', background: 'var(--bg-card)',
-                        border: '1px solid var(--border)', borderRadius: '14px', boxShadow: 'var(--shadow-lg)',
-                        padding: '1rem', zIndex: 9999, animation: 'fadeIn 0.15s ease', boxSizing: 'border-box'
+                        position: 'absolute',
+                        right: 0,
+                        top: '125%',
+                        width: 'min(340px, 90vw)',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '14px',
+                        boxShadow: 'var(--shadow-lg)',
+                        padding: '1rem',
+                        zIndex: 9999,
+                        animation: 'fadeIn 0.15s ease',
+                        boxSizing: 'border-box'
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>Live Notifications</span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>● Active</span>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.75rem',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid var(--border)'
+                        }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Live Notifications</span>
+                          <span style={{
+                            fontSize: '0.7rem',
+                            color: hasActiveAlerts ? 'var(--primary)' : 'var(--success)',
+                            fontWeight: 700,
+                            background: hasActiveAlerts ? 'rgba(21, 115, 136, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '10px'
+                          }}>
+                            ● {hasActiveAlerts ? `${totalAlerts} Active` : 'All Clear'}
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '320px', overflowY: 'auto' }}>
                           {reassignPendingCount > 0 && (
-                            <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                              <UserPlus size={14} style={{ color: '#f59e0b' }} />
-                              <div><strong>{reassignPendingCount} Reassignment Requests</strong> pending approval</div>
+                            <div
+                              onClick={() => handleNotifyNav(user?.role === 'doctor' ? 'doctor' : 'receptionist')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view doctor reassignment requests"
+                            >
+                              <UserPlus size={15} style={{ color: '#d97706', flexShrink: 0 }} />
+                              <div><strong>{reassignPendingCount} Reassignment</strong> requests pending approval</div>
                             </div>
                           )}
-                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <Activity size={14} style={{ color: '#6366f1' }} />
-                            <div><strong>{queueWaitingCount} Patients</strong> waiting in Queue</div>
-                          </div>
-                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <Pill size={14} style={{ color: '#f59e0b' }} />
-                            <div><strong>{pharmacyPendingCount} Prescriptions</strong> pending dispatch</div>
-                          </div>
-                          <div style={{ fontSize: '0.78rem', padding: '0.5rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <Bed size={14} style={{ color: '#ef4444' }} />
-                            <div><strong>{wardPendingCount} Bed Admission</strong> requests</div>
-                          </div>
+
+                          {queueWaitingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav('receptionist')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                border: '1px solid rgba(99, 102, 241, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Receptionist Queue"
+                            >
+                              <Activity size={15} style={{ color: '#6366f1', flexShrink: 0 }} />
+                              <div><strong>{queueWaitingCount} Patients</strong> waiting in Queue</div>
+                            </div>
+                          )}
+
+                          {wardPendingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav('ward')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Ward Bed Admission requests"
+                            >
+                              <Bed size={15} style={{ color: '#ef4444', flexShrink: 0 }} />
+                              <div><strong>{wardPendingCount} Bed Admission</strong> waiting requests</div>
+                            </div>
+                          )}
+
+                          {labPendingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav('lab')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(6, 182, 212, 0.1)',
+                                border: '1px solid rgba(6, 182, 212, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Laboratory Investigation Desk"
+                            >
+                              <FlaskConical size={15} style={{ color: '#06b6d4', flexShrink: 0 }} />
+                              <div><strong>{labPendingCount} Lab Tests</strong> waiting for investigation</div>
+                            </div>
+                          )}
+
+                          {injectionPendingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav('injection')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Injection Room"
+                            >
+                              <Syringe size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                              <div><strong>{injectionPendingCount} Injections</strong> waiting at Injection Desk</div>
+                            </div>
+                          )}
+
+                          {reviewingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav(user?.role === 'doctor' ? 'doctor' : 'receptionist')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(139, 92, 246, 0.1)',
+                                border: '1px solid rgba(139, 92, 246, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Review queue"
+                            >
+                              <Users size={15} style={{ color: '#8b5cf6', flexShrink: 0 }} />
+                              <div><strong>{reviewingCount} Patients</strong> waiting for Doctor Review</div>
+                            </div>
+                          )}
+
+                          {pharmacyPendingCount > 0 && (
+                            <div
+                              onClick={() => handleNotifyNav('pharmacy')}
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click to view Pharmacy Desk"
+                            >
+                              <Pill size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                              <div><strong>{pharmacyPendingCount} Prescriptions</strong> pending dispatch</div>
+                            </div>
+                          )}
+
+                          {!hasActiveAlerts && (
+                            <div style={{
+                              textAlign: 'center',
+                              padding: '1.25rem 0.5rem',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.82rem',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '0.4rem'
+                            }}>
+                              <CheckCircle size={24} style={{ color: 'var(--success)' }} />
+                              <div>No pending alerts. All queues up to date!</div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

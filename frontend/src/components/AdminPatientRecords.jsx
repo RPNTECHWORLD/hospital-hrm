@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer, Mail } from 'lucide-react';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 
@@ -17,9 +17,39 @@ const extractPincode = (address) => {
   return parts.length >= 3 ? parts[2].trim() : '';
 };
 
-// Helper: format date as pure DD/MM/YY (e.g. 09/08/24)
+// Helper: parse any date format into epoch timestamp for accurate chronological sorting
+const parseDateToTimestamp = (dateVal, history) => {
+  const raw = dateVal || (history && history.length > 0 && (history[history.length - 1].date || history[0].date)) || '';
+  if (!raw) return 0;
+  if (typeof raw === 'number') return raw;
+
+  const str = String(raw).trim();
+
+  // 1. Check DD/MM/YYYY or DD/MM/YY (e.g. 26/08/2026, 26/08/26, 26-08-2026)
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    let year = parseInt(dmyMatch[3], 10);
+    if (year < 100) {
+      year += 2000;
+    }
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+
+  // 2. Check standard JS Date string (e.g. ISO string or MM/DD/YYYY)
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.getTime();
+  }
+
+  return 0;
+};
+
+// Helper: format date as pure DD/MM/YY (e.g. 26/08/26)
 const formatOnlyDate = (registrationDate, history) => {
-  const raw = registrationDate || (history && history[0] && history[0].date) || '';
+  const raw = registrationDate || (history && history.length > 0 && (history[history.length - 1].date || history[0].date)) || '';
   if (!raw) {
     const d = new Date();
     const day = String(d.getDate()).padStart(2, '0');
@@ -28,7 +58,18 @@ const formatOnlyDate = (registrationDate, history) => {
     return `${day}/${month}/${year}`;
   }
 
-  const parsed = new Date(raw);
+  const str = String(raw).trim();
+
+  // Check DD/MM/YYYY or DD/MM/YY
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (dmyMatch) {
+    const day = String(dmyMatch[1]).padStart(2, '0');
+    const month = String(dmyMatch[2]).padStart(2, '0');
+    const year = String(dmyMatch[3]).slice(-2);
+    return `${day}/${month}/${year}`;
+  }
+
+  const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
     const day = String(parsed.getDate()).padStart(2, '0');
     const month = String(parsed.getMonth() + 1).padStart(2, '0');
@@ -36,11 +77,7 @@ const formatOnlyDate = (registrationDate, history) => {
     return `${day}/${month}/${year}`;
   }
 
-  const d = new Date();
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = String(d.getFullYear()).slice(-2);
-  return `${day}/${month}/${year}`;
+  return str;
 };
 
 // Helper: Check if date string matches yesterday
@@ -53,14 +90,14 @@ const isYesterdayDate = (dateVal) => {
   const yDay = String(yesterday.getDate()).padStart(2, '0');
   const yYearShort = String(yYear).slice(-2);
 
-  if (typeof dateVal === 'string') {
-    if (dateVal.includes(`${yDay}/${yMonth}/${yYear}`) || dateVal.includes(`${yDay}/${yMonth}/${yYearShort}`)) {
-      return true;
-    }
+  const str = String(dateVal);
+  if (str.includes(`${yDay}/${yMonth}/${yYear}`) || str.includes(`${yDay}/${yMonth}/${yYearShort}`) || str.includes(`${yDay}-${yMonth}-${yYear}`) || str.includes(`${yDay}-${yMonth}-${yYearShort}`)) {
+    return true;
   }
-  const d = new Date(dateVal);
-  if (!isNaN(d.getTime())) {
-    return d.getFullYear() === yYear && (d.getMonth() + 1) === parseInt(yMonth) && d.getDate() === parseInt(yDay);
+  const timestamp = parseDateToTimestamp(dateVal);
+  if (timestamp > 0) {
+    const d = new Date(timestamp);
+    return d.getFullYear() === yYear && (d.getMonth() + 1) === parseInt(yMonth, 10) && d.getDate() === parseInt(yDay, 10);
   }
   return false;
 };
@@ -74,14 +111,14 @@ const isTodayDate = (dateVal) => {
   const tDay = String(today.getDate()).padStart(2, '0');
   const tYearShort = String(tYear).slice(-2);
 
-  if (typeof dateVal === 'string') {
-    if (dateVal.includes(`${tDay}/${tMonth}/${tYear}`) || dateVal.includes(`${tDay}/${tMonth}/${tYearShort}`)) {
-      return true;
-    }
+  const str = String(dateVal);
+  if (str.includes(`${tDay}/${tMonth}/${tYear}`) || str.includes(`${tDay}/${tMonth}/${tYearShort}`) || str.includes(`${tDay}-${tMonth}-${tYear}`) || str.includes(`${tDay}-${tMonth}-${tYearShort}`)) {
+    return true;
   }
-  const d = new Date(dateVal);
-  if (!isNaN(d.getTime())) {
-    return d.getFullYear() === tYear && (d.getMonth() + 1) === parseInt(tMonth) && d.getDate() === parseInt(tDay);
+  const timestamp = parseDateToTimestamp(dateVal);
+  if (timestamp > 0) {
+    const d = new Date(timestamp);
+    return d.getFullYear() === tYear && (d.getMonth() + 1) === parseInt(tMonth, 10) && d.getDate() === parseInt(tDay, 10);
   }
   return false;
 };
@@ -150,16 +187,15 @@ const AdminPatientRecords = ({
   const deletedCount = patients.filter(p => p.status === 'Inactive').length;
   const paidCount = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
 
-  // Filtered Patients
+  // Filtered Patients sorted strictly by Admit Date (Descending: Today on top, yesterday below today, etc.)
   const filteredPatients = patients
-    .slice()
-    .reverse()
     .filter(p => {
-      // 1. Search Query (Name, ID, Contact, Mother/Guardian)
+      // 1. Search Query (Name, ID, Contact, Mother/Guardian, Email)
       const matchesSearch =
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(p.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.email && p.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.motherOrGuardianName && p.motherOrGuardianName.toLowerCase().includes(searchQuery.toLowerCase()));
 
       // 2. Status Filter
@@ -219,6 +255,19 @@ const AdminPatientRecords = ({
         extractPincode(p.address).includes(pincodeFilter.trim());
 
       return matchesSearch && matchesStatus && matchesDate && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
+    })
+    .sort((a, b) => {
+      const timeA = parseDateToTimestamp(a.registrationDate, a.history);
+      const timeB = parseDateToTimestamp(b.registrationDate, b.history);
+
+      if (timeB !== timeA) {
+        return timeB - timeA; // Descending by Admit Date (Newest / Today on top, yesterday next, etc.)
+      }
+
+      // If same date, sort by numeric ID descending (e.g. #VH042 before #VH041)
+      const numA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
+      return numB - numA;
     });
 
   return (
@@ -443,28 +492,33 @@ const AdminPatientRecords = ({
               No matching patient records found with active filters.
             </p>
           ) : (
-            <table className="custom-table" style={{ minWidth: '1100px', width: '100%' }}>
+            <table className="custom-table" style={{ minWidth: '1350px', width: '100%' }}>
               <thead style={{ background: '#e2e8f0' }}>
                 <tr style={{ background: '#e2e8f0' }}>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Patient ID</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Patient ID</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                       <Calendar size={13} style={{ color: 'var(--primary)' }} /> Admit Date
                     </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Patient Info</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Mother / Guardian</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Contact Details</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Patient Info</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Mother / Guardian</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Contact Details</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap', minWidth: '180px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Mail size={13} style={{ color: 'var(--primary)' }} /> Email ID
+                    </span>
+                  </th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                       <MapPin size={13} style={{ color: 'var(--primary)' }} /> City / Town
                     </span>
                   </th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Previous Doctor</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Assigned Doctor</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Queue Status</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Payment</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 5, textAlign: 'center', background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1' }}>Ward</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Previous Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Assigned Doctor</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Queue Status</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Payment</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 5, textAlign: 'center', background: '#e2e8f0', color: '#0f172a', fontWeight: 700, borderBottom: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>Ward</th>
                 </tr>
               </thead>
               <tbody>
@@ -506,7 +560,7 @@ const AdminPatientRecords = ({
                         <div style={{ fontWeight: 600 }}>
                           {p.name}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem', whiteSpace: 'nowrap' }}>
                           {p.age} Yrs • {p.gender}
                         </div>
                       </td>
@@ -517,12 +571,40 @@ const AdminPatientRecords = ({
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>--</span>
                         )}
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
+                      <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         <div>{p.contact}</div>
                         {p.alternatePhone && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                             Alt: {p.alternatePhone}
                           </div>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {p.email ? (
+                          <a
+                            href={`mailto:${p.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              background: 'rgba(21, 115, 136, 0.08)',
+                              color: 'var(--primary)',
+                              borderRadius: '12px',
+                              padding: '0.22rem 0.65rem',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              border: '1px solid rgba(21, 115, 136, 0.2)',
+                              textDecoration: 'none',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title={`Click to send email to ${p.email}`}
+                          >
+                            <Mail size={11} style={{ flexShrink: 0 }} />
+                            <span>{p.email}</span>
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>--</span>
                         )}
                       </td>
                       <td>
@@ -842,6 +924,16 @@ const AdminPatientRecords = ({
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Primary Contact:</span>
                         <strong style={{ color: 'var(--text-primary)' }}>{selectedPatient.contact || '--'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Email ID:</span>
+                        <strong style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>
+                          {selectedPatient.email ? (
+                            <a href={`mailto:${selectedPatient.email}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                              {selectedPatient.email}
+                            </a>
+                          ) : '--'}
+                        </strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border)', paddingBottom: '0.4rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Alternate Phone:</span>

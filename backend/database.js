@@ -407,6 +407,39 @@ export const initDB = async () => {
       );
     } catch (e) {}
 
+    // Ensure all optional columns exist in PostgreSQL
+    const pgAlterColumns = [
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS email TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS motherOrGuardianName TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS bedAdmissionPending INTEGER DEFAULT 0`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS paidAmount NUMERIC DEFAULT 0`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS feeBreakdown TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS isChild INTEGER DEFAULT 0`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childGa TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childBirthDate TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childBirthWeight TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childPlaceOfBirth TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childDeliveryType TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childNicuHistory TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS specialInvestigation INTEGER DEFAULT 0`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS specialInvestigationNotes TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS dob TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS respiratoryRate TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS painScale TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS headCircumference TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS avpu TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS pharmacyStatus TEXT DEFAULT 'N/A'`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS injectionStatus TEXT DEFAULT 'N/A'`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS trackingHistory TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS previousDoctor TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS pendingReassignment TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS reassignmentDeclined TEXT`,
+      `ALTER TABLE doctors ADD COLUMN IF NOT EXISTS lastLoginDate TEXT`
+    ];
+    for (const sql of pgAlterColumns) {
+      try { await pgPool.query(sql); } catch (e) {}
+    }
+
     // Reset sequences for all serial tables to prevent ID collisions
     const serialTables = ['doctors', 'staff', 'patient_history', 'staff_attendance', 'directory_ledger', 'housekeeping_checklist', 'medical_waste', 'pharmacy_ledger', 'lab_logs', 'vaccinations_log', 'injections_log'];
     for (const st of serialTables) {

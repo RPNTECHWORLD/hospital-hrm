@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope } from 'lucide-react';
+import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope, LogOut } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
@@ -486,7 +486,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
   );
 };
 
-const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onUpdatePatientStatus, onPrintPrescription, onEmailPrescription, onAdmitToWard, onReassignDoctor, onAcceptReassignment, onDeclineReassignment }) => {
+const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubmitPrescription, onSubmitReview, onStartConsultation, onUpdatePatientStatus, onPrintPrescription, onEmailPrescription, onAdmitToWard, onDischargePatient, onReassignDoctor, onAcceptReassignment, onDeclineReassignment }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [reassignModalPatient, setReassignModalPatient] = useState(null);
   const [targetDoctorId, setTargetDoctorId] = useState('');
@@ -500,6 +500,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [padDesignMode, setPadDesignMode] = useState('auto');
   const [toast, setToast] = useState(null);
   const [isSendingPrescription, setIsSendingPrescription] = useState(false);
+  const [reviewMode, setReviewMode] = useState(null); // 'lab' | 'pharmacy' | null
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -597,9 +598,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
   const [patientInjections, setPatientInjections] = useState([]);
   const [patientLabLogs, setPatientLabLogs] = useState([]);
+  const [allLabLogs, setAllLabLogs] = useState([]);
   const [previewLabImage, setPreviewLabImage] = useState(null);
   const [showAllLabLogsModal, setShowAllLabLogsModal] = useState(false);
   const [orderTestName, setOrderTestName] = useState('');
+  const [labOrderError, setLabOrderError] = useState('');
+  const [labOrderSuccess, setLabOrderSuccess] = useState('');
   const [recommendAdmission, setRecommendAdmission] = useState(false);
   const [targetBedId, setTargetBedId] = useState('');
   const [sharePatient, setSharePatient] = useState(null);
@@ -627,7 +631,86 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     } else {
       setActivePatient(null);
     }
+    setReviewMode(null);
   };
+
+  const handleBottomAdmitClick = () => {
+    const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
+    const currentBed = livePat?.wardBedId || activePatient?.wardBedId;
+
+    if (currentBed) {
+      showToast(`Patient ${livePat?.name || activePatient?.name} is already admitted to Room ${currentBed.slice(0, 3)} - Bed ${currentBed.slice(3)}!`, 'warning');
+      return;
+    }
+    if (recommendAdmission && targetBedId) {
+      showToast(`Patient ${livePat?.name || activePatient?.name} is already scheduled for admission to Room ${targetBedId.slice(0, 3)} - Bed ${targetBedId.slice(3)} in this form!`, 'warning');
+      return;
+    }
+    if (onAdmitToWard) {
+      onAdmitToWard(livePat || activePatient);
+    }
+  };
+
+  const handleDoctorDischargeFromWard = async () => {
+    const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
+    if (!livePat) return;
+
+    const patientName = livePat.name || 'Patient';
+    const bedId = livePat.wardBedId || activePatient?.wardBedId;
+
+    try {
+      if (onDischargePatient) {
+        await onDischargePatient(livePat.id);
+      } else {
+        const cleanId = String(livePat.id).replace(/#/g, '').trim();
+        await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wardBedId: null, bedAdmissionPending: 0 })
+        });
+      }
+      setActivePatient(prev => prev ? { ...prev, wardBedId: null, bedAdmissionPending: 0 } : null);
+      showToast(`Patient ${patientName} successfully discharged from Ward (Bed ${bedId})! 🚪`, 'success');
+    } catch (err) {
+      console.error("Failed to discharge patient from ward:", err);
+      showToast('Error discharging patient from ward.', 'danger');
+    }
+  };
+
+  // Synchronize activePatient with live patients prop whenever a bed is assigned
+  useEffect(() => {
+    if (activePatient && patients && patients.length > 0) {
+      const freshPat = patients.find(p => isSameId(p.id, activePatient.id));
+      if (freshPat && (freshPat.wardBedId !== activePatient.wardBedId || freshPat.bedAdmissionPending !== activePatient.bedAdmissionPending || freshPat.status !== activePatient.status)) {
+        setActivePatient(prev => ({ ...prev, ...freshPat }));
+      }
+    }
+  }, [patients]);
+
+  // Continuous live polling for all lab logs so delivered lab reports appear instantly
+  useEffect(() => {
+    const fetchAllLabLogs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/lab`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setAllLabLogs(data);
+            if (activePatient) {
+              const patLabs = data.filter(log => String(log.patientId).toUpperCase() === String(activePatient.id).toUpperCase());
+              setPatientLabLogs(patLabs);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error polling lab logs in doctor console:", err);
+      }
+    };
+
+    fetchAllLabLogs();
+    const interval = setInterval(fetchAllLabLogs, 3000);
+    return () => clearInterval(interval);
+  }, [activePatient]);
 
   useEffect(() => {
     if (activePatient) {
@@ -645,20 +728,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           console.error("Error fetching patient injections:", err);
         }
       };
-      const fetchPatientLabLogs = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/lab`);
-          if (res.ok) {
-            const data = await res.json();
-            const patLabs = data.filter(log => String(log.patientId).toUpperCase() === String(activePatient.id).toUpperCase());
-            setPatientLabLogs(patLabs);
-          }
-        } catch (err) {
-          console.error("Error fetching patient lab logs:", err);
-        }
-      };
       fetchPatientInjections();
-      fetchPatientLabLogs();
     } else {
       setPatientInjections([]);
       setPatientLabLogs([]);
@@ -685,8 +755,11 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   }, [activePatient, sharePatient, diagnosis, medicines, canvasDataUrl]);
 
   const handleOrderLabTest = async () => {
+    setLabOrderError('');
+    setLabOrderSuccess('');
+
     if (!orderTestName.trim()) {
-      showToast('Please type a test name first!', 'danger');
+      setLabOrderError('Please enter a test name first (e.g. CBC Blood Test, X-Ray, ECG).');
       return;
     }
 
@@ -697,7 +770,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     );
 
     if (isDuplicate) {
-      showToast(`Lab Test "${orderTestName.trim()}" is already ordered/pending for this patient! Duplicate requests are not allowed.`, 'warning');
+      setLabOrderError(`Lab Test "${orderTestName.trim()}" is already ordered/pending for this patient! Duplicate requests are not allowed.`);
       return;
     }
 
@@ -715,7 +788,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
       });
 
       if (response.ok) {
-        showToast(`Lab Test "${orderTestName}" ordered successfully!`, 'success');
+        setLabOrderSuccess(`✓ Lab Test "${orderTestName.trim()}" ordered successfully and sent to Laboratory queue!`);
         setOrderTestName('');
         const res = await fetch(`${API_BASE}/api/lab`);
         if (res.ok) {
@@ -725,11 +798,11 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
         }
       } else {
         const errData = await response.json().catch(() => ({}));
-        showToast(errData.message || 'Failed to order lab test.', 'danger');
+        setLabOrderError(errData.message || 'Failed to order lab test.');
       }
     } catch (err) {
       console.error("Failed to order lab test:", err);
-      showToast('Network error ordering lab test.', 'danger');
+      setLabOrderError('Network error ordering lab test. Please try again.');
     }
   };
 
@@ -809,6 +882,24 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   // Filter active doctors who have logged in today with user ID & password (same concept as Receptionist)
   const availableDoctors = (doctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
 
+  const hasDeliveredLab = (patientId) => {
+    if (!patientId) return false;
+    const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
+    return allLabLogs.some(l =>
+      String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr &&
+      l.status === 'Report Delivered'
+    );
+  };
+
+  const getDeliveredLabNames = (patientId) => {
+    if (!patientId) return '';
+    const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
+    return allLabLogs
+      .filter(l => String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr && l.status === 'Report Delivered')
+      .map(l => l.testName)
+      .join(', ');
+  };
+
   const myPatients = patients.filter(p => {
     const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId);
     if (!matchesDoc || p.status === 'Inactive') return false;
@@ -816,9 +907,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     const isToday = isSameDayStr(p.registrationDate, todayStr);
     const isConsulting = p.status === 'Consulting';
     const isReviewing = p.status === 'Reviewing';
+    const isLabDelivered = hasDeliveredLab(p.id);
     const isActiveQueue = ['In Queue', 'Registered', 'Waiting'].includes(p.status);
 
-    return isConsulting || isReviewing || (isActiveQueue && isToday) || isToday || Boolean(p.wardBedId);
+    return isConsulting || isReviewing || isLabDelivered || (isActiveQueue && isToday) || isToday || Boolean(p.wardBedId);
   });
   const pendingReassignmentRequests = (patients || []).filter(p =>
     p && p.pendingReassignment && p.status !== 'Inactive' &&
@@ -828,13 +920,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const consultationQueue = myPatients
     .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
-  const reviewQueue = myPatients.filter(p => p.status === 'Reviewing');
+
+  // Dedicated Lab Reports Ready Queue (All patients with delivered lab reports awaiting doctor review)
+  const labReviewQueue = myPatients.filter(p =>
+    hasDeliveredLab(p.id) &&
+    p.status !== 'Completed' &&
+    p.status !== 'Inactive'
+  );
+
+  // Dedicated Pharmacy Dispensed Review Queue (All patients sent by Pharmacy to Doctor Review)
+  const pharmacyReviewQueue = myPatients.filter(p =>
+    p.status === 'Reviewing' &&
+    p.status !== 'Completed' &&
+    p.status !== 'Inactive'
+  );
   const skippedQueue = myPatients
     .filter(p => p.status === 'Skipped' && isSameDayStr(p.registrationDate, todayStr))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
-  const handleSelectPatient = (patient) => {
+  const liveActivePatient = (patients && activePatient)
+    ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient)
+    : activePatient;
+
+  const handleSelectPatient = (patient, mode = null) => {
     setActivePatient(patient);
+    setReviewMode(mode);
     setDiagnosis(patient.diagnosis || '');
     setComplaints(patient.complaints || '');
     setPastHistory(patient.pastHistory || '');
@@ -851,7 +961,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     setHistoryStartDate('');
     setHistoryEndDate('');
 
-    if (['In Queue', 'Registered'].includes(patient.status) && onStartConsultation) {
+    if (['In Queue', 'Registered'].includes(patient.status) && onStartConsultation && !mode) {
       onStartConsultation(patient.id);
     }
   };
@@ -930,26 +1040,115 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
       pastHistory,
       examination,
       investigation,
-      wardBedId: recommendAdmission ? targetBedId : null,
-      bedAdmissionPending: recommendAdmission ? 1 : 0
+      wardBedId: recommendAdmission ? targetBedId : (activePatient.wardBedId || null),
+      bedAdmissionPending: recommendAdmission ? 1 : (activePatient.bedAdmissionPending ?? 0)
     };
 
     setSharePatient(prescData);
     setIsHistoryPreview(false);
   };
 
-  const handleReviewSubmit = (e) => {
-    e.preventDefault();
+  const handleCompleteLabReview = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!activePatient) return;
 
     const patientName = activePatient.name;
-    onSubmitReview(activePatient.id, {
-      followUpNotes: '',
-      nextVisitDate: ''
-    });
+    const patId = activePatient.id;
+    const cleanPid = String(patId).replace(/#/g, '').trim().toUpperCase();
 
-    showToast(`Consultation Review Completed for ${patientName}! ✅`, 'success');
+    // 1. Mark all delivered lab logs for this patient as 'Report Reviewed'
+    const logsToUpdate = allLabLogs.filter(
+      l => String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
+    );
+
+    // Optimistically update allLabLogs locally
+    setAllLabLogs(prev => prev.map(l =>
+      String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
+        ? { ...l, status: 'Report Reviewed' }
+        : l
+    ));
+
+    // Update in backend
+    for (const log of logsToUpdate) {
+      try {
+        await fetch(`${API_BASE}/api/lab/${log.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'Report Reviewed',
+            reportNotes: log.reportNotes || '',
+            reportImg: log.reportImg || null
+          })
+        });
+      } catch (err) {
+        console.error("Failed to update lab log review status:", err);
+      }
+    }
+
+    // 2. Check if the patient is STILL in Pharmacy Review queue (status === 'Reviewing')
+    const isPharmacyPending = activePatient.status === 'Reviewing';
+
+    if (!isPharmacyPending) {
+      // No pharmacy review pending -> consultation is 100% completed!
+      onSubmitReview(patId, {
+        followUpNotes: followUpNotes || '',
+        nextVisitDate: nextVisitDate || ''
+      });
+      showToast(`Lab Report Review Completed for ${patientName}! (All Consultations Done ✅)`, 'success');
+    } else {
+      // Pharmacy review still pending in Pharmacy Queue!
+      showToast(`Lab Report Review Completed for ${patientName}! (Pharmacy Review still in queue) ✅`, 'info');
+    }
+
     setActivePatient(null);
+    setReviewMode(null);
+  };
+
+  const handleCompletePharmacyReview = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!activePatient) return;
+
+    const patientName = activePatient.name;
+    const patId = activePatient.id;
+
+    // Check if patient STILL has unreviewed delivered lab reports
+    const hasPendingLab = hasDeliveredLab(patId);
+
+    if (hasPendingLab) {
+      // Patient still has unreviewed lab reports!
+      // Update patient status to 'Lab Review Pending' so they leave Pharmacy Queue, but stay in Lab Queue
+      try {
+        const cleanId = String(patId).replace(/#/g, '').trim();
+        await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Lab Review Pending' })
+        });
+        if (onUpdatePatientStatus) {
+          onUpdatePatientStatus(patId, 'Lab Review Pending');
+        }
+      } catch (err) {
+        console.error("Failed to update patient status after pharmacy review:", err);
+      }
+      showToast(`Pharmacy Review Completed for ${patientName}! (Lab Report Review still in queue) ✅`, 'info');
+    } else {
+      // No lab reports pending -> Patient consultation is 100% completed!
+      onSubmitReview(patId, {
+        followUpNotes: followUpNotes || '',
+        nextVisitDate: nextVisitDate || ''
+      });
+      showToast(`Pharmacy Review Completed for ${patientName}! (All Consultations Done ✅)`, 'success');
+    }
+
+    setActivePatient(null);
+    setReviewMode(null);
+  };
+
+  const handleReviewSubmit = (e) => {
+    if (reviewMode === 'lab') {
+      return handleCompleteLabReview(e);
+    }
+    return handleCompletePharmacyReview(e);
   };
 
   return (
@@ -1187,8 +1386,24 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   >
                     <div style={{ flexGrow: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           {p.name}
+                          {hasDeliveredLab(p.id) && (
+                            <span style={{
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#065f46',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              borderRadius: '6px',
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.5rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}>
+                              🧪 Lab Report Ready
+                            </span>
+                          )}
                           {Number(p.specialInvestigation) === 1 && (
                             <span title="Special Investigation Required" style={{
                               background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(139, 92, 246, 0.12))',
@@ -1293,7 +1508,16 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       >
                         <UserPlus size={12} /> Reassign
                       </button>
-                      <button className="btn btn-primary btn-consult-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Consult</button>
+                      <button 
+                        className="btn btn-primary btn-consult-action" 
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectPatient(p, null);
+                        }}
+                      >
+                        Consult
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1301,40 +1525,46 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
             )}
           </div>
 
-          <div>
-            <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Follow-Up Review Queue ({reviewQueue.length})
+          {/* 1. Dedicated Lab Reports Ready Review Queue */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800 }}>
+              🧪 Lab Reports Ready Queue ({labReviewQueue.length})
             </h4>
-            {reviewQueue.length === 0 ? (
+            {labReviewQueue.length === 0 ? (
               <div className="empty-queue-box" style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No patients awaiting review.
+                No pending lab reports to review.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {reviewQueue.map(p => (
+                {labReviewQueue.map(p => (
                   <div 
                     key={p.id} 
                     className="stat-card review-queue-card" 
-                    style={{ cursor: 'pointer', borderLeft: '4px solid var(--primary)', padding: '1rem 1.25rem' }}
-                    onClick={() => handleSelectPatient(p)}
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #10b981', padding: '1rem 1.25rem', background: 'rgba(16, 185, 129, 0.03)' }}
+                    onClick={() => handleSelectPatient(p, 'lab')}
                   >
                     <div style={{ flexGrow: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
                         <span style={{
-                          fontSize: '0.7rem',
-                          color: '#0f766e',
-                          background: 'rgba(15, 118, 110, 0.1)',
-                          border: '1px solid rgba(15, 118, 110, 0.25)',
-                          padding: '0.15rem 0.55rem',
+                          fontSize: '0.72rem',
+                          color: '#065f46',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                          padding: '0.15rem 0.6rem',
                           borderRadius: '6px',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.25rem'
                         }}>
-                          Pharmacy Issued
+                          🧪 Lab Report Issued
                         </span>
+                        {getDeliveredLabNames(p.id) && (
+                          <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
+                            ({getDeliveredLabNames(p.id)})
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                         {p.age} Yrs • {p.gender} • ID: #{p.id}
@@ -1350,23 +1580,6 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                             marginLeft: '0.5rem'
                           }}>
                             ⏳ Pending Approval by {p.pendingReassignment.targetDoctorName}
-                          </span>
-                        )}
-                        {p.reassignmentDeclined && !p.pendingReassignment && (
-                          <span style={{
-                            background: 'rgba(239, 68, 68, 0.16)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.45)',
-                            borderRadius: '4px',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            padding: '0.1rem 0.45rem',
-                            marginLeft: '0.5rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.2rem'
-                          }}>
-                            ❌ Declined by {p.reassignmentDeclined.targetDoctorName}
                           </span>
                         )}
                       </div>
@@ -1408,7 +1621,124 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       >
                         <UserPlus size={12} /> Reassign
                       </button>
-                      <button className="btn btn-warning btn-review-action" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Review</button>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectPatient(p, 'lab');
+                        }}
+                      >
+                        Review Lab
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Dedicated Pharmacy Dispensed Review Queue */}
+          <div>
+            <h4 style={{ color: '#d97706', fontSize: '0.9rem', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800 }}>
+              💊 Pharmacy Dispensed Review Queue ({pharmacyReviewQueue.length})
+            </h4>
+            {pharmacyReviewQueue.length === 0 ? (
+              <div className="empty-queue-box" style={{ padding: '1.5rem', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No pharmacy review patients.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {pharmacyReviewQueue.map(p => (
+                  <div 
+                    key={p.id} 
+                    className="stat-card review-queue-card" 
+                    style={{ cursor: 'pointer', borderLeft: '4px solid #f59e0b', padding: '1rem 1.25rem', background: 'rgba(245, 158, 11, 0.03)' }}
+                    onClick={() => handleSelectPatient(p, 'pharmacy')}
+                  >
+                    <div style={{ flexGrow: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.name}</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: '#b45309',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                          padding: '0.15rem 0.55rem',
+                          borderRadius: '6px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}>
+                          💊 Pharmacy Issued
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        {p.age} Yrs • {p.gender} • ID: #{p.id}
+                        {p.pendingReassignment && (
+                          <span style={{
+                            background: 'rgba(245, 158, 11, 0.18)',
+                            color: '#d97706',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            marginLeft: '0.5rem'
+                          }}>
+                            ⏳ Pending Approval by {p.pendingReassignment.targetDoctorName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="doc-card-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {onAdmitToWard && !p.wardBedId && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-ward-action"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#0f766e', borderColor: 'rgba(15,118,110,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}
+                          onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
+                          title="Admit to Ward Room"
+                        >
+                          <Bed size={12} /> Ward
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-reassign-action"
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--primary)',
+                          borderColor: 'rgba(99, 102, 241, 0.4)',
+                          background: 'rgba(99, 102, 241, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 600,
+                          borderRadius: '6px'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReassignModalPatient(p);
+                          setTargetDoctorId('');
+                        }}
+                        title="Reassign patient to another doctor"
+                      >
+                        <UserPlus size={12} /> Reassign
+                      </button>
+                      <button 
+                        className="btn btn-warning btn-review-action" 
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectPatient(p, 'pharmacy');
+                        }}
+                      >
+                        Review
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1949,7 +2279,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               })()}
 
               {/* Consultation flow (Registered/Consulting status) */}
-              {(activePatient.status === 'Registered' || activePatient.status === 'Consulting') && (
+              {(!reviewMode && (activePatient.status === 'Registered' || activePatient.status === 'Consulting')) && (
                 <form onSubmit={handlePrescriptionSubmit}>
                   <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Doctor Consultation</h4>
 
@@ -1974,7 +2304,11 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         className="form-input" 
                         placeholder="e.g. CBC Blood Test, X-Ray, ECG"
                         value={orderTestName}
-                        onChange={(e) => setOrderTestName(e.target.value)}
+                        onChange={(e) => {
+                          setOrderTestName(e.target.value);
+                          if (labOrderError) setLabOrderError('');
+                          if (labOrderSuccess) setLabOrderSuccess('');
+                        }}
                         style={{ flexGrow: 1 }}
                       />
                       <button 
@@ -1986,6 +2320,47 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         <Plus size={16} /> Order
                       </button>
                     </div>
+
+                    {/* Inline Error & Success message right below the input box */}
+                    {labOrderError && (
+                      <div style={{
+                        marginTop: '0.65rem',
+                        padding: '0.6rem 0.85rem',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        borderRadius: '8px',
+                        color: '#ef4444',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        animation: 'fadeIn 0.2s ease'
+                      }}>
+                        <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                        <span>{labOrderError}</span>
+                      </div>
+                    )}
+
+                    {labOrderSuccess && (
+                      <div style={{
+                        marginTop: '0.65rem',
+                        padding: '0.6rem 0.85rem',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        borderRadius: '8px',
+                        color: '#10b981',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        animation: 'fadeIn 0.2s ease'
+                      }}>
+                        <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                        <span>{labOrderSuccess}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -2002,6 +2377,49 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
                   {/* Ward Admission Selector */}
                   {(() => {
+                    const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
+                    const assignedWardBedId = livePat?.wardBedId || activePatient?.wardBedId;
+
+                    if (assignedWardBedId) {
+                      return (
+                        <div className="form-group" style={{ 
+                          background: 'rgba(16, 185, 129, 0.08)', 
+                          border: '1.5px solid rgba(16, 185, 129, 0.35)', 
+                          borderRadius: '10px', 
+                          padding: '1.25rem',
+                          marginBottom: '1.75rem'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <div style={{ 
+                                background: 'rgba(16, 185, 129, 0.2)', 
+                                color: '#10b981', 
+                                width: '36px', 
+                                height: '36px', 
+                                borderRadius: '8px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center' 
+                              }}>
+                                <Bed size={18} />
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#10b981' }}>
+                                  ✓ Patient Already Admitted to Ward
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                  Assigned to: <strong style={{ color: 'var(--text-primary)' }}>Room {assignedWardBedId.slice(0, 3)} - Bed {assignedWardBedId.slice(3)}</strong>
+                                </div>
+                              </div>
+                            </div>
+                            <span className="badge badge-success" style={{ padding: '0.35rem 0.75rem', fontWeight: 800 }}>
+                              Already Admitted
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const allBeds = ['101A', '101B', '102A', '102B', '103A', '103B', '104A', '104B', '105A', '105B'];
                     const occupiedBedIds = patients
                       .filter(p => p.wardBedId && p.status !== 'Inactive')
@@ -2232,26 +2650,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
                       <Send size={16} /> Send to Pharmacy
                     </button>
-                    {onAdmitToWard && !activePatient.wardBedId && (
+                    {onAdmitToWard && (
                       <button
                         type="button"
-                        onClick={() => onAdmitToWard(activePatient)}
+                        onClick={handleBottomAdmitClick}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.4rem',
                           padding: '0.6rem 1.25rem',
-                          background: 'rgba(15,118,110,0.1)',
-                          border: '1.5px solid rgba(15,118,110,0.35)',
+                          background: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15,118,110,0.1)',
+                          border: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1.5px solid rgba(15,118,110,0.35)',
                           borderRadius: '8px',
-                          color: '#0f766e',
+                          color: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '#10b981' : '#0f766e',
                           fontWeight: 700,
                           fontSize: '0.9rem',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        <Bed size={15} /> Admit to Ward
+                        <Bed size={15} />
+                        {(liveActivePatient?.wardBedId || activePatient?.wardBedId)
+                          ? `Admitted (Room ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(0, 3)} • ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(3)})`
+                          : (recommendAdmission && targetBedId
+                            ? `Bed Selected (Room ${targetBedId.slice(0, 3)} • ${targetBedId.slice(3)})`
+                            : 'Admit to Ward')}
                       </button>
                     )}
                     <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
@@ -2261,15 +2684,24 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 </form>
               )}
 
-              {/* Review flow (Reviewing status) */}
-              {activePatient.status === 'Reviewing' && (
+              {/* Review flow (Reviewing or Lab/Pharmacy Review mode) */}
+              {(reviewMode === 'lab' || reviewMode === 'pharmacy' || activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') && (
                 <form onSubmit={handleReviewSubmit}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', marginBottom: '1.5rem' }}>
-                    <AlertCircle size={20} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                    <div style={{ fontSize: '0.9rem' }}>
-                      <strong>Medication Status:</strong> Pharmacy issued <strong>{activePatient.issuedMedication}</strong> of the prescribed duration.
+                  {reviewMode === 'lab' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(16, 185, 129, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', marginBottom: '1.5rem' }}>
+                      <FlaskConical size={22} style={{ color: '#10b981', flexShrink: 0 }} />
+                      <div style={{ fontSize: '0.9rem' }}>
+                        <strong style={{ color: '#10b981' }}>🧪 Lab Report Ready Review:</strong> Reviewing completed laboratory findings for <strong>{activePatient.name}</strong> {getDeliveredLabNames(activePatient.id) && <span>({getDeliveredLabNames(activePatient.id)})</span>}.
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', marginBottom: '1.5rem' }}>
+                      <AlertCircle size={20} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                      <div style={{ fontSize: '0.9rem' }}>
+                        <strong style={{ color: '#d97706' }}>💊 Pharmacy Medication Dispensation Review:</strong> Pharmacy issued <strong>{activePatient.issuedMedication || 'prescribed medicines'}</strong> for <strong>{activePatient.name}</strong>.
+                      </div>
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 700, color: 'var(--primary)' }}>Previous Diagnosis & Clinical Notes</label>
@@ -2320,8 +2752,16 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         className="form-input" 
                         placeholder="e.g. CBC Blood Test, X-Ray, ECG"
                         value={orderTestName}
-                        onChange={(e) => setOrderTestName(e.target.value)}
-                        style={{ flexGrow: 1 }}
+                        onChange={(e) => {
+                          setOrderTestName(e.target.value);
+                          if (labOrderError) setLabOrderError('');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleOrderLabTest();
+                          }
+                        }}
                       />
                       <button 
                         type="button" 
@@ -2332,6 +2772,103 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         <Plus size={16} /> Order
                       </button>
                     </div>
+
+                    {labOrderError && (
+                      <div style={{
+                        marginTop: '0.65rem',
+                        padding: '0.6rem 0.85rem',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        borderRadius: '8px',
+                        color: '#ef4444',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        animation: 'fadeIn 0.2s ease'
+                      }}>
+                        <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                        <span>{labOrderError}</span>
+                      </div>
+                    )}
+
+                    {labOrderSuccess && (
+                      <div style={{
+                        marginTop: '0.65rem',
+                        padding: '0.6rem 0.85rem',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        borderRadius: '8px',
+                        color: '#10b981',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        animation: 'fadeIn 0.2s ease'
+                      }}>
+                        <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                        <span>{labOrderSuccess}</span>
+                      </div>
+                    )}
+
+                    {/* Ordered Lab Tests List */}
+                    {patientLabLogs && patientLabLogs.length > 0 && (
+                      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          Ordered Lab Tests ({patientLabLogs.length}):
+                        </div>
+                        {patientLabLogs.map(log => (
+                          <div 
+                            key={log.id} 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              padding: '0.6rem 0.85rem', 
+                              background: 'rgba(0,0,0,0.02)', 
+                              border: '1px solid var(--border)', 
+                              borderRadius: '6px' 
+                            }}
+                          >
+                            <div>
+                              <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                                🧪 {log.testName}
+                              </strong>
+                              {log.reportNotes && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>
+                                  Notes: {log.reportNotes}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {log.status === 'Report Delivered' ? (
+                                <>
+                                  <span className="badge badge-success" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
+                                    Report Delivered ✅
+                                  </span>
+                                  {log.reportImg && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary"
+                                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                      onClick={() => setPreviewLabImage(log.reportImg)}
+                                    >
+                                      <ExternalLink size={13} /> View Report
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="badge badge-pending" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
+                                  {log.status || 'Ordered'} ⏳
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Injection Approval Section */}
@@ -2385,33 +2922,73 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                    <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
-                      <CheckCircle2 size={16} /> Complete Consultation Review
-                    </button>
-                    {onAdmitToWard && !activePatient.wardBedId && (
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+                    {reviewMode === 'lab' ? (
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary" 
+                        style={{ flexGrow: 1, background: '#10b981', borderColor: '#10b981', fontWeight: 800 }}
+                      >
+                        <CheckCircle2 size={16} /> Complete Lab Report Review
+                      </button>
+                    ) : (
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary" 
+                        style={{ flexGrow: 1, background: '#d97706', borderColor: '#d97706', fontWeight: 800 }}
+                      >
+                        <CheckCircle2 size={16} /> Complete Pharmacy Review
+                      </button>
+                    )}
+                    {(liveActivePatient?.wardBedId || activePatient?.wardBedId) ? (
                       <button
                         type="button"
-                        onClick={() => onAdmitToWard(activePatient)}
+                        onClick={handleDoctorDischargeFromWard}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.4rem',
                           padding: '0.6rem 1.25rem',
-                          background: 'rgba(15,118,110,0.1)',
-                          border: '1.5px solid rgba(15,118,110,0.35)',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1.5px solid rgba(239, 68, 68, 0.4)',
                           borderRadius: '8px',
-                          color: '#0f766e',
+                          color: '#ef4444',
                           fontWeight: 700,
                           fontSize: '0.9rem',
                           cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.15s'
+                          whiteSpace: 'nowrap'
                         }}
-                        title="Admit this patient to a ward bed"
                       >
-                        <Bed size={15} /> Admit to Ward
+                        <LogOut size={15} />
+                        Discharge Patient (Room {(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(0, 3)} • {(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(3)})
                       </button>
+                    ) : (
+                      onAdmitToWard && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
+                            onAdmitToWard(livePat || activePatient);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.6rem 1.25rem',
+                            background: 'rgba(15, 118, 110, 0.1)',
+                            border: '1.5px solid rgba(15, 118, 110, 0.35)',
+                            borderRadius: '8px',
+                            color: '#0f766e',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Bed size={15} />
+                          Admit to Ward
+                        </button>
+                      )
                     )}
                     <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
                       Cancel
@@ -3320,6 +3897,84 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               </button>
             </div>
 
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Lab Report Image Preview Modal */}
+      {previewLabImage && createPortal(
+        <div
+          onClick={() => setPreviewLabImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            animation: 'fade-in 0.2s ease-out'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card, #111c30)',
+              borderRadius: '16px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+              border: '1px solid var(--border)'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1rem 1.25rem',
+              borderBottom: '1px solid var(--border)',
+              background: 'var(--bg-card, #111c30)'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <FlaskConical size={18} /> Laboratory Investigation Report
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPreviewLabImage(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '1rem', overflow: 'auto', textAlign: 'center', background: '#000' }}>
+              <img
+                src={previewLabImage}
+                alt="Lab Report"
+                style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '8px' }}
+              />
+            </div>
           </div>
         </div>,
         document.body

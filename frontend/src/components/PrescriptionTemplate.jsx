@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import html2canvas from 'html2canvas';
 
 // React Component for Vijaya's Hospital Logo
 export const VijayasHospitalLogo = ({ width = 245, height = 62 }) => {
@@ -43,6 +44,27 @@ export const calculateTabletQty = (dosageStr = '', durationDays = 1) => {
   }
   if (frequency <= 0) frequency = 1;
   return frequency * (parseInt(durationDays) || 1);
+};
+
+// Helper to capture direct on-screen DOM prescription element as high-res PNG image
+export const capturePrescriptionDOMImage = async () => {
+  try {
+    const rxElement = document.getElementById('printable-rx') || document.querySelector('.prescription-paper') || document.querySelector('.rx-paper-container');
+    if (!rxElement) return null;
+
+    const canvas = await html2canvas(rxElement, {
+      scale: 2, // High resolution
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+
+    return canvas.toDataURL('image/png', 0.95);
+  } catch (err) {
+    console.error('Failed to capture DOM prescription with html2canvas:', err);
+    return null;
+  }
 };
 
 // Helper to generate full composite prescription image with template background

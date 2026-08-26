@@ -27,12 +27,15 @@ const isSameDayStr = (d1, d2) => {
   return false;
 };
 
-const TvQueueDisplay = ({ patients, doctors, onExit }) => {
+const TvQueueDisplay = ({ patients = [], doctors = [], onExit }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(0);
 
+  const todayStr = currentTime.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+  const activeDoctors = (doctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
+
   const DOCTORS_PER_PAGE = 2;
-  const totalPages = Math.ceil(doctors.length / DOCTORS_PER_PAGE) || 1;
+  const totalPages = Math.ceil(activeDoctors.length / DOCTORS_PER_PAGE) || 1;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -54,9 +57,9 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
     if (currentPage >= totalPages) {
       setCurrentPage(0);
     }
-  }, [doctors.length, totalPages, currentPage]);
+  }, [activeDoctors.length, totalPages, currentPage]);
 
-  const displayedDoctors = doctors.slice(
+  const displayedDoctors = activeDoctors.slice(
     currentPage * DOCTORS_PER_PAGE,
     (currentPage + 1) * DOCTORS_PER_PAGE
   );
@@ -184,7 +187,26 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
           flexGrow: 1
         }}
       >
-        {displayedDoctors.map(doctor => {
+      {displayedDoctors.length === 0 ? (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4rem 2rem',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1.5px dashed rgba(255, 255, 255, 0.15)',
+          borderRadius: '24px',
+          color: '#94a3b8',
+          textAlign: 'center',
+          flexGrow: 1
+        }}>
+          <Monitor size={54} style={{ opacity: 0.35, marginBottom: '1.25rem', color: '#60a5fa' }} />
+          <h3 style={{ color: '#f8fafc', fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>No Doctors Currently on Duty</h3>
+          <p style={{ margin: 0, fontSize: '0.95rem', maxWidth: '500px' }}>Doctors who log in with their User ID & Password today will automatically appear here on the TV Live Queue Monitor.</p>
+        </div>
+      ) : (
+        displayedDoctors.map(doctor => {
           // Filter patients assigned to this doctor for today's active queue (updates automatically day by day)
           const todayStr = currentTime.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
           const docPatients = patients.filter(p => {
@@ -393,7 +415,7 @@ const TvQueueDisplay = ({ patients, doctors, onExit }) => {
               )}
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Footer ticker info */}

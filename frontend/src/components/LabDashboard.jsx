@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, FlaskConical, CheckCircle, CheckCircle2, Clock, AlertCircle, Plus, Trash2, X, Loader2 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -6,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 const LabDashboard = ({ patients }) => {
   const [labLogs, setLabLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('Sample Collected'); // 'Sample Collected', 'Report Delivered', 'All'
+  const [filterStatus, setFilterStatus] = useState('All'); // 'All', 'Ordered', 'Sample Collected', 'Report Delivered'
   const [searchQuery, setSearchQuery] = useState('');
   
   const [newPatientId, setNewPatientId] = useState('');
@@ -20,6 +21,8 @@ const LabDashboard = ({ patients }) => {
   const [updateStatus, setUpdateStatus] = useState('Sample Collected');
   const [reportImg, setReportImg] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmText, onConfirm }
+  const [processingOrderId, setProcessingOrderId] = useState(null);
 
   useEffect(() => {
     if (formSuccess) {
@@ -28,8 +31,8 @@ const LabDashboard = ({ patients }) => {
     }
   }, [formSuccess]);
 
-  const fetchLabLogs = async () => {
-    setLoading(true);
+  const fetchLabLogs = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const response = await fetch(`${API_BASE}/api/lab`);
       if (response.ok) {
@@ -39,12 +42,16 @@ const LabDashboard = ({ patients }) => {
     } catch (err) {
       console.error("Failed to fetch lab logs:", err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLabLogs();
+    fetchLabLogs(true);
+    const interval = setInterval(() => {
+      fetchLabLogs(false);
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateStatus = async (e) => {
@@ -142,6 +149,9 @@ const LabDashboard = ({ patients }) => {
   };
 
   const handleAcceptOrder = async (id) => {
+    setProcessingOrderId(id);
+    // Instant Optimistic update: mark as Sample Collected locally
+    setLabLogs(prev => prev.map(log => log.id === id ? { ...log, status: 'Sample Collected' } : log));
     try {
       const response = await fetch(`${API_BASE}/api/lab/${id}`, {
         method: 'PUT',
@@ -152,25 +162,41 @@ const LabDashboard = ({ patients }) => {
         })
       });
       if (response.ok) {
-        fetchLabLogs();
+        fetchLabLogs(false);
       }
     } catch (err) {
       console.error("Failed to accept order:", err);
+      fetchLabLogs(false);
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
-  const handleDeleteOrder = async (id) => {
-    if (!window.confirm("Are you sure you want to dismiss/remove this lab request?")) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/lab/${id}`, {
-        method: 'DELETE'
-      });
-      if (response.ok) {
-        fetchLabLogs();
+  const handleDeleteOrder = (id) => {
+    setConfirmDialog({
+      title: 'Dismiss Lab Request',
+      message: 'Are you sure you want to dismiss and remove this laboratory test request?',
+      confirmText: 'Yes, Dismiss',
+      onConfirm: async () => {
+        setProcessingOrderId(id);
+        // Instant Optimistic update: remove locally
+        setLabLogs(prev => prev.filter(log => log.id !== id));
+        try {
+          const response = await fetch(`${API_BASE}/api/lab/${id}`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            fetchLabLogs(false);
+          }
+        } catch (err) {
+          console.error("Failed to delete lab order:", err);
+          fetchLabLogs(false);
+        } finally {
+          setConfirmDialog(null);
+          setProcessingOrderId(null);
+        }
       }
-    } catch (err) {
-      console.error("Failed to delete lab order:", err);
-    }
+    });
   };
 
   const openUpdateModal = (log) => {
@@ -266,16 +292,30 @@ const LabDashboard = ({ patients }) => {
                     <button 
                       className="btn btn-primary"
                       onClick={() => handleAcceptOrder(notification.id)}
+                      disabled={processingOrderId === notification.id}
                       style={{ 
                         background: '#d97706', 
                         borderColor: '#d97706',
                         color: '#fff',
                         fontWeight: 700,
-                        fontSize: '0.8rem',
-                        padding: '0.4rem 1rem'
+                        fontSize: '0.82rem',
+                        padding: '0.45rem 1.15rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        cursor: processingOrderId === notification.id ? 'not-allowed' : 'pointer',
+                        opacity: processingOrderId === notification.id ? 0.75 : 1,
+                        boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                        transition: 'all 0.15s ease'
                       }}
                     >
-                      ✓ Accept & Collect Sample
+                      {processingOrderId === notification.id ? (
+                        <>
+                          <Loader2 size={14} className="spin" /> Accepting...
+                        </>
+                      ) : (
+                        <>✓ Accept & Collect Sample</>
+                      )}
                     </button>
                     <button 
                       className="btn btn-secondary"
@@ -666,25 +706,29 @@ const LabDashboard = ({ patients }) => {
         </div>
       )}
 
-      {previewImage && (
+      {previewImage && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 9999,
-          padding: '1.5rem'
+          zIndex: 99999999,
+          padding: '1.5rem',
+          boxSizing: 'border-box'
         }} onClick={() => setPreviewImage(null)}>
           <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }} onClick={e => e.stopPropagation()}>
             <button 
               style={{
                 position: 'absolute',
-                top: '-30px',
+                top: '-35px',
                 right: '0px',
                 background: 'transparent',
                 border: 'none',
@@ -702,7 +746,102 @@ const LabDashboard = ({ patients }) => {
               style={{ width: '100%', height: 'auto', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px' }} 
             />
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmDialog && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(10, 15, 29, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            boxSizing: 'border-box',
+            animation: 'fadeIn 0.15s ease'
+          }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="card fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '430px',
+              background: 'var(--bg-card, #111c30)',
+              border: '1.5px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '16px',
+              padding: '1.75rem',
+              boxShadow: '0 25px 60px -15px rgba(0,0,0,0.85)',
+              textAlign: 'center',
+              margin: 'auto'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1rem'
+            }}>
+              <AlertCircle size={30} />
+            </div>
+
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {confirmDialog.title}
+            </h3>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 1.5rem 0' }}>
+              {confirmDialog.message}
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.88rem', fontWeight: 600, flex: 1 }}
+                onClick={() => setConfirmDialog(null)}
+              >
+                No, Keep
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  flex: 1,
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)'
+                }}
+                onClick={confirmDialog.onConfirm}
+              >
+                {confirmDialog.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
