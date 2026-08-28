@@ -33,7 +33,7 @@ const sqliteDbPath = path.join(__dirname, 'hospital.db');
   }
 });
 
-let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:rpntechworld24@db.keofupiarihqkxnnmloy.supabase.co:5432/postgres';
+let connectionString = process.env.DATABASE_URL || 'postgresql://postgres.keofupiarihqkxnnmloy:rpntechworld24@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres';
 
 if (connectionString.includes('sslmode=')) {
   connectionString = connectionString.replace(/[\?&]sslmode=[^&]+/gi, '');

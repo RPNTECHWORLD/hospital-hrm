@@ -1056,34 +1056,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     const patId = activePatient.id;
     const cleanPid = String(patId).replace(/#/g, '').trim().toUpperCase();
 
-    // 1. Mark all delivered lab logs for this patient as 'Report Reviewed'
-    const logsToUpdate = allLabLogs.filter(
-      l => String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
-    );
-
-    // Optimistically update allLabLogs locally
-    setAllLabLogs(prev => prev.map(l =>
-      String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
-        ? { ...l, status: 'Report Reviewed' }
-        : l
-    ));
-
-    // Update in backend
-    for (const log of logsToUpdate) {
-      try {
-        await fetch(`${API_BASE}/api/lab/${log.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            status: 'Report Reviewed',
-            reportNotes: log.reportNotes || '',
-            reportImg: log.reportImg || null
-          })
-        });
-      } catch (err) {
-        console.error("Failed to update lab log review status:", err);
-      }
-    }
+    // 1. Consultation completed for this patient (keep lab log as Report Delivered)
 
     // 2. Check if the patient is STILL in Pharmacy Review queue (status === 'Reviewing')
     const isPharmacyPending = activePatient.status === 'Reviewing';

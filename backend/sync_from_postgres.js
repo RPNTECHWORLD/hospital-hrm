@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sqliteDbPath = path.join(__dirname, 'hospital.db');
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:rpntechworld24@db.keofupiarihqkxnnmloy.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.keofupiarihqkxnnmloy:rpntechworld24@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres';
 
 const pool = new pg.Pool({
   connectionString,

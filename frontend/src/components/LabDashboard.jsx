@@ -282,6 +282,9 @@ const LabDashboard = ({ patients }) => {
                         log.testName.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (filterStatus === 'All') return matchSearch;
+    if (filterStatus === 'Report Delivered') {
+      return (log.status === 'Report Delivered' || log.status === 'Report Reviewed') && matchSearch;
+    }
     return log.status === filterStatus && matchSearch;
   });
 
@@ -424,7 +427,7 @@ const LabDashboard = ({ patients }) => {
           </div>
           <div>
             <div className="stat-value">
-              {labLogs.filter(l => l.status === 'Report Delivered').length}
+              {labLogs.filter(l => l.status === 'Report Delivered' || l.status === 'Report Reviewed').length}
             </div>
             <div className="stat-label">Delivered Today</div>
           </div>
@@ -485,6 +488,7 @@ const LabDashboard = ({ patients }) => {
                 <tbody>
                   {filteredLogs.map(log => {
                     const pat = patients.find(p => String(p.id).toUpperCase() === String(log.patientId).toUpperCase());
+                    const isDelivered = log.status === 'Report Delivered' || log.status === 'Report Reviewed';
                     return (
                       <tr key={log.id}>
                         <td>
@@ -495,14 +499,14 @@ const LabDashboard = ({ patients }) => {
                         <td style={{ fontSize: '0.8rem' }}>{log.dateOrdered}</td>
                         <td>
                           <span className={`badge ${
-                            log.status === 'Report Delivered' ? 'badge-success' : 
+                            isDelivered ? 'badge-success' : 
                             log.status === 'Sample Collected' ? 'badge-active' : 'badge-pending'
                           }`}>
-                            {log.status}
+                            {isDelivered ? 'Report Delivered' : log.status}
                           </span>
                         </td>
                         <td>
-                          {log.status !== 'Report Delivered' ? (
+                          {!isDelivered ? (
                             <button 
                               className="btn btn-secondary"
                               style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}

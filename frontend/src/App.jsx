@@ -631,9 +631,10 @@ function App() {
 
       if (patient.diagnosis || (patient.prescription && patient.prescription.length > 0) || patient.prescriptionImg) {
         const assignedDoc = doctors.find(d => d.id === patient.assignedDoctorId);
+        const originalDate = patient.consultationDate || patient.registrationDate || (new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
         const archiveEntry = {
           visitId: Date.now(),
-          date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          date: originalDate,
           doctorName: assignedDoc ? assignedDoc.name : 'Unknown Doctor',
           diagnosis: patient.diagnosis || 'No diagnosis recorded',
           prescription: patient.prescription || [],
@@ -760,11 +761,13 @@ function App() {
   const handleSubmitPrescription = async (patientId, data) => {
     try {
       const cleanId = String(patientId || '').replace(/#/g, '').trim();
+      const consultationDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const updatedData = {
         status: 'At Pharmacy',
         diagnosis: data.diagnosis,
         prescription: data.prescription,
         prescriptionImg: data.prescriptionImg,
+        consultationDate: consultationDateStr,
         wardBedId: data.wardBedId !== undefined ? data.wardBedId : null,
         bedAdmissionPending: data.bedAdmissionPending !== undefined ? data.bedAdmissionPending : 0
       };

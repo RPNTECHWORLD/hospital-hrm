@@ -39,15 +39,20 @@ const isVercel = !!process.env.VERCEL;
 const isProd = process.env.NODE_ENV === 'production';
 const usePostgresExplicitly = process.env.USE_POSTGRES === 'true';
 
-const connectionString = (isVercel || isProd || usePostgresExplicitly)
-  ? (process.env.DATABASE_URL || 'postgresql://postgres:rpntechworld24@db.keofupiarihqkxnnmloy.supabase.co:5432/postgres')
+let rawConnectionString = (isVercel || isProd || usePostgresExplicitly)
+  ? (process.env.DATABASE_URL || 'postgresql://postgres.keofupiarihqkxnnmloy:rpntechworld24@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres')
   : null;
+
+let connectionString = null;
+if (rawConnectionString) {
+  connectionString = rawConnectionString.trim().replace(/^DATABASE_URL\s*=\s*/i, '').replace(/^["']|["']$/g, '').trim();
+}
 
 let pgPool = null;
 if (connectionString) {
   pgPool = new pg.Pool({
     connectionString,
-    ssl: connectionString.includes('supabase.co') || connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : false
+    ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : false
   });
   console.log("Connected to PostgreSQL Database (Supabase Production)");
 } else {
@@ -639,6 +644,7 @@ export const initDB = async () => {
     )
   `);
   try { await dbRun(`ALTER TABLE lab_logs ADD COLUMN reportImg TEXT`); } catch (e) {}
+  try { await dbRun(`UPDATE lab_logs SET status = 'Report Delivered' WHERE status = 'Report Reviewed'`); } catch (e) {}
 
   // Create Vaccinations Log
   await dbRun(`
