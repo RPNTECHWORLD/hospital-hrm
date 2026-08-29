@@ -25,10 +25,12 @@ const AdminDashboard = ({
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('doctor');
   const [specialty, setSpecialty] = useState('General Medicine');
+  const [formFeedback, setFormFeedback] = useState(null); // { type: 'success'|'error', text: '' }
 
   const handleAddUserSubmit = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) return;
+    setFormFeedback(null);
     let res = false;
     if (role === 'doctor') { 
       res = await onAddDoctor({ name, email, password, specialty }); 
@@ -38,9 +40,10 @@ const AdminDashboard = ({
 
     if (res !== false) {
       setName(''); setEmail(''); setPassword(''); setRole('doctor'); setSpecialty('General Medicine');
-      alert('User added successfully!');
+      setFormFeedback({ type: 'success', text: `Account for ${name} created successfully!` });
+      setTimeout(() => setFormFeedback(null), 4000);
     } else {
-      alert('Failed to add user. Email may already exist or database error occurred.');
+      setFormFeedback({ type: 'error', text: 'Failed to create account. Email may already exist.' });
     }
   };
 
@@ -134,7 +137,27 @@ const AdminDashboard = ({
                 <input type="text" className="form-input" placeholder="e.g. General Medicine, Orthopedic" value={specialty} onChange={(e) => setSpecialty(e.target.value)} required />
               </div>
             )}
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>
+            {formFeedback && (
+              <div
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: formFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                  color: formFeedback.type === 'success' ? '#10b981' : '#ef4444',
+                  border: `1px solid ${formFeedback.type === 'success' ? '#10b98140' : '#ef444440'}`
+                }}
+              >
+                {formFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                {formFeedback.text}
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.25rem' }}>
               Create User Account
             </button>
           </form>
@@ -179,7 +202,7 @@ const AdminDashboard = ({
                       <td style={{ fontSize: '0.9rem' }}>{doc.email}</td>
                       <td><span className="badge badge-active">{doc.specialty}</span></td>
                       <td style={{ textAlign: 'right' }}>
-                        <button className="btn-logout" onClick={() => onDeleteDoctor(doc.id)} title="Delete Doctor" style={{ cursor: 'pointer' }}>
+                        <button className="btn-logout" onClick={() => onDeleteDoctor(doc.id, doc.name)} title="Delete Doctor" style={{ cursor: 'pointer' }}>
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -205,7 +228,7 @@ const AdminDashboard = ({
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button className="btn-logout" onClick={() => onDeleteStaff(staff.id)} title="Delete Staff" style={{ cursor: 'pointer' }}>
+                        <button className="btn-logout" onClick={() => onDeleteStaff(staff.id, staff.name)} title="Delete Staff" style={{ cursor: 'pointer' }}>
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -231,12 +254,7 @@ const AdminDashboard = ({
                   </div>
                   {patients.length > 0 && (
                     <button type="button" style={{ padding: '0.45rem 1rem', fontSize: '0.8rem', background: '#dc2626', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'white', fontWeight: 600, cursor: 'pointer' }}
-                      onClick={() => {
-                        if (window.confirm('WARNING: Delete ALL patients? This action cannot be undone!')) {
-                          const code = window.prompt("Type 'DELETE ALL' to confirm:");
-                          if (code === 'DELETE ALL') { onDeleteAllPatients(); } else { alert('Confirmation failed. No action taken.'); }
-                        }
-                      }}>
+                      onClick={() => onDeleteAllPatients()}>
                       <Trash2 size={14} /> Delete All Patients
                     </button>
                   )}
@@ -321,7 +339,7 @@ const AdminDashboard = ({
                             </td>
                             <td style={{ textAlign: 'right' }}>
                               <button className="btn-logout" style={{ cursor: 'pointer' }}
-                                onClick={() => { if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) onDeletePatient(patient.id); }}
+                                onClick={() => onDeletePatient(patient.id, patient.name)}
                                 title="Delete Patient">
                                 <Trash2 size={16} />
                               </button>

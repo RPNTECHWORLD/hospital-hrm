@@ -64,19 +64,29 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
   const handleAssign = (e) => {
     e.preventDefault();
-    if (!selectedBed || !selectedPatientId) return;
+    if (!selectedBed || !selectedPatientId.trim()) return;
 
-    const patientIdVal = selectedPatientId;
+    const val = selectedPatientId.trim();
+    const matched = patients.find(p => 
+      String(p.id).toLowerCase() === val.toLowerCase() ||
+      String(p.id).replace(/#/g, '').toLowerCase() === val.replace(/#/g, '').toLowerCase() ||
+      p.name.toLowerCase() === val.toLowerCase() ||
+      p.name.toLowerCase().includes(val.toLowerCase())
+    );
+
+    const targetPid = matched ? matched.id : val;
+
     const updatedBeds = beds.map(b => {
       if (b.id === selectedBed.id) {
-        return { ...b, patientId: patientIdVal };
+        return { ...b, patientId: targetPid };
       }
       return b;
     });
 
     setBeds(updatedBeds);
-    onAssignBed(patientIdVal, selectedBed.id);
+    onAssignBed(targetPid, selectedBed.id);
     setSelectedBed(null);
+    setSelectedPatientId('');
   };
 
   const handleDischarge = (bedId) => {
@@ -134,9 +144,9 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
       {/* Pending Bed Request Notification Banner */}
       {(() => {
-        const pendingRequests = patients.filter(p => 
-          p.status !== 'Inactive' && 
-          (p.bedAdmissionPending == 1 || p.bedAdmissionPending === '1' || p.bedAdmissionPending === true)
+        const pendingRequests = (patients || []).filter(p => 
+          p && p.status !== 'Inactive' && 
+          (p.bedAdmissionPending == 1 || p.bedAdmissionPending === '1' || p.bedAdmissionPending === true || p.bedadmissionpending == 1)
         );
         if (pendingRequests.length === 0) return null;
         
@@ -313,6 +323,22 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginTop: '0.1rem' }}>{patient.name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patient.gender} • {patient.age} Yrs • Reg: {patient.registrationDate || '--'}</div>
                       
+                      {(() => {
+                        let wardLogs = [];
+                        if (patient.wardHistory) {
+                          if (Array.isArray(patient.wardHistory)) wardLogs = patient.wardHistory;
+                          else if (typeof patient.wardHistory === 'string') { try { wardLogs = JSON.parse(patient.wardHistory); } catch (e) {} }
+                        }
+                        const activeStay = wardLogs.find(s => s && (s.status === 'Admitted' || !s.dischargeDate));
+                        if (!activeStay) return null;
+
+                        return (
+                          <div style={{ marginTop: '0.35rem', fontSize: '0.73rem', color: '#0f766e', fontWeight: 700, background: 'rgba(15, 118, 110, 0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            📅 Admitted: {activeStay.admitDate || '--'} • {activeStay.stayDuration || 'Day 1'}
+                          </div>
+                        );
+                      })()}
+                      
                       {isPending ? (
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem' }}>
                           <button 
@@ -398,25 +424,19 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
 
               <form onSubmit={handleAssign}>
                 <div className="form-group">
-                  <label className="form-label">Select Patient</label>
-                  <select 
+                  <label className="form-label">Patient Name or UHID</label>
+                  <input 
+                    type="text"
                     className="form-input" 
+                    placeholder="Enter Patient Name or UHID (e.g. Anu or #VH045)"
                     value={selectedPatientId}
                     onChange={(e) => setSelectedPatientId(e.target.value)}
+                    autoFocus
                     required
-                  >
-                    <option value="" disabled>Select patient from active list</option>
-                    {eligiblePatients.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.age} Yrs - Status: {p.status} - Reg Date: {p.registrationDate || 'N/A'})
-                      </option>
-                    ))}
-                  </select>
-                  {eligiblePatients.length === 0 && (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                      No patients eligible for ward admission (registered and not yet discharged).
-                    </p>
-                  )}
+                  />
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.45rem' }}>
+                    Type the patient's name or UHID number to admit directly.
+                  </p>
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>

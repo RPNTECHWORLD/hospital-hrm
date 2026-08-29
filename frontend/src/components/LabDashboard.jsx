@@ -93,10 +93,6 @@ const LabDashboard = ({ patients }) => {
 
   useEffect(() => {
     fetchLabLogs(true);
-    const interval = setInterval(() => {
-      fetchLabLogs(false);
-    }, 4000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateStatus = async (e) => {

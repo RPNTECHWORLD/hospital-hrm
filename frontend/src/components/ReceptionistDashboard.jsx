@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, UserPlus, Users, DollarSign, Calendar, CheckCircle, Clock, Search, History, Check, X, Trash2, Bed, Baby, Microscope, Sparkles, Sprout, UserX, RotateCcw, FileText, ArrowRight } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import { TN_LOCATIONS } from '../utils/locationHelper';
@@ -123,11 +124,11 @@ const ReceptionistDashboard = ({
   const [showHousekeepingModal, setShowHousekeepingModal] = useState(false);
   const [hkLogs, setHkLogs] = useState([]);
   const [hkPlaceName, setHkPlaceName] = useState('');
-  const [hkDate, setHkDate] = useState(new Date().toISOString().split('T')[0]);
-  const [hkCleaned, setHkCleaned] = useState(false);
-  const [hkWatered, setHkWatered] = useState(false);
+  const [hkIsCleaned, setHkIsCleaned] = useState(false);
+  const [hkIsPlantsWatered, setHkIsPlantsWatered] = useState(false);
   const [hkNotes, setHkNotes] = useState('');
   const [hkLoading, setHkLoading] = useState(false);
+  const [hkDeleteTarget, setHkDeleteTarget] = useState(null);
 
   const fetchHkLogs = async () => {
     try {
@@ -175,7 +176,6 @@ const ReceptionistDashboard = ({
   };
 
   const handleDeleteHkCheck = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this housekeeping record?")) return;
     try {
       const res = await fetch(`${API_BASE}/api/housekeeping/${id}`, { method: 'DELETE' });
       if (res.ok) fetchHkLogs();
@@ -745,8 +745,30 @@ const ReceptionistDashboard = ({
     }
   };
 
+  const [liveDoctors, setLiveDoctors] = useState(doctors || []);
+
+  useEffect(() => {
+    setLiveDoctors(doctors || []);
+  }, [doctors]);
+
+  useEffect(() => {
+    const fetchLatestDoctors = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/doctors`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setLiveDoctors(data);
+        }
+      } catch (e) {}
+    };
+
+    fetchLatestDoctors();
+    window.addEventListener('focus', fetchLatestDoctors);
+    return () => window.removeEventListener('focus', fetchLatestDoctors);
+  }, []);
+
   // Filter active doctors who have logged in today with user ID & password
-  const availableDoctors = (doctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
+  const availableDoctors = (liveDoctors || []).filter(doc => isSameDayStr(doc.lastLoginDate, todayStr));
 
   useEffect(() => {
     if (availableDoctors.length > 0) {
@@ -756,6 +778,9 @@ const ReceptionistDashboard = ({
       if (!reRegisterDoctorId || !availableDoctors.some(d => String(d.id) === String(reRegisterDoctorId))) {
         setReRegisterDoctorId(String(availableDoctors[0].id));
       }
+    } else {
+      setAssignedDoctorId('');
+      setReRegisterDoctorId('');
     }
   }, [availableDoctors, assignedDoctorId, reRegisterDoctorId]);
 
@@ -2180,11 +2205,7 @@ const ReceptionistDashboard = ({
 
                             <button
                               className="btn-logout"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
-                                  onDeletePatient(patient.id);
-                                }
-                              }}
+                              onClick={() => onDeletePatient(patient.id, patient.name)}
                               title="Delete Patient"
                               style={{ cursor: 'pointer' }}
                             >
@@ -2536,6 +2557,7 @@ const ReceptionistDashboard = ({
                 <option value="Unpaid">Unpaid</option>
                 <option value="Paid - Cash">Paid - Cash</option>
                 <option value="Paid - UPI">Paid - UPI</option>
+                <option value="Paid - Card">Paid - Card</option>
               </select>
             </div>
 
@@ -2805,6 +2827,21 @@ const ReceptionistDashboard = ({
           </div>
         </div>,
         document.body
+      )}
+
+      {hkDeleteTarget && (
+        <ConfirmModal
+          isOpen={true}
+          title="Delete Housekeeping Log"
+          message={`Delete housekeeping record for "${hkDeleteTarget.placeName}"?`}
+          confirmText="Delete Record"
+          type="danger"
+          onCancel={() => setHkDeleteTarget(null)}
+          onConfirm={() => {
+            handleDeleteHkCheck(hkDeleteTarget.id);
+            setHkDeleteTarget(null);
+          }}
+        />
       )}
     </div>
   );

@@ -171,6 +171,7 @@ const camelCaseMap = {
   previousdoctor: 'previousDoctor',
   pendingreassignment: 'pendingReassignment',
   reassignmentdeclined: 'reassignmentDeclined',
+  wardhistory: 'wardHistory',
   lastlogindate: 'lastLoginDate'
 };
 
@@ -307,7 +308,8 @@ export const initDB = async () => {
         trackingHistory TEXT,
         previousDoctor TEXT,
         pendingReassignment TEXT,
-        reassignmentDeclined TEXT
+        reassignmentDeclined TEXT,
+        wardHistory TEXT
       )`,
       `CREATE TABLE IF NOT EXISTS patient_history (
         id SERIAL PRIMARY KEY,
@@ -543,6 +545,7 @@ export const initDB = async () => {
     `ALTER TABLE patients ADD COLUMN previousDoctor TEXT`,
     `ALTER TABLE patients ADD COLUMN pendingReassignment TEXT`,
     `ALTER TABLE patients ADD COLUMN reassignmentDeclined TEXT`,
+    `ALTER TABLE patients ADD COLUMN wardHistory TEXT`,
     `ALTER TABLE doctors ADD COLUMN lastLoginDate TEXT`
   ];
 
@@ -801,13 +804,13 @@ export const addDoctor = async (doc) => {
   if (doc.id) {
     await dbRun(
       `INSERT INTO doctors (id, name, specialty, email, password) VALUES (?, ?, ?, ?, ?)`,
-      [doc.id, doc.name, doc.specialty, doc.email, doc.password || 'password123']
+      [doc.id, doc.name, doc.specialty, doc.email, doc.password || '123456']
     );
     return { id: doc.id, name: doc.name, specialty: doc.specialty, email: doc.email };
   } else {
     const res = await dbRun(
       `INSERT INTO doctors (name, specialty, email, password) VALUES (?, ?, ?, ?)`,
-      [doc.name, doc.specialty, doc.email, doc.password || 'password123']
+      [doc.name, doc.specialty, doc.email, doc.password || '123456']
     );
     const newId = res ? res.lastID : Date.now();
     return { id: newId, name: doc.name, specialty: doc.specialty, email: doc.email };
@@ -815,6 +818,7 @@ export const addDoctor = async (doc) => {
 };
 export const deleteDoctor = (id) => dbRun(`DELETE FROM doctors WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
 export const updateDoctorLastLogin = (id, dateStr) => dbRun(`UPDATE doctors SET lastLoginDate = ? WHERE id = ? OR CAST(id AS TEXT) = ?`, [dateStr, id, String(id)]);
+export const logoutDoctor = (id) => dbRun(`UPDATE doctors SET lastLoginDate = NULL WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
 
 export const getStaff = () => dbAll(`SELECT * FROM staff`);
 export const addStaff = async (st) => {
@@ -942,6 +946,15 @@ export const getPatients = async () => {
     })(),
     trackingHistory: (() => {
       const raw = pat.trackinghistory || pat.trackingHistory;
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return []; }
+      }
+      return [];
+    })(),
+    wardHistory: (() => {
+      const raw = pat.wardhistory || pat.wardHistory;
       if (!raw) return [];
       if (Array.isArray(raw)) return raw;
       if (typeof raw === 'string') {
@@ -1093,6 +1106,15 @@ export const getPatientById = async (id) => {
       }
       return [];
     })(),
+    wardHistory: (() => {
+      const raw = pat.wardhistory || pat.wardHistory;
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return []; }
+      }
+      return [];
+    })(),
     history: history
   };
 };
@@ -1113,8 +1135,8 @@ const getNextPatientId = async () => {
 export const addPatient = async (pat) => {
   const id = pat.id || (await getNextPatientId());
   await dbRun(
-    `INSERT INTO patients (id, name, age, gender, contact, email, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes, previousDoctor)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO patients (id, name, age, gender, contact, email, address, assignedDoctorId, status, diagnosis, prescription, issuedMedication, paymentStatus, wardBedId, bedAdmissionPending, fatherOrHusbandName, motherOrGuardianName, alternatePhone, tokenNumber, registrationDate, prescriptionImg, height, weight, bp, hr, spo2, grbs, temp, complaints, pastHistory, examination, investigation, bmi, ischild, childga, childbirthdate, childbirthweight, childplaceofbirth, childdeliverytype, childnicuhistory, specialinvestigation, specialinvestigationnotes, previousDoctor, wardHistory)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       pat.name,
@@ -1158,7 +1180,8 @@ export const addPatient = async (pat) => {
       pat.childNicuHistory || '',
       pat.specialInvestigation || 0,
       pat.specialInvestigationNotes || '',
-      pat.previousDoctor || ''
+      pat.previousDoctor || '',
+      pat.wardHistory ? JSON.stringify(pat.wardHistory) : null
     ]
   );
 
@@ -1207,6 +1230,7 @@ export const addPatient = async (pat) => {
     childNicuHistory: pat.childNicuHistory || '',
     specialInvestigation: pat.specialInvestigation || 0,
     specialInvestigationNotes: pat.specialInvestigationNotes || '',
+    wardHistory: pat.wardHistory || [],
     history: []
   };
 };
@@ -1227,13 +1251,13 @@ export const updatePatient = async (id, data) => {
     'prescriptionImg', 'height', 'weight', 'bp', 'hr', 'spo2', 'grbs', 'temp',
     'complaints', 'pastHistory', 'examination', 'investigation', 'bmi', 'paidAmount', 'feeBreakdown',
     'isChild', 'childGa', 'childBirthDate', 'childBirthWeight', 'childPlaceOfBirth', 'childDeliveryType', 'childNicuHistory',
-    'specialInvestigation', 'specialInvestigationNotes', 'trackingHistory', 'previousDoctor', 'pendingReassignment', 'reassignmentDeclined'
+    'specialInvestigation', 'specialInvestigationNotes', 'trackingHistory', 'previousDoctor', 'pendingReassignment', 'reassignmentDeclined', 'wardHistory'
   ];
 
   for (const k of keys) {
     if (data[k] !== undefined) {
       fields.push(`${k.toLowerCase()} = ?`);
-      if (k === 'prescription' || k === 'trackingHistory' || k === 'pendingReassignment' || k === 'reassignmentDeclined') {
+      if (k === 'prescription' || k === 'trackingHistory' || k === 'pendingReassignment' || k === 'reassignmentDeclined' || k === 'wardHistory') {
         params.push(data[k] ? (typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k])) : null);
       } else {
         params.push(data[k]);
@@ -1273,11 +1297,32 @@ export const updatePatient = async (id, data) => {
 };
 
 // Staff Attendance
-export const getAttendance = () => dbAll(`SELECT * FROM staff_attendance`);
-export const addAttendance = (att) => dbRun(
-  `INSERT INTO staff_attendance (staffId, date, status, markedBy, shift) VALUES (?, ?, ?, ?, ?)`,
-  [att.staffId, att.date, att.status, att.markedBy, att.shift || 'Day']
-);
+export const getAttendance = () => dbAll(`SELECT * FROM staff_attendance ORDER BY date DESC, id DESC`);
+export const addAttendance = async (att) => {
+  const staffId = att.staffId;
+  const date = att.date;
+  const shift = att.shift || 'Day';
+  
+  const existing = await dbGet(
+    `SELECT * FROM staff_attendance WHERE (staffId = ? OR CAST(staffId AS TEXT) = ?) AND date = ? AND (shift = ? OR shift IS NULL)`,
+    [staffId, String(staffId), date, shift]
+  );
+
+  if (existing) {
+    await dbRun(
+      `UPDATE staff_attendance SET status = ?, markedBy = ? WHERE id = ?`,
+      [att.status, att.markedBy || 'Doctor/Admin', existing.id]
+    );
+    return { ...existing, status: att.status, markedBy: att.markedBy, updated: true };
+  } else {
+    const res = await dbRun(
+      `INSERT INTO staff_attendance (staffId, date, status, markedBy, shift) VALUES (?, ?, ?, ?, ?)`,
+      [staffId, date, att.status, att.markedBy || 'Doctor/Admin', shift]
+    );
+    return { id: res ? res.lastID : Date.now(), ...att };
+  }
+};
+export const deleteAttendance = (id) => dbRun(`DELETE FROM staff_attendance WHERE id = ? OR CAST(id AS TEXT) = ?`, [id, String(id)]);
 
 // Directory Ledger
 export const getDirectory = () => dbAll(`SELECT * FROM directory_ledger`);

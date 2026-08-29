@@ -13,9 +13,9 @@ const DonutChart = ({ segments, size = 150, strokeWidth = 28, label, sublabel })
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
       <div style={{ position: 'relative', width: size, height: size }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={strokeWidth} />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={strokeWidth} />
           {total === 0
-            ? <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={strokeWidth} />
+            ? <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} />
             : segments.map((seg, i) => {
                 if (!seg.value) return null;
                 const pct = seg.value / total;
@@ -81,7 +81,7 @@ const HBar = ({ bars }) => {
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{b.label}</span>
             <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{b.value}</span>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden', height: 10 }}>
+          <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: 4, overflow: 'hidden', height: 10 }}>
             <div style={{ width: `${(b.value / max) * 100}%`, height: '100%', background: b.color || 'var(--primary)', borderRadius: 4, transition: 'width 0.6s ease' }} />
           </div>
         </div>
@@ -127,12 +127,75 @@ const ChCard = ({ title, Icon, children, style }) => (
   </div>
 );
 
+// Helper: robustly parse any date representation into a valid Date object
+const parseAnyDate = (dateVal) => {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  if (typeof dateVal === 'number') {
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const str = String(dateVal).trim();
+  if (!str) return null;
+
+  const match = str.match(/^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})/);
+  if (match) {
+    let p1 = parseInt(match[1], 10);
+    let p2 = parseInt(match[2], 10);
+    let p3 = parseInt(match[3], 10);
+
+    if (p1 > 1000) {
+      const d = new Date(p1, p2 - 1, p3);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    let year = p3;
+    if (year < 100) year += 2000;
+
+    if (p1 > 12 && p2 <= 12) {
+      const d = new Date(year, p2 - 1, p1);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    if (p2 > 12 && p1 <= 12) {
+      const d = new Date(year, p1 - 1, p2);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    const nativeDate = new Date(str);
+    if (!isNaN(nativeDate.getTime())) {
+      return nativeDate;
+    }
+
+    const d = new Date(year, p2 - 1, p1);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  return null;
+};
+
+const isSameDay = (d1, d2) => {
+  if (!d1 || !d2) return false;
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
 /* ── Main Analytics Dashboard ────────────────────────────────────── */
 const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
-  const todayStr    = new Date().toLocaleDateString('en-GB');
+  const todayDate   = new Date();
   const activeP     = patients.filter(p => p.status !== 'Inactive' && p.status !== 'Completed');
   const completed   = patients.filter(p => p.status === 'Completed');
-  const todayP      = patients.filter(p => p.registrationDate && new Date(p.registrationDate).toLocaleDateString('en-GB') === todayStr);
+  const todayP      = patients.filter(p => {
+    const d = parseAnyDate(p.registrationDate);
+    return d && isSameDay(d, todayDate);
+  });
   const paid        = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid'));
   const unpaid      = patients.filter(p => !p.paymentStatus || !p.paymentStatus.startsWith('Paid'));
   const totalActive = patients.filter(p => p.status !== 'Inactive').length;
@@ -176,8 +239,10 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
   });
   const DAILY_COLORS = ['#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fbbf24', '#34d399', '#f87171'];
   const dailyBars = last7.map((d, index) => {
-    const dateStr = d.toLocaleDateString('en-GB');
-    const count = patients.filter(p => p.registrationDate && new Date(p.registrationDate).toLocaleDateString('en-GB') === dateStr).length;
+    const count = patients.filter(p => {
+      const pD = parseAnyDate(p.registrationDate);
+      return pD && isSameDay(pD, d);
+    }).length;
     return {
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
       value: count,
@@ -297,15 +362,15 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
 
             {/* Left: Donut Share Wheel */}
             <div style={{
-              background: 'rgba(15, 23, 42, 0.4)',
-              border: '1px solid var(--border)',
+              background: 'var(--bg-card, #ffffff)',
+              border: '1.5px solid var(--border)',
               borderRadius: '16px',
               padding: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
             }}>
               <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <MapPin size={18} /> Regional Patient Share (%)
@@ -358,7 +423,7 @@ const AdminAnalytics = ({ patients = [], doctors = [], staffList = [] }) => {
                     </div>
 
                     {/* Progress Bar */}
-                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
                       <div style={{
                         width: `${loc.pct}%`, minWidth: '8px', height: '100%',
                         background: `linear-gradient(90deg, ${loc.color}, ${loc.color}dd)`,

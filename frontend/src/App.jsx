@@ -13,6 +13,8 @@ import InjectionRoom from './components/InjectionRoom';
 import LabDashboard from './components/LabDashboard';
 import DirectoryLedger from './components/DirectoryLedger';
 import UtilityLogs from './components/UtilityLogs';
+import ConfirmModal from './components/ConfirmModal';
+import ToastNotification from './components/ToastNotification';
 import { generateFullPrescriptionImage, capturePrescriptionDOMImage } from './components/PrescriptionTemplate';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -136,12 +138,14 @@ function App() {
   const [labLogsList, setLabLogsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // UI / UX States: Theme, Density, Quick Search, Notifications
+  // UI / UX States: Theme, Density, Quick Search, Notifications, Custom Confirm & Toast
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('hms_theme') || 'light');
   const [isCompact, setIsCompact] = useState(() => localStorage.getItem('hms_density') === 'compact');
   const [showQuickSearch, setShowQuickSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
+  const [toastConfig, setToastConfig] = useState(null);
 
   // Sync Theme & Density DOM attributes
   useEffect(() => {
@@ -203,14 +207,23 @@ function App() {
 
   const handleRequestWardAdmit = async (patientId, bedId) => {
     try {
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
+      const updatedData = {
+        wardBedId: bedId,
+        bedAdmissionPending: 1
+      };
+
+      // Instant optimistic update so Ward Module badge & request banner appear immediately
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, ...updatedData } : p));
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wardBedId: bedId, bedAdmissionPending: 1 })
+        body: JSON.stringify(updatedData)
       });
       if (response.ok) {
         const updatedPatient = await response.json();
-        setPatients(patients.map(p => p.id === patientId ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
       }
     } catch (err) {
       console.error("Error requesting ward admission:", err);
@@ -345,19 +358,6 @@ function App() {
 
     if (user) {
       loadInitialData();
-      // ⚡ High-speed auto-sync interval (every 2.5 seconds)
-      const interval = setInterval(pollData, 2500);
-
-      // ⚡ Instant live sync when user focuses the window or switches back to the browser tab
-      const handleFocusSync = () => pollData();
-      window.addEventListener('focus', handleFocusSync);
-      document.addEventListener('visibilitychange', handleFocusSync);
-
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('focus', handleFocusSync);
-        document.removeEventListener('visibilitychange', handleFocusSync);
-      };
     }
   }, [user]);
 
@@ -376,7 +376,17 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user && (user.role === 'doctor' || user.role === 'Doctor')) {
+      const docId = user.id;
+      // Optimistically clear doctor lastLoginDate in doctorsList state
+      setDoctorsList(prev => prev.map(d => (String(d.id) === String(docId) || d.email === user.email) ? { ...d, lastLoginDate: null } : d));
+      try {
+        await fetch(`${API_BASE}/api/doctors/${encodeURIComponent(docId)}/logout`, { method: 'POST' });
+      } catch (e) {
+        console.error("Error logging out doctor:", e);
+      }
+    }
     setUser(null);
     setPatients([]);
     setAdminActiveView('admin');
@@ -407,24 +417,37 @@ function App() {
     }
   };
 
-  const handleDeleteDoctor = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this doctor?')) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/doctors/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
-      });
-      if (response.ok) {
-        setDoctorsList(prev => prev.filter(d => String(d.id) !== String(id)));
-        alert('Doctor deleted successfully!');
-      } else {
-        const err = await response.json().catch(() => ({}));
-        alert(`Failed to delete doctor: ${err.message || 'Server error'}`);
+  const handleDeleteDoctor = (id, docName = '') => {
+    const targetDoc = doctorsList.find(d => String(d.id) === String(id));
+    const name = docName || (targetDoc ? targetDoc.name : 'Doctor');
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'Delete Doctor Account',
+      message: 'Are you sure you want to delete this doctor account? This action cannot be undone.',
+      itemName: name,
+      confirmText: 'Delete Doctor',
+      type: 'danger',
+      onCancel: () => setConfirmModalConfig(null),
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        try {
+          const response = await fetch(`${API_BASE}/api/doctors/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+          });
+          if (response.ok) {
+            setDoctorsList(prev => prev.filter(d => String(d.id) !== String(id)));
+            setToastConfig({ message: `${name} deleted successfully!`, type: 'success' });
+          } else {
+            const err = await response.json().catch(() => ({}));
+            setToastConfig({ message: `Failed to delete doctor: ${err.message || 'Server error'}`, type: 'error' });
+          }
+        } catch (err) {
+          console.error("Error deleting doctor:", err);
+          setToastConfig({ message: 'Error deleting doctor. Please check connection.', type: 'error' });
+        }
       }
-    } catch (err) {
-      console.error("Error deleting doctor:", err);
-      alert('Error deleting doctor');
-    }
+    });
   };
 
   const handleAddStaff = async (staffData) => {
@@ -449,63 +472,101 @@ function App() {
     }
   };
 
-  const handleDeleteStaff = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/staff/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
-      });
-      if (response.ok) {
-        setStaffList(prev => prev.filter(s => String(s.id) !== String(id)));
-        alert('Staff deleted successfully!');
-      } else {
-        const err = await response.json().catch(() => ({}));
-        alert(`Failed to delete staff: ${err.message || 'Server error'}`);
+  const handleDeleteStaff = (id, staffName = '') => {
+    const targetStaff = staffList.find(s => String(s.id) === String(id));
+    const name = staffName || (targetStaff ? targetStaff.name : 'Staff Member');
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'Delete Staff Account',
+      message: 'Are you sure you want to delete this staff account? This action cannot be undone.',
+      itemName: name,
+      confirmText: 'Delete Staff',
+      type: 'danger',
+      onCancel: () => setConfirmModalConfig(null),
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        try {
+          const response = await fetch(`${API_BASE}/api/staff/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+          });
+          if (response.ok) {
+            setStaffList(prev => prev.filter(s => String(s.id) !== String(id)));
+            setToastConfig({ message: `${name} deleted successfully!`, type: 'success' });
+          } else {
+            const err = await response.json().catch(() => ({}));
+            setToastConfig({ message: `Failed to delete staff: ${err.message || 'Server error'}`, type: 'error' });
+          }
+        } catch (err) {
+          console.error("Error deleting staff:", err);
+          setToastConfig({ message: 'Error deleting staff. Please check connection.', type: 'error' });
+        }
       }
-    } catch (err) {
-      console.error("Error deleting staff:", err);
-      alert('Error deleting staff');
-    }
+    });
   };
 
-  const handleDeletePatient = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this patient record?')) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/patients/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
-      });
-      if (response.ok) {
-        setPatients(prev => prev.map(p => (String(p.id).toLowerCase() === String(id).toLowerCase() ? { ...p, status: 'Inactive', tokenNumber: null, registrationDate: null } : p)));
-        alert('Patient record inactivated successfully!');
-      } else {
-        const err = await response.json().catch(() => ({}));
-        alert(`Failed to delete patient: ${err.message || 'Server error'}`);
+  const handleDeletePatient = (id, patName = '') => {
+    const targetPat = patients.find(p => String(p.id) === String(id));
+    const name = patName || (targetPat ? `${targetPat.name} (#${targetPat.id})` : 'Patient Record');
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'Inactivate Patient Record',
+      message: 'Are you sure you want to delete / inactivate this patient record?',
+      itemName: name,
+      confirmText: 'Inactivate Record',
+      type: 'danger',
+      onCancel: () => setConfirmModalConfig(null),
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        try {
+          const response = await fetch(`${API_BASE}/api/patients/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+          });
+          if (response.ok) {
+            setPatients(prev => prev.map(p => (String(p.id).toLowerCase() === String(id).toLowerCase() ? { ...p, status: 'Inactive', tokenNumber: null, registrationDate: null } : p)));
+            setToastConfig({ message: 'Patient record inactivated successfully!', type: 'success' });
+          } else {
+            const err = await response.json().catch(() => ({}));
+            setToastConfig({ message: `Failed to delete patient: ${err.message || 'Server error'}`, type: 'error' });
+          }
+        } catch (err) {
+          console.error("Error deleting patient:", err);
+          setToastConfig({ message: 'Error deleting patient. Please check connection.', type: 'error' });
+        }
       }
-    } catch (err) {
-      console.error("Error deleting patient:", err);
-      alert('Error deleting patient');
-    }
+    });
   };
 
-  const handleDeleteAllPatients = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/patients`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
-      });
-      if (response.ok) {
-        setPatients([]);
-        alert('All patients deleted successfully!');
-      } else {
-        const err = await response.json().catch(() => ({}));
-        alert(`Failed to delete all patients: ${err.message || 'Server error'}`);
+  const handleDeleteAllPatients = () => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: '⚠️ Permanent Data Erasure',
+      message: 'This will permanently wipe ALL patient consultation records. Type DELETE ALL to confirm:',
+      confirmText: 'Delete All Patients',
+      type: 'danger',
+      requireTextMatch: 'DELETE ALL',
+      onCancel: () => setConfirmModalConfig(null),
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        try {
+          const response = await fetch(`${API_BASE}/api/patients`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'admin' }
+          });
+          if (response.ok) {
+            setPatients([]);
+            setToastConfig({ message: 'All patients deleted successfully!', type: 'success' });
+          } else {
+            const err = await response.json().catch(() => ({}));
+            setToastConfig({ message: `Failed to delete all patients: ${err.message || 'Server error'}`, type: 'error' });
+          }
+        } catch (err) {
+          console.error("Error deleting all patients:", err);
+          setToastConfig({ message: 'Error deleting all patients. Please check connection.', type: 'error' });
+        }
       }
-    } catch (err) {
-      console.error("Error deleting all patients:", err);
-      alert('Error deleting all patients');
-    }
+    });
   };
 
   // Helper to compare dates robustly across different string formats
@@ -771,6 +832,10 @@ function App() {
         wardBedId: data.wardBedId !== undefined ? data.wardBedId : null,
         bedAdmissionPending: data.bedAdmissionPending !== undefined ? data.bedAdmissionPending : 0
       };
+
+      // ⚡ Instant Optimistic Update
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, ...updatedData } : p));
+
       const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -796,6 +861,10 @@ function App() {
         followUpNotes: data?.followUpNotes || '',
         nextVisitDate: data?.nextVisitDate || ''
       };
+
+      // ⚡ Instant Optimistic Update
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, ...updatedData } : p));
+
       const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1134,14 +1203,108 @@ function App() {
 
   // Ward Staff Actions
   const handleAssignBed = async (patientId, bedId) => {
-    // Instant optimistic update
-    setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, wardBedId: bedId, bedAdmissionPending: 0 } : p));
     try {
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const patient = patients.find(p => isSameId(p.id, patientId));
+      if (!patient) return;
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+      const fullDateTime = `${dateStr}, ${timeStr}`;
+
+      const roomNum = bedId ? String(bedId).slice(0, 3) : '101';
+      const bedLetter = bedId ? String(bedId).slice(3) : 'A';
+      const bedLabel = `Room ${roomNum} - Bed ${bedLetter}`;
+
+      let currentWardHistory = [];
+      if (patient.wardHistory) {
+        if (Array.isArray(patient.wardHistory)) {
+          currentWardHistory = [...patient.wardHistory];
+        } else if (typeof patient.wardHistory === 'string') {
+          try { currentWardHistory = JSON.parse(patient.wardHistory); } catch (e) {}
+        }
+      }
+
+      // Check if there is already an active stay
+      const openStayIndex = currentWardHistory.findIndex(s => s && (s.status === 'Admitted' || !s.dischargeDate));
+
+      const newStayEntry = {
+        id: `ward_${Date.now()}`,
+        bedId: bedId,
+        room: roomNum,
+        bedName: `Bed ${bedLetter}`,
+        bedLabel: bedLabel,
+        admitDate: dateStr,
+        admitTime: timeStr,
+        admitDateTime: fullDateTime,
+        admitTimestamp: now.getTime(),
+        admittedBy: user?.name || 'Ward Staff',
+        dischargeDate: null,
+        dischargeTime: null,
+        dischargeDateTime: null,
+        dischargeTimestamp: null,
+        dischargedBy: null,
+        status: 'Admitted',
+        stayDuration: 'Currently Admitted (Day 1)',
+        totalDays: 1,
+        notes: `Admitted to ${bedLabel}`
+      };
+
+      if (openStayIndex >= 0) {
+        currentWardHistory[openStayIndex] = {
+          ...currentWardHistory[openStayIndex],
+          bedId: bedId,
+          room: roomNum,
+          bedName: `Bed ${bedLetter}`,
+          bedLabel: bedLabel,
+          status: 'Admitted'
+        };
+      } else {
+        currentWardHistory = [newStayEntry, ...currentWardHistory];
+      }
+
+      const historyLog = {
+        id: `ward_admit_${Date.now()}`,
+        type: 'Ward Admission',
+        desk: 'Ward Desk',
+        dateTime: fullDateTime,
+        timestamp: fullDateTime,
+        changedBy: user?.name || 'Ward Staff',
+        notes: `Patient admitted to ${bedLabel} (#${bedId})`
+      };
+
+      let existingLogs = [];
+      if (patient.trackingHistory) {
+        if (Array.isArray(patient.trackingHistory)) {
+          existingLogs = patient.trackingHistory;
+        } else if (typeof patient.trackingHistory === 'string') {
+          try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
+        }
+      }
+      const updatedHistory = [historyLog, ...existingLogs];
+
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
+
+      // Instant optimistic update
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? {
+        ...p,
+        wardBedId: bedId,
+        bedAdmissionPending: 0,
+        wardHistory: currentWardHistory,
+        trackingHistory: updatedHistory
+      } : p));
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wardBedId: bedId, bedAdmissionPending: 0 })
+        body: JSON.stringify({
+          wardBedId: bedId,
+          bedAdmissionPending: 0,
+          wardHistory: currentWardHistory,
+          trackingHistory: updatedHistory
+        })
       });
+
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
@@ -1152,14 +1315,135 @@ function App() {
   };
 
   const handleDischargePatient = async (patientId) => {
-    // Instant optimistic update
-    setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, wardBedId: null, bedAdmissionPending: 0 } : p));
     try {
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+      const patient = patients.find(p => isSameId(p.id, patientId));
+      if (!patient) return;
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+      const fullDateTime = `${dateStr}, ${timeStr}`;
+
+      let currentWardHistory = [];
+      if (patient.wardHistory) {
+        if (Array.isArray(patient.wardHistory)) {
+          currentWardHistory = [...patient.wardHistory];
+        } else if (typeof patient.wardHistory === 'string') {
+          try { currentWardHistory = JSON.parse(patient.wardHistory); } catch (e) {}
+        }
+      }
+
+      const activeBedId = patient.wardBedId;
+      const roomNum = activeBedId ? String(activeBedId).slice(0, 3) : '101';
+      const bedLetter = activeBedId ? String(activeBedId).slice(3) : 'A';
+      const bedLabel = `Room ${roomNum} - Bed ${bedLetter}`;
+
+      const openStayIndex = currentWardHistory.findIndex(s => s && (s.status === 'Admitted' || !s.dischargeDate));
+
+      let stayDurationText = '1 Day';
+      let calculatedTotalDays = 1;
+
+      if (openStayIndex >= 0) {
+        const openStay = currentWardHistory[openStayIndex];
+        const admitTimestamp = openStay.admitTimestamp || (openStay.admitDateTime ? new Date(openStay.admitDateTime).getTime() : (now.getTime() - 86400000));
+        const diffMs = Math.max(0, now.getTime() - admitTimestamp);
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const totalHours = Math.floor(diffMs / 3600000);
+        const days = Math.floor(totalHours / 24);
+        const remainingHours = totalHours % 24;
+        const remainingMinutes = totalMinutes % 60;
+
+        if (days >= 1) {
+          stayDurationText = remainingHours > 0 ? `${days} Day${days > 1 ? 's' : ''}, ${remainingHours} Hr${remainingHours > 1 ? 's' : ''}` : `${days} Day${days > 1 ? 's' : ''}`;
+          calculatedTotalDays = days;
+        } else if (totalHours >= 1) {
+          stayDurationText = remainingMinutes > 0 ? `${totalHours} Hr${totalHours > 1 ? 's' : ''}, ${remainingMinutes} Min${remainingMinutes > 1 ? 's' : ''}` : `${totalHours} Hr${totalHours > 1 ? 's' : ''}`;
+          calculatedTotalDays = 0;
+        } else {
+          const minutes = Math.max(1, totalMinutes);
+          stayDurationText = `${minutes} Min${minutes > 1 ? 's' : ''}`;
+          calculatedTotalDays = 0;
+        }
+
+        currentWardHistory[openStayIndex] = {
+          ...openStay,
+          dischargeDate: dateStr,
+          dischargeTime: timeStr,
+          dischargeDateTime: fullDateTime,
+          dischargeTimestamp: now.getTime(),
+          dischargedBy: user?.name || 'Ward Staff',
+          status: 'Discharged',
+          stayDuration: stayDurationText,
+          totalDays: calculatedTotalDays,
+          notes: `Discharged from ${openStay.bedLabel || bedLabel} after ${stayDurationText}`
+        };
+      } else {
+        // If no prior admission entry exists, log the real discharge event
+        currentWardHistory = [{
+          id: `ward_${Date.now()}`,
+          bedId: activeBedId || '101A',
+          room: roomNum,
+          bedName: `Bed ${bedLetter}`,
+          bedLabel: bedLabel,
+          admitDate: dateStr,
+          admitTime: timeStr,
+          admitDateTime: fullDateTime,
+          admitTimestamp: now.getTime(),
+          admittedBy: 'Ward Staff',
+          dischargeDate: dateStr,
+          dischargeTime: timeStr,
+          dischargeDateTime: fullDateTime,
+          dischargeTimestamp: now.getTime(),
+          dischargedBy: user?.name || 'Ward Staff',
+          status: 'Discharged',
+          stayDuration: 'Discharged',
+          totalDays: 0,
+          notes: `Discharged from ${bedLabel}`
+        }, ...currentWardHistory];
+      }
+
+      const historyLog = {
+        id: `ward_discharge_${Date.now()}`,
+        type: 'Ward Discharge',
+        desk: 'Ward Desk',
+        dateTime: fullDateTime,
+        timestamp: fullDateTime,
+        changedBy: user?.name || 'Ward Staff',
+        notes: `Patient discharged from ${bedLabel} (#${activeBedId || '--'}). Stay duration: ${stayDurationText}`
+      };
+
+      let existingLogs = [];
+      if (patient.trackingHistory) {
+        if (Array.isArray(patient.trackingHistory)) {
+          existingLogs = patient.trackingHistory;
+        } else if (typeof patient.trackingHistory === 'string') {
+          try { existingLogs = JSON.parse(patient.trackingHistory); } catch (e) {}
+        }
+      }
+      const updatedHistory = [historyLog, ...existingLogs];
+
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
+
+      // Instant optimistic update
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? {
+        ...p,
+        wardBedId: null,
+        bedAdmissionPending: 0,
+        wardHistory: currentWardHistory,
+        trackingHistory: updatedHistory
+      } : p));
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wardBedId: null, bedAdmissionPending: 0 })
+        body: JSON.stringify({
+          wardBedId: null,
+          bedAdmissionPending: 0,
+          wardHistory: currentWardHistory,
+          trackingHistory: updatedHistory
+        })
       });
+
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
@@ -2301,6 +2585,16 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Global Custom Confirmation Dialog Modal */}
+      {confirmModalConfig && (
+        <ConfirmModal {...confirmModalConfig} />
+      )}
+
+      {/* Global Custom Toast Notification */}
+      {toastConfig && (
+        <ToastNotification toast={toastConfig} onClose={() => setToastConfig(null)} />
       )}
     </div>
   );

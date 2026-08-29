@@ -4,6 +4,7 @@ import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, Alert
 import DrawingCanvas from './DrawingCanvas';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -238,8 +239,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
             type="button" 
             className="btn-logout" 
             onClick={() => onRemove(idx)}
-            disabled={!canRemove}
-            style={{ margin: '0 auto' }}
+            style={{ margin: '0 auto', color: '#ef4444', cursor: 'pointer' }}
             title="Remove Medicine"
           >
             <Trash2 size={18} />
@@ -307,8 +307,7 @@ const MedicineInputRow = ({ med, idx, onChange, onRemove, canRemove }) => {
             type="button" 
             className="btn-logout" 
             onClick={() => onRemove(idx)}
-            disabled={!canRemove}
-            style={{ margin: '0 auto' }}
+            style={{ margin: '0 auto', color: '#ef4444', cursor: 'pointer' }}
             title="Remove Medicine"
           >
             <Trash2 size={18} />
@@ -501,6 +500,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [toast, setToast] = useState(null);
   const [isSendingPrescription, setIsSendingPrescription] = useState(false);
   const [reviewMode, setReviewMode] = useState(null); // 'lab' | 'pharmacy' | null
+  const [showClearInvestigationConfirm, setShowClearInvestigationConfirm] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -708,8 +708,6 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     };
 
     fetchAllLabLogs();
-    const interval = setInterval(fetchAllLabLogs, 3000);
-    return () => clearInterval(interval);
   }, [activePatient]);
 
   useEffect(() => {
@@ -1056,17 +1054,40 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     const patId = activePatient.id;
     const cleanPid = String(patId).replace(/#/g, '').trim().toUpperCase();
 
-    // 1. Consultation completed for this patient (keep lab log as Report Delivered)
+    // 1. Instant optimistic update for allLabLogs so Lab Queue clears with 0ms lag
+    setAllLabLogs(prev => prev.map(l =>
+      String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
+        ? { ...l, status: 'Report Reviewed' }
+        : l
+    ));
+
+    // Update backend lab logs status asynchronously
+    try {
+      const deliveredLogs = allLabLogs.filter(l =>
+        String(l.patientId).replace(/#/g, '').trim().toUpperCase() === cleanPid && l.status === 'Report Delivered'
+      );
+      for (const log of deliveredLogs) {
+        fetch(`${API_BASE}/api/lab/${log.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Report Reviewed' })
+        }).catch(err => console.error("Error updating lab report status:", err));
+      }
+    } catch (err) {
+      console.error("Error updating lab status:", err);
+    }
 
     // 2. Check if the patient is STILL in Pharmacy Review queue (status === 'Reviewing')
     const isPharmacyPending = activePatient.status === 'Reviewing';
 
     if (!isPharmacyPending) {
       // No pharmacy review pending -> consultation is 100% completed!
-      onSubmitReview(patId, {
-        followUpNotes: followUpNotes || '',
-        nextVisitDate: nextVisitDate || ''
-      });
+      if (onSubmitReview) {
+        onSubmitReview(patId, {
+          followUpNotes: followUpNotes || '',
+          nextVisitDate: nextVisitDate || ''
+        });
+      }
       showToast(`Lab Report Review Completed for ${patientName}! (All Consultations Done ✅)`, 'success');
     } else {
       // Pharmacy review still pending in Pharmacy Queue!
@@ -1784,18 +1805,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   {Number(activePatient.specialInvestigation) === 1 && (
                     <div 
                       title="Click to mark special investigation as reviewed / clear flag"
-                      onClick={async () => {
-                        if (window.confirm("Mark special investigation as reviewed and clear flag?")) {
-                          try {
-                            await fetch(`${API_BASE}/api/patients/${activePatient.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ specialInvestigation: 0, specialInvestigationNotes: '' })
-                            });
-                            setActivePatient(prev => ({ ...prev, specialInvestigation: 0, specialInvestigationNotes: '' }));
-                          } catch(err) {}
-                        }
-                      }}
+                      onClick={() => setShowClearInvestigationConfirm(true)}
                       style={{
                         position: 'absolute',
                         top: '-38px', // hangs over the top edge of the card (card padding is 32px)
@@ -2635,16 +2645,57 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         </div>
                       </div>
 
-                      {medicines.map((med, idx) => (
-                        <MedicineInputRow
-                          key={idx}
-                          med={med}
-                          idx={idx}
-                          onChange={handleMedicineChange}
-                          onRemove={handleRemoveMedicine}
-                          canRemove={medicines.length > 1}
-                        />
-                      ))}
+                      {medicines.length === 0 ? (
+                        <div style={{
+                          padding: '1.25rem',
+                          textAlign: 'center',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px dashed var(--border)',
+                          borderRadius: '10px',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.88rem',
+                          marginBottom: '1rem'
+                        }}>
+                          <p style={{ margin: '0 0 0.65rem 0' }}>No medicines added to this prescription list.</p>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                              onClick={handleAddMedicine}
+                            >
+                              <Plus size={13} /> Add Tablet
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                              onClick={handleAddSyrup}
+                            >
+                              <Plus size={13} /> Add Syrup
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                              onClick={handleAddInjection}
+                            >
+                              <Plus size={13} /> Add Injection
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        medicines.map((med, idx) => (
+                          <MedicineInputRow
+                            key={idx}
+                            med={med}
+                            idx={idx}
+                            onChange={handleMedicineChange}
+                            onRemove={handleRemoveMedicine}
+                            canRemove={true}
+                          />
+                        ))
+                      )}
                     </div>
                   )}
 
@@ -4009,6 +4060,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
           {toast.type === 'success' ? <CheckCircle2 size={20} style={{ flexShrink: 0 }} /> : <AlertCircle size={20} style={{ flexShrink: 0 }} />}
           <span style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>{toast.message}</span>
         </div>
+      )}
+
+      {showClearInvestigationConfirm && activePatient && (
+        <ConfirmModal
+          isOpen={true}
+          title="Clear Investigation Flag"
+          message="Mark special investigation as reviewed and clear the flag for this patient?"
+          confirmText="Clear Flag"
+          type="warning"
+          onCancel={() => setShowClearInvestigationConfirm(false)}
+          onConfirm={async () => {
+            setShowClearInvestigationConfirm(false);
+            try {
+              await fetch(`${API_BASE}/api/patients/${activePatient.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ specialInvestigation: 0, specialInvestigationNotes: '' })
+              });
+              setActivePatient(prev => ({ ...prev, specialInvestigation: 0, specialInvestigationNotes: '' }));
+              showToast("Special investigation flag cleared successfully!", "success");
+            } catch(err) {
+              showToast("Failed to clear investigation flag.", "error");
+            }
+          }}
+        />
       )}
     </div>
   );

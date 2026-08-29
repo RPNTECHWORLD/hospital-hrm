@@ -7,6 +7,7 @@ import {
   addDoctor,
   deleteDoctor,
   updateDoctorLastLogin,
+  logoutDoctor,
   getStaff,
   addStaff,
   deleteStaff,
@@ -17,6 +18,7 @@ import {
   deleteAllPatients,
   getAttendance,
   addAttendance,
+  deleteAttendance,
   getDirectory,
   addDirectory,
   deleteDirectory,
@@ -48,6 +50,14 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
+
+// Gracefully handle malformed JSON payloads without server crash
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ message: 'Malformed JSON payload received' });
+  }
+  next(err);
+});
 
 // Database Auto-Initialization Middleware for Vercel Serverless & Localhost
 let isDbInitialized = false;
@@ -95,7 +105,7 @@ app.post('/api/auth/login', async (req, res) => {
     // 1. Check Doctors
     const doctorsList = await getDoctors();
     const doctor = doctorsList.find(d => matchesUser(d));
-    if (doctor && (doctor.password === passClean || passClean === 'password123')) {
+    if (doctor && doctor.password === passClean) {
       const todayDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
       try {
         await updateDoctorLastLogin(doctor.id, todayDateStr);
@@ -114,7 +124,7 @@ app.post('/api/auth/login', async (req, res) => {
     // 2. Check Admin & Staff
     const staffList = await getStaff();
     const staffMember = staffList.find(s => matchesUser(s));
-    if (staffMember && (staffMember.password === passClean || passClean === 'password123')) {
+    if (staffMember && staffMember.password === passClean) {
       return res.json({
         id: staffMember.id,
         email: staffMember.email,
@@ -229,6 +239,18 @@ app.delete('/api/doctors/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Doctor Logout Endpoint - Clears lastLoginDate so doctor is removed from Receptionist Available list
+app.post('/api/doctors/:id/logout', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await logoutDoctor(id);
+    const updatedList = await getDoctors();
+    res.json({ message: 'Doctor logged out successfully', doctors: updatedList });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Staff API
 app.get('/api/staff', async (req, res) => {
   try {
@@ -269,8 +291,16 @@ app.get('/api/attendance', async (req, res) => {
 });
 app.post('/api/attendance', async (req, res) => {
   try {
-    await addAttendance(req.body);
-    res.status(201).json({ message: 'Attendance marked' });
+    const result = await addAttendance(req.body);
+    res.status(201).json({ message: 'Attendance marked', result });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.delete('/api/attendance/:id', async (req, res) => {
+  try {
+    await deleteAttendance(req.params.id);
+    res.json({ message: 'Attendance record deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

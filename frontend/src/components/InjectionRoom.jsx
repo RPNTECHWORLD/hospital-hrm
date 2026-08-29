@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ShieldCheck, Clock, Search, AlertCircle, Syringe, Plus, Edit3, Trash2, CheckCircle2, XCircle, UserCheck } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -56,11 +57,6 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
 
   useEffect(() => {
     fetchInjections(true);
-    const interval = setInterval(() => {
-      fetchInjections(false);
-    }, 4000); // Poll database every 4s for real-time updates
-
-    return () => clearInterval(interval);
   }, []);
 
   // Open Administer Modal
@@ -616,9 +612,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
       </div>
 
       {/* Modal: Mark Administered */}
-      {showAdministerModal && activeInjection && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowAdministerModal(false)}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+      {showAdministerModal && activeInjection && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowAdministerModal(false)}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', margin: 'auto' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ marginTop: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)' }}>
               <ShieldCheck size={22} /> Confirm Injection Administration
             </h3>
@@ -656,13 +652,14 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: Edit Injection */}
-      {showEditModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowEditModal(false)}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+      {showEditModal && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowEditModal(false)}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-card, #ffffff)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto', margin: 'auto' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ marginTop: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
               <Edit3 size={22} /> Edit Injection Order
             </h3>
@@ -794,18 +791,19 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Custom Premium Confirmation Dialog Modal */}
-      {confirmDialog && (
+      {confirmDialog && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(10, 15, 29, 0.82)',
             backdropFilter: 'blur(8px)',
-            zIndex: 2000,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -824,7 +822,8 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
               borderRadius: '16px',
               padding: '1.75rem',
               boxShadow: '0 25px 60px -15px rgba(0,0,0,0.7)',
-              textAlign: 'center'
+              textAlign: 'center',
+              margin: 'auto'
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -880,7 +879,8 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -113,17 +113,21 @@ const Login = ({ onLogin }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate={false}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>User ID</label>
+              <label htmlFor="login-user-id" className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>User ID</label>
               <div className="login-input-group">
-                <User className="login-input-icon" size={18} />
+                <User className="login-input-icon" size={18} aria-hidden="true" />
                 <input
+                  id="login-user-id"
+                  name="username"
                   type="text"
                   className="form-input login-input-with-icon"
                   placeholder="Enter user ID or email"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
+                  autoComplete="username"
+                  aria-label="User ID or Email"
                   required
                   disabled={loading}
                   autoFocus
@@ -132,15 +136,19 @@ const Login = ({ onLogin }) => {
             </div>
 
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Password</label>
+              <label htmlFor="login-password" className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Password</label>
               <div className="login-input-group">
-                <Lock className="login-input-icon" size={18} />
+                <Lock className="login-input-icon" size={18} aria-hidden="true" />
                 <input
+                  id="login-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   className="form-input login-input-with-icon"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  aria-label="Password"
                   required
                   disabled={loading}
                   style={{ paddingRight: '2.75rem' }}
@@ -149,10 +157,10 @@ const Login = ({ onLogin }) => {
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   title={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                  {showPassword ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
                 </button>
               </div>
             </div>

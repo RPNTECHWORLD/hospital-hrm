@@ -1,126 +1,272 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer, Mail } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer, Mail, X } from 'lucide-react';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
+import { resolvePatientLocation } from '../utils/locationHelper';
 
-// Helper: extract city from address string "street | city | pincode"
+// Helper: extract city from address string "street | city | pincode" or free-form address
 const extractCity = (address) => {
   if (!address) return '';
-  const parts = address.split(' | ');
-  return parts.length >= 2 ? parts[1].trim() : parts[0].trim();
+  if (typeof address !== 'string') return '';
+  if (address.includes(' | ')) {
+    const parts = address.split(' | ');
+    return parts.length >= 2 ? parts[1].trim() : parts[0].trim();
+  }
+  const resolved = resolvePatientLocation(address);
+  if (resolved && resolved !== 'Not Specified') {
+    return resolved.replace(/\s*\(\d{6}\)/, '').trim();
+  }
+  const commaParts = address.split(',').map(s => s.trim()).filter(Boolean);
+  return commaParts.length >= 2 ? commaParts[commaParts.length - 1] : address.trim();
 };
 
-// Helper: extract pincode from address string "street | city | pincode"
+// Helper: extract pincode from address string
 const extractPincode = (address) => {
   if (!address) return '';
-  const parts = address.split(' | ');
-  return parts.length >= 3 ? parts[2].trim() : '';
+  const pinMatch = String(address).match(/\b([1-9]\d{5})\b/);
+  return pinMatch ? pinMatch[1] : '';
+};
+
+// Helper: Calculate exact stay duration text & milliseconds from stay object
+const getStayDurationInfo = (stay) => {
+  if (!stay) return { durationText: '0 Mins', totalHours: 0, totalDays: 0, totalMs: 0, isOngoing: false };
+
+  const isOngoing = !stay.dischargeDate || stay.status === 'Admitted';
+  const nowMs = Date.now();
+
+  let admitMs = stay.admitTimestamp;
+  if (!admitMs && stay.admitDateTime) {
+    const parsed = parseAnyDate(stay.admitDateTime);
+    admitMs = parsed ? parsed.getTime() : null;
+  }
+  if (!admitMs && stay.admitDate) {
+    const parsed = parseAnyDate(stay.admitDate);
+    admitMs = parsed ? parsed.getTime() : null;
+  }
+
+  let dischargeMs = stay.dischargeTimestamp;
+  if (!dischargeMs && stay.dischargeDateTime) {
+    const parsed = parseAnyDate(stay.dischargeDateTime);
+    dischargeMs = parsed ? parsed.getTime() : null;
+  }
+  if (!dischargeMs && stay.dischargeDate) {
+    const parsed = parseAnyDate(stay.dischargeDate);
+    dischargeMs = parsed ? parsed.getTime() : null;
+  }
+
+  if (isOngoing) {
+    dischargeMs = nowMs;
+  }
+
+  let diffMs = 0;
+  if (admitMs && dischargeMs) {
+    diffMs = Math.max(0, dischargeMs - admitMs);
+  } else if (stay.totalDays) {
+    diffMs = parseInt(stay.totalDays, 10) * 86400000;
+  }
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const totalHours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  const remainingMinutes = totalMinutes % 60;
+
+  let durationText = '';
+  if (days >= 1) {
+    if (remainingHours > 0) {
+      durationText = `${days} Day${days > 1 ? 's' : ''}, ${remainingHours} Hr${remainingHours > 1 ? 's' : ''}`;
+    } else {
+      durationText = `${days} Day${days > 1 ? 's' : ''}`;
+    }
+  } else if (totalHours >= 1) {
+    if (remainingMinutes > 0) {
+      durationText = `${totalHours} Hr${totalHours > 1 ? 's' : ''}, ${remainingMinutes} Min${remainingMinutes > 1 ? 's' : ''}`;
+    } else {
+      durationText = `${totalHours} Hr${totalHours > 1 ? 's' : ''}`;
+    }
+  } else if (totalMinutes > 0) {
+    durationText = `${totalMinutes} Min${totalMinutes > 1 ? 's' : ''}`;
+  } else if (isOngoing) {
+    durationText = '< 1 Min (Just Admitted)';
+  } else {
+    durationText = stay.stayDuration || 'Less than 1 Hour';
+  }
+
+  return {
+    durationText,
+    totalMinutes,
+    totalHours,
+    days,
+    totalMs: diffMs,
+    isOngoing
+  };
+};
+
+// Helper: Format cumulative milliseconds into friendly string
+const formatCumulativeDuration = (totalMs) => {
+  if (!totalMs || totalMs <= 0) return '0 Mins';
+  const totalMinutes = Math.floor(totalMs / 60000);
+  const totalHours = Math.floor(totalMs / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  const remainingMinutes = totalMinutes % 60;
+
+  if (days >= 1) {
+    if (remainingHours > 0) {
+      return `${days} Day${days > 1 ? 's' : ''}, ${remainingHours} Hr${remainingHours > 1 ? 's' : ''}`;
+    }
+    return `${days} Day${days > 1 ? 's' : ''}`;
+  }
+  if (totalHours >= 1) {
+    if (remainingMinutes > 0) {
+      return `${totalHours} Hr${totalHours > 1 ? 's' : ''}, ${remainingMinutes} Min${remainingMinutes > 1 ? 's' : ''}`;
+    }
+    return `${totalHours} Hr${totalHours > 1 ? 's' : ''}`;
+  }
+  return `${Math.max(1, totalMinutes)} Min${totalMinutes > 1 ? 's' : ''}`;
+};
+
+// Helper: robustly parse any date representation into a valid Date object
+const parseAnyDate = (dateVal) => {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  if (typeof dateVal === 'number') {
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const str = String(dateVal).trim();
+  if (!str) return null;
+
+  // 1. Check if string matches DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.
+  const match = str.match(/^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})/);
+  if (match) {
+    const p1 = parseInt(match[1], 10);
+    const p2 = parseInt(match[2], 10);
+    const p3 = parseInt(match[3], 10);
+
+    // Case A: YYYY-MM-DD or YYYY/MM/DD
+    if (p1 > 1000) {
+      const d = new Date(p1, p2 - 1, p3);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // Year is in p3
+    let year = p3;
+    if (year < 100) year += 2000;
+
+    // Case B: DD/MM/YYYY (p1 > 12 -> p1 is day, p2 is month)
+    if (p1 > 12 && p2 <= 12) {
+      const d = new Date(year, p2 - 1, p1);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // Case C: MM/DD/YYYY (p2 > 12 -> p2 is day, p1 is month)
+    if (p2 > 12 && p1 <= 12) {
+      const d = new Date(year, p1 - 1, p2);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // Case D: Both <= 12 (e.g. 8/9/2026 or 08/09/2026)
+    // Standard JS native parse defaults to MM/DD/YYYY (en-US which is standard in registration)
+    const nativeDate = new Date(str);
+    if (!isNaN(nativeDate.getTime())) {
+      return nativeDate;
+    }
+
+    const d = new Date(year, p2 - 1, p1);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // 2. Standard native Date parsing fallback (e.g. "Aug 27, 2026", ISO timestamps)
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return null;
+};
+
+// Helper: compare if two date objects fall on the same calendar day
+const isSameDay = (d1, d2) => {
+  if (!d1 || !d2) return false;
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
 };
 
 // Helper: parse any date format into epoch timestamp for accurate chronological sorting
 const parseDateToTimestamp = (dateVal, history) => {
   const raw = dateVal || (history && history.length > 0 && (history[history.length - 1].date || history[0].date)) || '';
   if (!raw) return 0;
-  if (typeof raw === 'number') return raw;
-
-  const str = String(raw).trim();
-
-  // 1. Check DD/MM/YYYY or DD/MM/YY (e.g. 26/08/2026, 26/08/26, 26-08-2026)
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  if (dmyMatch) {
-    const day = parseInt(dmyMatch[1], 10);
-    const month = parseInt(dmyMatch[2], 10) - 1;
-    let year = parseInt(dmyMatch[3], 10);
-    if (year < 100) {
-      year += 2000;
-    }
-    const d = new Date(year, month, day);
-    if (!isNaN(d.getTime())) return d.getTime();
-  }
-
-  // 2. Check standard JS Date string (e.g. ISO string or MM/DD/YYYY)
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime())) {
-    return parsed.getTime();
-  }
-
-  return 0;
+  const d = parseAnyDate(raw);
+  return d ? d.getTime() : 0;
 };
 
 // Helper: format date as pure DD/MM/YY (e.g. 26/08/26)
 const formatOnlyDate = (registrationDate, history) => {
   const raw = registrationDate || (history && history.length > 0 && (history[history.length - 1].date || history[0].date)) || '';
-  if (!raw) {
-    const d = new Date();
+  if (!raw) return '—';
+  const d = parseAnyDate(raw);
+  if (d) {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = String(d.getFullYear()).slice(-2);
     return `${day}/${month}/${year}`;
   }
-
-  const str = String(raw).trim();
-
-  // Check DD/MM/YYYY or DD/MM/YY
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  if (dmyMatch) {
-    const day = String(dmyMatch[1]).padStart(2, '0');
-    const month = String(dmyMatch[2]).padStart(2, '0');
-    const year = String(dmyMatch[3]).slice(-2);
-    return `${day}/${month}/${year}`;
-  }
-
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime())) {
-    const day = String(parsed.getDate()).padStart(2, '0');
-    const month = String(parsed.getMonth() + 1).padStart(2, '0');
-    const year = String(parsed.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
-  }
-
-  return str;
+  return String(raw);
 };
 
 // Helper: Check if date string matches yesterday
 const isYesterdayDate = (dateVal) => {
-  if (!dateVal) return false;
+  const d = parseAnyDate(dateVal);
+  if (!d) return false;
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yYear = yesterday.getFullYear();
-  const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
-  const yDay = String(yesterday.getDate()).padStart(2, '0');
-  const yYearShort = String(yYear).slice(-2);
-
-  const str = String(dateVal);
-  if (str.includes(`${yDay}/${yMonth}/${yYear}`) || str.includes(`${yDay}/${yMonth}/${yYearShort}`) || str.includes(`${yDay}-${yMonth}-${yYear}`) || str.includes(`${yDay}-${yMonth}-${yYearShort}`)) {
-    return true;
-  }
-  const timestamp = parseDateToTimestamp(dateVal);
-  if (timestamp > 0) {
-    const d = new Date(timestamp);
-    return d.getFullYear() === yYear && (d.getMonth() + 1) === parseInt(yMonth, 10) && d.getDate() === parseInt(yDay, 10);
-  }
-  return false;
+  return isSameDay(d, yesterday);
 };
 
 // Helper: Check if date string matches today
 const isTodayDate = (dateVal) => {
-  if (!dateVal) return true;
+  const d = parseAnyDate(dateVal);
+  if (!d) return false;
   const today = new Date();
-  const tYear = today.getFullYear();
-  const tMonth = String(today.getMonth() + 1).padStart(2, '0');
-  const tDay = String(today.getDate()).padStart(2, '0');
-  const tYearShort = String(tYear).slice(-2);
+  return isSameDay(d, today);
+};
 
-  const str = String(dateVal);
-  if (str.includes(`${tDay}/${tMonth}/${tYear}`) || str.includes(`${tDay}/${tMonth}/${tYearShort}`) || str.includes(`${tDay}-${tMonth}-${tYear}`) || str.includes(`${tDay}-${tMonth}-${tYearShort}`)) {
-    return true;
+// Helper: check if patient matches active date filter (checking registration date, consultation date, and visit histories)
+const patientMatchesDateFilter = (patient, filterType, customDateStr) => {
+  if (filterType === 'all') return true;
+
+  const candidateDates = [];
+  if (patient.registrationDate) candidateDates.push(patient.registrationDate);
+  if (patient.consultationDate) candidateDates.push(patient.consultationDate);
+  if (Array.isArray(patient.history)) {
+    patient.history.forEach(h => {
+      if (h && h.date) candidateDates.push(h.date);
+    });
   }
-  const timestamp = parseDateToTimestamp(dateVal);
-  if (timestamp > 0) {
-    const d = new Date(timestamp);
-    return d.getFullYear() === tYear && (d.getMonth() + 1) === parseInt(tMonth, 10) && d.getDate() === parseInt(tDay, 10);
+
+  if (candidateDates.length === 0) return false;
+
+  if (filterType === 'today') {
+    return candidateDates.some(d => isTodayDate(d));
   }
-  return false;
+  if (filterType === 'yesterday') {
+    return candidateDates.some(d => isYesterdayDate(d));
+  }
+  if (filterType === 'custom' && customDateStr) {
+    const targetDate = parseAnyDate(customDateStr);
+    if (!targetDate) return false;
+    return candidateDates.some(d => {
+      const parsed = parseAnyDate(d);
+      return parsed && isSameDay(parsed, targetDate);
+    });
+  }
+
+  return true;
 };
 
 const AdminPatientRecords = ({
@@ -142,6 +288,7 @@ const AdminPatientRecords = ({
   // Selected Patient for Details Overlay Modal
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [activePrescriptionPreview, setActivePrescriptionPreview] = useState(null);
+  const [activeStaySlip, setActiveStaySlip] = useState(null);
   const [padDesignMode, setPadDesignMode] = useState('auto');
 
   // Reset Filters
@@ -183,76 +330,121 @@ const AdminPatientRecords = ({
 
   // Stats Calculations
   const totalCount = patients.length;
-  const activeCount = patients.filter(p => p.status !== 'Inactive').length;
-  const deletedCount = patients.filter(p => p.status === 'Inactive').length;
-  const paidCount = patients.filter(p => p.paymentStatus && p.paymentStatus.startsWith('Paid')).length;
+  const activeCount = patients.filter(p => {
+    const s = (p.status || '').toLowerCase();
+    return s !== 'inactive' && s !== 'deleted';
+  }).length;
+  const paidCount = patients.filter(p => {
+    const s = (p.paymentStatus || p.paymentstatus || '').toLowerCase().trim();
+    return s.startsWith('paid');
+  }).length;
+  const unpaidCount = totalCount - paidCount;
 
   // Filtered Patients sorted strictly by Admit Date (Descending: Today on top, yesterday below today, etc.)
   const filteredPatients = patients
     .filter(p => {
-      // 1. Search Query (Name, ID, Contact, Mother/Guardian, Email)
-      const matchesSearch =
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(p.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.email && p.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.motherOrGuardianName && p.motherOrGuardianName.toLowerCase().includes(searchQuery.toLowerCase()));
+      // 1. Search Query (Name, ID, Contact, Mother/Guardian, Father/Husband, Email, Address, Token, Doctor)
+      const matchesSearch = !searchQuery.trim() || (() => {
+        const q = searchQuery.toLowerCase().trim();
+        const assignedDoc = (doctors || []).find(d => d.id === p.assignedDoctorId);
+        const idStr = String(p.id || '').toLowerCase();
+        const numId = idStr.replace(/\D/g, '');
+        const qNum = q.replace(/\D/g, '');
 
-      // 2. Status Filter
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && p.status !== 'Inactive') ||
-        (statusFilter === 'inactive' && p.status === 'Inactive') ||
-        (statusFilter === 'Reviewing' && p.status === 'Reviewing') ||
-        (statusFilter === 'In Queue' && (p.status === 'Registered' || p.status === 'In Queue' || !p.status)) ||
-        (statusFilter === 'Consulting' && p.status === 'Consulting') ||
-        (statusFilter === 'At Pharmacy' && (p.status === 'At Pharmacy' || p.status === 'Pharmacy')) ||
-        (statusFilter === 'Completed' && p.status === 'Completed') ||
-        (statusFilter === 'Admitted' && (p.status === 'Admitted' || Boolean(p.wardBedId)));
-
-      // 3. Date Filter
-      const pDate = p.registrationDate || (p.history && p.history.length > 0 && p.history[p.history.length - 1].date);
-      const matchesDate = (() => {
-        if (dateFilter === 'all') return true;
-        if (dateFilter === 'today') return isTodayDate(pDate);
-        if (dateFilter === 'yesterday') return isYesterdayDate(pDate);
-        if (dateFilter === 'custom' && customDate) {
-          if (!pDate) return false;
-          const target = new Date(customDate);
-          const d = new Date(pDate);
-          if (!isNaN(d.getTime()) && !isNaN(target.getTime())) {
-            return d.toDateString() === target.toDateString();
-          }
-          return pDate.includes(customDate);
-        }
-        return true;
+        return (
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          idStr.includes(q) ||
+          (qNum && numId && numId.includes(qNum)) ||
+          (p.contact && String(p.contact).toLowerCase().includes(q)) ||
+          (p.alternatePhone && String(p.alternatePhone).toLowerCase().includes(q)) ||
+          (p.email && p.email.toLowerCase().includes(q)) ||
+          (p.motherOrGuardianName && p.motherOrGuardianName.toLowerCase().includes(q)) ||
+          (p.fatherOrHusbandName && p.fatherOrHusbandName.toLowerCase().includes(q)) ||
+          (p.address && p.address.toLowerCase().includes(q)) ||
+          (p.tokenNumber && String(p.tokenNumber).includes(q)) ||
+          (p.previousDoctor && p.previousDoctor.toLowerCase().includes(q)) ||
+          (assignedDoc && assignedDoc.name && assignedDoc.name.toLowerCase().includes(q))
+        );
       })();
 
+      // 2. Status Filter
+      const pStatus = (p.status || '').trim().toLowerCase();
+      const matchesStatus = (() => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'active') return pStatus !== 'inactive' && pStatus !== 'deleted';
+        if (statusFilter === 'inactive') return pStatus === 'inactive' || pStatus === 'deleted';
+        if (statusFilter === 'Reviewing') return pStatus === 'reviewing' || pStatus === 'review';
+        if (statusFilter === 'In Queue') return pStatus === 'in queue' || pStatus === 'registered' || pStatus === 'waiting' || !p.status;
+        if (statusFilter === 'Consulting') return pStatus === 'consulting';
+        if (statusFilter === 'At Pharmacy') return pStatus === 'at pharmacy' || pStatus === 'pharmacy';
+        if (statusFilter === 'Completed') return pStatus === 'completed';
+        if (statusFilter === 'Admitted' || statusFilter === 'ward_admitted') return pStatus === 'admitted' || Boolean(p.wardBedId) || Boolean(p.bedAdmissionPending);
+        if (statusFilter === 'ward_discharged') {
+          let wardList = [];
+          if (p.wardHistory) {
+            if (Array.isArray(p.wardHistory)) wardList = p.wardHistory;
+            else if (typeof p.wardHistory === 'string') { try { wardList = JSON.parse(p.wardHistory); } catch (e) {} }
+          }
+          return !p.wardBedId && wardList.some(s => s && (s.status === 'Discharged' || s.dischargeDate));
+        }
+        if (statusFilter === 'ward_all') {
+          let wardList = [];
+          if (p.wardHistory) {
+            if (Array.isArray(p.wardHistory)) wardList = p.wardHistory;
+            else if (typeof p.wardHistory === 'string') { try { wardList = JSON.parse(p.wardHistory); } catch (e) {} }
+          }
+          return Boolean(p.wardBedId) || wardList.length > 0;
+        }
+        return pStatus === statusFilter.toLowerCase();
+      })();
+
+      // 3. Date Filter (Check registration date, consultation date, and visit histories)
+      const matchesDate = patientMatchesDateFilter(p, dateFilter, customDate);
+
       // 4. Payment Filter
-      const matchesPayment =
-        paymentFilter === 'all' ||
-        (paymentFilter === 'paid' && p.paymentStatus && p.paymentStatus.startsWith('Paid')) ||
-        (paymentFilter === 'unpaid' && (!p.paymentStatus || !p.paymentStatus.startsWith('Paid')));
+      const matchesPayment = (() => {
+        if (!paymentFilter || paymentFilter === 'all') return true;
+        const pPay = (p.paymentStatus || p.paymentstatus || '').toLowerCase().trim();
+        if (paymentFilter === 'paid') {
+          return pPay.startsWith('paid');
+        }
+        if (paymentFilter === 'unpaid') {
+          return !pPay || pPay.startsWith('unpaid');
+        }
+        if (paymentFilter === 'cash') {
+          return pPay.startsWith('paid') && pPay.includes('cash');
+        }
+        if (paymentFilter === 'upi') {
+          return pPay.startsWith('paid') && pPay.includes('upi');
+        }
+        if (paymentFilter === 'card') {
+          return pPay.startsWith('paid') && pPay.includes('card');
+        }
+        return pPay.startsWith(paymentFilter.toLowerCase());
+      })();
 
-      // 5. Above Age Filter (Minimum Age)
-      const matchesAboveAge = aboveAge === '' || p.age >= parseInt(aboveAge);
+      // 5. Age Boundaries Filter (Min and Max Age)
+      const pAge = parseInt(p.age, 10);
+      const minA = aboveAge !== '' ? parseInt(aboveAge, 10) : null;
+      const maxA = belowAge !== '' ? parseInt(belowAge, 10) : null;
+      const matchesAboveAge = minA === null || isNaN(minA) || (!isNaN(pAge) && pAge >= minA);
+      const matchesBelowAge = maxA === null || isNaN(maxA) || (!isNaN(pAge) && pAge <= maxA);
 
-      // 6. Below Age Filter (Maximum Age)
-      const matchesBelowAge = belowAge === '' || p.age <= parseInt(belowAge);
+      // 6. City / Town Filter (Strictly matches against the patient's identified City/Town)
+      const matchesCity = (() => {
+        if (!cityFilter || cityFilter === 'all' || cityFilter.trim() === '') return true;
+        const query = cityFilter.trim().toLowerCase();
+        const pCity = extractCity(p.address).toLowerCase();
+        return pCity.includes(query);
+      })();
 
-      // 7. City / Town Filter
-      const matchesCity =
-        !cityFilter ||
-        cityFilter === 'all' ||
-        (p.address && p.address.toLowerCase().includes(cityFilter.trim().toLowerCase())) ||
-        extractCity(p.address).toLowerCase().includes(cityFilter.trim().toLowerCase());
-
-      // 8. Pincode Filter
-      const matchesPincode =
-        !pincodeFilter ||
-        pincodeFilter === 'all' ||
-        (p.address && p.address.includes(pincodeFilter.trim())) ||
-        extractPincode(p.address).includes(pincodeFilter.trim());
+      // 7. Pincode Filter (Strictly matches against the patient's Pincode)
+      const matchesPincode = (() => {
+        if (!pincodeFilter || pincodeFilter === 'all' || pincodeFilter.trim() === '') return true;
+        const query = pincodeFilter.trim();
+        const pPin = extractPincode(p.address);
+        return pPin.includes(query);
+      })();
 
       return matchesSearch && matchesStatus && matchesDate && matchesPayment && matchesAboveAge && matchesBelowAge && matchesCity && matchesPincode;
     })
@@ -270,6 +462,17 @@ const AdminPatientRecords = ({
       return numB - numA;
     });
 
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+    statusFilter !== 'all' ||
+    dateFilter !== 'all' ||
+    paymentFilter !== 'all' ||
+    aboveAge !== '' ||
+    belowAge !== '' ||
+    (cityFilter && cityFilter !== 'all' && cityFilter.trim() !== '') ||
+    (pincodeFilter && pincodeFilter !== 'all' && pincodeFilter.trim() !== '')
+  );
+
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -282,8 +485,8 @@ const AdminPatientRecords = ({
       </div>
 
       {/* Stats Summary Panel */}
-      <div className="stats-grid" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => handleResetFilters()}>
+      <div className="stats-grid" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+        <div className="stat-card" style={{ cursor: 'pointer', border: !hasActiveFilters ? '2px solid var(--primary)' : '1px solid var(--border)' }} onClick={() => handleResetFilters()} title="Click to view all registered patients">
           <div className="stat-icon primary">
             <Users size={24} />
           </div>
@@ -293,7 +496,7 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('active')}>
+        <div className="stat-card" style={{ cursor: 'pointer', border: statusFilter === 'active' ? '2px solid var(--success)' : '1px solid var(--border)' }} onClick={() => { handleResetFilters(); setStatusFilter('active'); }} title="Click to filter active patients">
           <div className="stat-icon success">
             <CheckCircle size={24} />
           </div>
@@ -303,7 +506,7 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setPaymentFilter('paid')}>
+        <div className="stat-card" style={{ cursor: 'pointer', border: paymentFilter === 'paid' ? '2px solid #10b981' : '1px solid var(--border)' }} onClick={() => { handleResetFilters(); setPaymentFilter('paid'); }} title="Click to filter paid visits">
           <div className="stat-icon warning" style={{ color: 'var(--success)', background: 'rgba(16, 185, 129, 0.15)' }}>
             <span style={{ fontSize: '24px', fontWeight: 900, display: 'inline-block', lineHeight: 1 }}>$</span>
           </div>
@@ -312,14 +515,36 @@ const AdminPatientRecords = ({
             <div className="stat-label">Paid Visits</div>
           </div>
         </div>
+
+        <div className="stat-card" style={{ cursor: 'pointer', border: paymentFilter === 'unpaid' ? '2px solid #ef4444' : '1px solid var(--border)' }} onClick={() => { handleResetFilters(); setPaymentFilter('unpaid'); }} title="Click to filter unpaid visits">
+          <div className="stat-icon danger" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)' }}>
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <div className="stat-value">{unpaidCount}</div>
+            <div className="stat-label">Unpaid Visits</div>
+          </div>
+        </div>
       </div>
 
       {/* Advanced Filter Card */}
       <div className="card" style={{ marginBottom: '1.5rem', width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
-        <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Search size={18} style={{ color: 'var(--primary)' }} />
-          Advanced Query & Filters
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Search size={18} style={{ color: 'var(--primary)' }} />
+            Advanced Query & Filters
+          </h3>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleResetFilters}
+              style={{ padding: '0.35rem 0.9rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+            >
+              <X size={14} /> Clear All Filters
+            </button>
+          )}
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem 1rem', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           {/* Search Input */}
@@ -328,7 +553,7 @@ const AdminPatientRecords = ({
             <input
               type="text"
               className="form-input"
-              placeholder="Name, ID, Phone, Mother/Guardian..."
+              placeholder="Name, ID, Phone, Guardian, Doctor..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
@@ -344,7 +569,7 @@ const AdminPatientRecords = ({
               className="form-input"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: dateFilter === 'yesterday' || dateFilter === 'today' ? 700 : 400 }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: dateFilter !== 'all' ? 700 : 400 }}
             >
               <option value="all">All Dates</option>
               <option value="today">Registered / Visited Today</option>
@@ -371,7 +596,7 @@ const AdminPatientRecords = ({
               className="form-input"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: statusFilter === 'Reviewing' ? 700 : 400 }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: statusFilter !== 'all' ? 700 : 400 }}
             >
               <option value="all">All Statuses</option>
               <option value="Reviewing">📋 Reviewing (Doctor Follow-Up)</option>
@@ -379,7 +604,9 @@ const AdminPatientRecords = ({
               <option value="Consulting">🩺 Consulting</option>
               <option value="At Pharmacy">💊 At Pharmacy</option>
               <option value="Completed">✅ Completed</option>
-              <option value="Admitted">🛏️ Admitted (Ward)</option>
+              <option value="ward_admitted">🛏️ In Ward (Currently Admitted)</option>
+              <option value="ward_discharged">🏥 Ward Discharged (Past Stays)</option>
+              <option value="ward_all">🏥 All Ward Stay Patients</option>
               <option value="active">Active Patients Only</option>
               <option value="inactive">Deleted / Inactive Only</option>
             </select>
@@ -392,10 +619,13 @@ const AdminPatientRecords = ({
               className="form-input"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+              style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', fontWeight: paymentFilter !== 'all' ? 700 : 400 }}
             >
               <option value="all">All Payments</option>
-              <option value="paid">Paid Only</option>
+              <option value="paid">Paid Only (All Paid)</option>
+              <option value="cash">Paid - Cash Only</option>
+              <option value="upi">Paid - UPI Only</option>
+              <option value="card">Paid - Card Only</option>
               <option value="unpaid">Unpaid Only</option>
             </select>
           </div>
@@ -407,12 +637,18 @@ const AdminPatientRecords = ({
             </label>
             <input
               type="text"
+              list="city-options-list"
               className="form-input"
               placeholder="Search City / Town..."
               value={cityFilter === 'all' ? '' : cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
               style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             />
+            <datalist id="city-options-list">
+              {uniqueCities.map(c => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
 
           {/* Pincode Filter */}
@@ -422,12 +658,18 @@ const AdminPatientRecords = ({
             </label>
             <input
               type="text"
+              list="pincode-options-list"
               className="form-input"
               placeholder="Search Pincode..."
               value={pincodeFilter === 'all' ? '' : pincodeFilter}
               onChange={(e) => setPincodeFilter(e.target.value)}
               style={{ fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
             />
+            <datalist id="pincode-options-list">
+              {uniquePincodes.map(pin => (
+                <option key={pin} value={pin} />
+              ))}
+            </datalist>
           </div>
 
           {/* Custom Age Ranges */}
@@ -455,25 +697,55 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        {/* Reset Filter Button */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '1.25rem' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleResetFilters}
-            style={{ padding: '0.4rem 1.25rem', fontSize: '0.85rem' }}
-          >
-            Clear Filters
-          </button>
-        </div>
+        {/* Active Filter Pills Indicator */}
+        {hasActiveFilters && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Filters:</span>
+            {searchQuery.trim() && (
+              <span style={{ background: 'rgba(21, 115, 136, 0.15)', color: 'var(--primary)', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Search: "{searchQuery}" <X size={12} style={{ cursor: 'pointer' }} onClick={() => setSearchQuery('')} />
+              </span>
+            )}
+            {dateFilter !== 'all' && (
+              <span style={{ background: 'rgba(21, 115, 136, 0.15)', color: 'var(--primary)', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Date: {dateFilter === 'today' ? 'Today' : dateFilter === 'yesterday' ? 'Yesterday' : customDate || 'Custom'} <X size={12} style={{ cursor: 'pointer' }} onClick={() => { setDateFilter('all'); setCustomDate(''); }} />
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Status: {statusFilter} <X size={12} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('all')} />
+              </span>
+            )}
+            {paymentFilter !== 'all' && (
+              <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Payment: {paymentFilter} <X size={12} style={{ cursor: 'pointer' }} onClick={() => setPaymentFilter('all')} />
+              </span>
+            )}
+            {cityFilter && cityFilter !== 'all' && (
+              <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                City: {cityFilter} <X size={12} style={{ cursor: 'pointer' }} onClick={() => setCityFilter('all')} />
+              </span>
+            )}
+            {pincodeFilter && pincodeFilter !== 'all' && (
+              <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Pin: {pincodeFilter} <X size={12} style={{ cursor: 'pointer' }} onClick={() => setPincodeFilter('all')} />
+              </span>
+            )}
+            {(aboveAge !== '' || belowAge !== '') && (
+              <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                Age: {aboveAge || '0'} to {belowAge || '100+'} <X size={12} style={{ cursor: 'pointer' }} onClick={() => { setAboveAge(''); setBelowAge(''); }} />
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Patient Directory Table */}
       <div className="card" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Patient Database Records</h3>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Showing <strong>{filteredPatients.length}</strong> of {totalCount} records
+            Showing <strong style={{ color: filteredPatients.length > 0 ? 'var(--primary)' : '#ef4444' }}>{filteredPatients.length}</strong> of {totalCount} records
           </span>
         </div>
 
@@ -488,9 +760,22 @@ const AdminPatientRecords = ({
           boxSizing: 'border-box'
         }}>
           {filteredPatients.length === 0 ? (
-            <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-              No matching patient records found with active filters.
-            </p>
+            <div style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+              <div style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '1.1rem', fontWeight: 600 }}>
+                No matching patient records found with active filters.
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem', maxWidth: '500px', margin: '0 auto 1.25rem' }}>
+                Try adjusting or clearing your active filters to display patients in the database.
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleResetFilters}
+                style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}
+              >
+                Clear All Filters (Show All {totalCount} Patients)
+              </button>
+            </div>
           ) : (
             <table className="custom-table" style={{ minWidth: '1350px', width: '100%' }}>
               <thead style={{ background: '#e2e8f0' }}>
@@ -530,9 +815,9 @@ const AdminPatientRecords = ({
 
                   const getStatusBadgeClass = (status) => {
                     const s = (status || '').toLowerCase().trim();
-                    if (s === 'completed') return 'badge-success';
+                    if (s === 'completed') return 'badge-completed';
                     if (s === 'registered' || s === 'in queue' || !status) return 'badge-pending';
-                    if (s === 'at pharmacy' || s === 'pharmacy') return 'badge-warning';
+                    if (s === 'at pharmacy' || s === 'pharmacy') return 'badge-pharmacy';
                     if (s === 'reviewing' || s === 'review') return 'badge-reviewing';
                     if (s === 'consulting') return 'badge-consulting';
                     if (s === 'admitted') return 'badge-admitted';
@@ -697,31 +982,103 @@ const AdminPatientRecords = ({
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                        {!p.wardBedId && onAdmitToWard ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
-                            title="Admit to Ward Room"
-                            style={{
-                              background: 'rgba(15,118,110,0.08)',
-                              border: '1px solid rgba(15,118,110,0.25)',
-                              borderRadius: '6px',
-                              color: '#0f766e',
-                              padding: '0.3rem 0.6rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              fontSize: '0.78rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            <Bed size={13} /> Ward
-                          </button>
-                        ) : p.wardBedId ? (
-                          <span style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: 700 }}>
-                            Bed #{p.wardBedId}
-                          </span>
-                        ) : null}
+                        {(() => {
+                          let wardLogs = [];
+                          if (p.wardHistory) {
+                            if (Array.isArray(p.wardHistory)) {
+                              wardLogs = p.wardHistory;
+                            } else if (typeof p.wardHistory === 'string') {
+                              try { wardLogs = JSON.parse(p.wardHistory); } catch (e) {}
+                            }
+                          }
+                          const activeStay = wardLogs.find(s => s && (s.status === 'Admitted' || !s.dischargeDate));
+                          const pastStays = wardLogs.filter(s => s && (s.status === 'Discharged' || s.dischargeDate));
+
+                          if (p.wardBedId) {
+                            const durationBadgeText = activeStay ? getStayDurationInfo(activeStay).durationText : 'Admitted';
+                            return (
+                              <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
+                                <span style={{
+                                  fontSize: '0.78rem',
+                                  color: '#0f766e',
+                                  fontWeight: 800,
+                                  background: 'rgba(15, 118, 110, 0.12)',
+                                  padding: '0.25rem 0.6rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(15, 118, 110, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem'
+                                }}>
+                                  <Bed size={13} /> Bed #{p.wardBedId}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: '#16a34a', fontWeight: 700 }}>
+                                  🟢 In Ward ({durationBadgeText})
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          if (pastStays.length > 0) {
+                            const latestPast = pastStays[0];
+                            const latestPastInfo = getStayDurationInfo(latestPast);
+                            const totalPastMs = pastStays.reduce((acc, s) => acc + getStayDurationInfo(s).totalMs, 0);
+                            const displayDuration = formatCumulativeDuration(totalPastMs);
+
+                            return (
+                              <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
+                                <span
+                                  title={`Ward Stay: Admitted ${latestPast.admitDate || '--'} to ${latestPast.dischargeDate || '--'} (${latestPastInfo.durationText}) • Click to view full audit logs`}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); }}
+                                  style={{
+                                    fontSize: '0.76rem',
+                                    color: '#0284c7',
+                                    fontWeight: 700,
+                                    background: 'rgba(2, 132, 199, 0.1)',
+                                    padding: '0.22rem 0.55rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(2, 132, 199, 0.25)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <History size={12} /> Stay: {displayDuration}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                  Discharged ({latestPast.dischargeDate || 'Past'})
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          if (onAdmitToWard) {
+                            return (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onAdmitToWard(p); }}
+                                title="Admit to Ward Room"
+                                style={{
+                                  background: 'rgba(15,118,110,0.08)',
+                                  border: '1px solid rgba(15,118,110,0.25)',
+                                  borderRadius: '6px',
+                                  color: '#0f766e',
+                                  padding: '0.3rem 0.6rem',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600
+                                }}
+                              >
+                                <Bed size={13} /> + Ward
+                              </button>
+                            );
+                          }
+
+                          return <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>--</span>;
+                        })()}
                       </td>
                     </tr>
                   );
@@ -1195,6 +1552,234 @@ const AdminPatientRecords = ({
                   )}
                 </div>
 
+                {/* Ward & Hospital Bed Stay History Audit Section */}
+                {(() => {
+                  let wardLogs = [];
+                  if (selectedPatient.wardHistory) {
+                    if (Array.isArray(selectedPatient.wardHistory)) {
+                      wardLogs = selectedPatient.wardHistory;
+                    } else if (typeof selectedPatient.wardHistory === 'string') {
+                      try { wardLogs = JSON.parse(selectedPatient.wardHistory); } catch (e) {}
+                    }
+                  }
+
+                  const activeWardStay = wardLogs.find(s => s && (s.status === 'Admitted' || !s.dischargeDate));
+                  const totalWardStaysCount = wardLogs.length;
+                  const totalCumulativeMs = wardLogs.reduce((sum, s) => sum + getStayDurationInfo(s).totalMs, 0);
+                  const cumulativeDurationFormatted = formatCumulativeDuration(totalCumulativeMs);
+
+                  return (
+                    <div style={{
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: '1.25rem',
+                      marginTop: '1.25rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#0f766e' }}>
+                          <Bed size={18} /> Inpatient & Ward Stay Audit History
+                        </h4>
+                        {wardLogs.length > 0 && (
+                          <span style={{
+                            background: 'rgba(15, 118, 110, 0.12)',
+                            color: '#0f766e',
+                            fontWeight: 800,
+                            fontSize: '0.78rem',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(15, 118, 110, 0.25)'
+                          }}>
+                            Total Ward Stays: {totalWardStaysCount} • Cumulative: {cumulativeDurationFormatted}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Summary Banner */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gap: '0.75rem',
+                        marginBottom: '1rem',
+                        background: 'var(--bg-card, #111c30)',
+                        padding: '0.85rem 1rem',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Current Ward Status</span>
+                          {selectedPatient.wardBedId ? (
+                            <strong style={{ color: '#16a34a', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              🟢 Admitted in Bed #{selectedPatient.wardBedId}
+                            </strong>
+                          ) : wardLogs.length > 0 ? (
+                            <strong style={{ color: '#0284c7', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              🚪 Discharged ({wardLogs[0]?.dischargeDate || 'Completed'})
+                            </strong>
+                          ) : (
+                            <strong style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                              Never Admitted
+                            </strong>
+                          )}
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Total Inpatient Duration</span>
+                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                            {wardLogs.length > 0 ? `${cumulativeDurationFormatted}${activeWardStay ? ' (Active Stay)' : ' Total'}` : (selectedPatient.wardBedId ? 'Active Inpatient (Ongoing)' : '0 Hours / None')}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Last Bed Occupied</span>
+                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                            {selectedPatient.wardBedId ? `Bed #${selectedPatient.wardBedId}` : (wardLogs[0]?.bedId ? `Bed #${wardLogs[0].bedId} (${wardLogs[0].bedLabel || 'Room ' + wardLogs[0].room})` : 'N/A')}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* Ward Stay Session Cards */}
+                      {wardLogs.length === 0 ? (
+                        <div style={{
+                          padding: '2rem 1.5rem',
+                          textAlign: 'center',
+                          background: 'var(--bg-card, #111c30)',
+                          borderRadius: '10px',
+                          border: '1.5px dashed var(--border)',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.88rem'
+                        }}>
+                          {selectedPatient.wardBedId ? `Patient is currently assigned to Bed #${selectedPatient.wardBedId}. Official discharge duration will be calculated once discharged.` : 'No ward room admission records logged for this patient yet.'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                          {wardLogs.map((stay, index) => {
+                            const stayInfo = getStayDurationInfo(stay);
+                            const isOngoing = stayInfo.isOngoing;
+
+                            return (
+                              <div
+                                key={stay.id || index}
+                                style={{
+                                  background: isOngoing ? 'rgba(15, 118, 110, 0.08)' : 'var(--bg-card, #111c30)',
+                                  border: isOngoing ? '1.5px solid rgba(15, 118, 110, 0.4)' : '1px solid var(--border)',
+                                  borderLeft: isOngoing ? '4px solid #0f766e' : '4px solid #0284c7',
+                                  borderRadius: '10px',
+                                  padding: '1rem 1.25rem',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{
+                                      background: isOngoing ? '#0f766e' : '#0284c7',
+                                      color: '#fff',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 800,
+                                      padding: '0.2rem 0.55rem',
+                                      borderRadius: '6px'
+                                    }}>
+                                      {isOngoing ? 'ACTIVE ADMISSION' : `STAY #${wardLogs.length - index}`}
+                                    </span>
+                                    <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                      {stay.bedLabel || `Room ${stay.room || '101'} - ${stay.bedName || 'Bed A'}`} (Bed #{stay.bedId})
+                                    </strong>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{
+                                      background: isOngoing ? 'rgba(22, 163, 74, 0.15)' : 'rgba(2, 132, 199, 0.12)',
+                                      color: isOngoing ? '#16a34a' : '#0284c7',
+                                      fontWeight: 800,
+                                      fontSize: '0.78rem',
+                                      padding: '0.25rem 0.65rem',
+                                      borderRadius: '8px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.3rem'
+                                    }}>
+                                      <Clock size={13} /> Stay: {stayInfo.durationText}
+                                    </span>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveStaySlip({ patient: selectedPatient, stay })}
+                                      title="Print or View Ward Stay / Discharge Slip"
+                                      style={{
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid var(--border)',
+                                        color: 'var(--primary)',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem'
+                                      }}
+                                    >
+                                      <Printer size={12} /> Slip
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Stay Timeline Grid */}
+                                <div style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                  gap: '0.75rem',
+                                  background: 'var(--bg-dark, rgba(0,0,0,0.2))',
+                                  padding: '0.75rem 1rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--border)',
+                                  fontSize: '0.82rem'
+                                }}>
+                                  <div>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>📅 Admitted On:</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>
+                                      {stay.admitDateTime || stay.admitDate || '--'}
+                                    </strong>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.1rem' }}>
+                                      By: {stay.admittedBy || 'Ward Staff'}
+                                    </span>
+                                  </div>
+
+                                  <div>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>🚪 Discharged On:</span>
+                                    <strong style={{ color: isOngoing ? '#16a34a' : 'var(--text-primary)' }}>
+                                      {isOngoing ? 'Currently In Ward' : (stay.dischargeDateTime || stay.dischargeDate || '--')}
+                                    </strong>
+                                    {!isOngoing && (
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.1rem' }}>
+                                        By: {stay.dischargedBy || 'Ward Staff'}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>⏱️ Duration:</span>
+                                    <strong style={{ color: '#0f766e', fontWeight: 800 }}>
+                                      {stayInfo.durationText}
+                                    </strong>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.1rem' }}>
+                                      Status: {isOngoing ? 'Active Inpatient' : 'Discharged'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {stay.notes && (
+                                  <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    <strong style={{ color: 'var(--text-primary)' }}>Notes:</strong> {stay.notes}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Doctor Reassignment Audit Log Section */}
                 {(() => {
                   let trackingLogs = [];
@@ -1413,6 +1998,360 @@ const AdminPatientRecords = ({
                     className="btn btn-secondary"
                     onClick={() => setActivePrescriptionPreview(null)}
                     style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Ward Stay & Discharge Slip Modal */}
+      {activeStaySlip && (() => {
+        const { patient, stay } = activeStaySlip;
+        const isOngoing = !stay.dischargeDate || stay.status === 'Admitted';
+
+        return (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }} onClick={() => setActiveStaySlip(null)}>
+            <div style={{
+              background: '#ffffff',
+              color: '#0f172a',
+              width: '100%',
+              maxWidth: '650px',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
+              border: '1px solid #cbd5e1'
+            }} onClick={e => e.stopPropagation()}>
+              
+              {/* Slip Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #0f766e, #0e7490)',
+                color: '#fff',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>VIJAYA'S HEALTH CARE</h3>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+                    Inpatient Ward Admission & Stay Summary Certificate
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStaySlip(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Slip Content */}
+              <div style={{ padding: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>PATIENT NAME</span>
+                    <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>{patient.name}</strong>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      ID: #{patient.id} • {patient.age} Yrs • {patient.gender}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>WARD / ROOM</span>
+                    <strong style={{ fontSize: '1.1rem', color: '#0f766e' }}>
+                      {stay.bedLabel || `Room ${stay.room || '101'} - ${stay.bedName || 'Bed A'}`}
+                    </strong>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Bed Identifier: #{stay.bedId}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>ADMISSION DATE & TIME</span>
+                    <strong style={{ color: '#0f172a' }}>{stay.admitDateTime || stay.admitDate || '--'}</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                      Admitted By: {stay.admittedBy || 'Ward Desk'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>DISCHARGE DATE & TIME</span>
+                    <strong style={{ color: isOngoing ? '#16a34a' : '#0f172a' }}>
+                      {isOngoing ? 'Currently In Ward' : (stay.dischargeDateTime || stay.dischargeDate || '--')}
+                    </strong>
+                    {!isOngoing && (
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                        Discharged By: {stay.dischargedBy || 'Ward Staff'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ecfdf5', border: '1.5px solid #a7f3d0', padding: '0.85rem 1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#065f46', display: 'block', fontWeight: 700 }}>TOTAL STAY DURATION</span>
+                    <strong style={{ fontSize: '1.25rem', color: '#047857' }}>
+                      {stay.stayDuration || `${stay.totalDays || 1} Days`}
+                    </strong>
+                  </div>
+                  <span style={{
+                    background: isOngoing ? '#16a34a' : '#0f766e',
+                    color: '#fff',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '8px'
+                  }}>
+                    {isOngoing ? 'ACTIVE ADMISSION' : 'DISCHARGED'}
+                  </span>
+                </div>
+
+                {patient.contact && (
+                  <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                    Contact Phone: <strong style={{ color: '#0f172a' }}>{patient.contact}</strong>
+                  </div>
+                )}
+
+                {stay.notes && (
+                  <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                    Remarks: <span style={{ color: '#0f172a' }}>{stay.notes}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Slip Footer */}
+              <div style={{
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                padding: '1rem 1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  Vijaya's Health Care Hospital Information System
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const printWindow = window.open('', '_blank', 'width=750,height=850');
+                      const admitStr = stay.admitDateTime || stay.admitDate || '--';
+                      const dischargeStr = isOngoing ? 'Currently In Ward' : (stay.dischargeDateTime || stay.dischargeDate || '--');
+                      const durationStr = stay.stayDuration || `${stay.totalDays || 1} Days`;
+                      const bedTitle = stay.bedLabel || `Room ${stay.room || '101'} - ${stay.bedName || 'Bed A'}`;
+
+                      if (!printWindow) {
+                        window.print();
+                        return;
+                      }
+
+                      printWindow.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>Ward Stay Certificate - ${patient.name}</title>
+                            <style>
+                              @page { size: A4 portrait; margin: 15mm; }
+                              body {
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                                color: #0f172a;
+                                background: #fff;
+                                margin: 0;
+                                padding: 20px;
+                              }
+                              .slip-card {
+                                border: 2px solid #0f766e;
+                                border-radius: 12px;
+                                overflow: hidden;
+                                max-width: 680px;
+                                margin: 0 auto;
+                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                              }
+                              .slip-header {
+                                background: linear-gradient(135deg, #0f766e, #0e7490);
+                                color: #fff;
+                                padding: 20px 24px;
+                              }
+                              .slip-header h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+                              .slip-header p { margin: 4px 0 0 0; font-size: 13px; opacity: 0.95; }
+                              .slip-body { padding: 24px; }
+                              .patient-row {
+                                display: flex;
+                                justify-content: space-between;
+                                border-bottom: 2px solid #e2e8f0;
+                                padding-bottom: 16px;
+                                margin-bottom: 18px;
+                              }
+                              .patient-name { font-size: 20px; font-weight: 800; color: #0f172a; }
+                              .patient-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
+                              .room-title { font-size: 18px; font-weight: 800; color: #0f766e; text-align: right; }
+                              .grid-2 {
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 16px;
+                                background: #f8fafc;
+                                padding: 16px;
+                                border-radius: 8px;
+                                border: 1px solid #e2e8f0;
+                                margin-bottom: 18px;
+                              }
+                              .label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+                              .val { font-size: 15px; font-weight: 700; color: #0f172a; }
+                              .sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+                              .duration-box {
+                                background: #ecfdf5;
+                                border: 1.5px solid #a7f3d0;
+                                padding: 16px 20px;
+                                border-radius: 8px;
+                                margin-bottom: 18px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                              }
+                              .duration-val { font-size: 22px; font-weight: 800; color: #047857; }
+                              .badge {
+                                background: ${isOngoing ? '#16a34a' : '#0f766e'};
+                                color: #fff;
+                                padding: 6px 14px;
+                                border-radius: 6px;
+                                font-size: 12px;
+                                font-weight: 800;
+                                text-transform: uppercase;
+                              }
+                              .slip-footer {
+                                background: #f8fafc;
+                                border-top: 1px solid #e2e8f0;
+                                padding: 14px 24px;
+                                font-size: 11px;
+                                color: #94a3b8;
+                                display: flex;
+                                justify-content: space-between;
+                              }
+                              .sig-row {
+                                display: flex;
+                                justify-content: space-between;
+                                margin-top: 35px;
+                                padding-top: 20px;
+                                border-top: 1px dashed #cbd5e1;
+                              }
+                              .sig-box { text-align: center; font-size: 12px; color: #64748b; }
+                              .sig-line { width: 140px; border-bottom: 1px solid #94a3b8; margin-bottom: 6px; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="slip-card">
+                              <div class="slip-header">
+                                <h2>VIJAYA'S HEALTH CARE</h2>
+                                <p>Inpatient Ward Admission & Stay Summary Certificate</p>
+                              </div>
+                              <div class="slip-body">
+                                <div class="patient-row">
+                                  <div>
+                                    <div class="label">Patient Details</div>
+                                    <div class="patient-name">${patient.name}</div>
+                                    <div class="patient-sub">UHID: #${patient.id} • ${patient.age} Yrs • ${patient.gender}</div>
+                                  </div>
+                                  <div>
+                                    <div class="label" style="text-align: right;">Ward & Room Allocation</div>
+                                    <div class="room-title">${bedTitle}</div>
+                                    <div class="patient-sub" style="text-align: right;">Bed Identifier: #${stay.bedId}</div>
+                                  </div>
+                                </div>
+
+                                <div class="grid-2">
+                                  <div>
+                                    <div class="label">Admission Date & Time</div>
+                                    <div class="val">${admitStr}</div>
+                                    <div class="sub">Admitted By: ${stay.admittedBy || 'Ward Desk'}</div>
+                                  </div>
+                                  <div>
+                                    <div class="label">Discharge Date & Time</div>
+                                    <div class="val" style="color: ${isOngoing ? '#16a34a' : '#0f172a'};">${dischargeStr}</div>
+                                    <div class="sub">${isOngoing ? 'Status: Active Inpatient' : 'Discharged By: ' + (stay.dischargedBy || 'Ward Staff')}</div>
+                                  </div>
+                                </div>
+
+                                <div class="duration-box">
+                                  <div>
+                                    <div class="label" style="color: #065f46;">Total Stay Duration</div>
+                                    <div class="duration-val">${durationStr}</div>
+                                  </div>
+                                  <div class="badge">${isOngoing ? 'ACTIVE ADMISSION' : 'DISCHARGED'}</div>
+                                </div>
+
+                                ${patient.contact ? '<div style="font-size: 13px; color: #64748b; margin-bottom: 6px;">Contact Phone: <strong style="color: #0f172a;">' + patient.contact + '</strong></div>' : ''}
+                                ${stay.notes ? '<div style="font-size: 13px; color: #64748b; margin-bottom: 6px;">Remarks: <span style="color: #0f172a;">' + stay.notes + '</span></div>' : ''}
+
+                                <div class="sig-row">
+                                  <div class="sig-box">
+                                    <div class="sig-line"></div>
+                                    Medical Officer / Doctor
+                                  </div>
+                                  <div class="sig-box">
+                                    <div class="sig-line"></div>
+                                    Ward Administrator
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="slip-footer">
+                                <span>Vijaya's Health Care Hospital Information System</span>
+                                <span>Printed on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
+                              </div>
+                            </div>
+                            <script>
+                              window.onload = function() {
+                                setTimeout(function() {
+                                  window.print();
+                                }, 250);
+                              };
+                            </script>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }}
+                    style={{ padding: '0.45rem 1.1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Printer size={15} /> Print Slip
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setActiveStaySlip(null)}
+                    style={{ padding: '0.45rem 1.1rem', fontSize: '0.85rem' }}
                   >
                     Close
                   </button>

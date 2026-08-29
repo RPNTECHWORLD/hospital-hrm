@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Trash2, Plus, Sparkles, Check, ClipboardList, Clock, AlertCircle, FileText, Camera } from 'lucide-react';
+import { Calendar, Trash2, Plus, Sparkles, Check, ClipboardList, Clock, AlertCircle, FileText, Camera, CheckCircle } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -22,7 +23,9 @@ const UtilityLogs = ({ userRole }) => {
   const [attendanceMap, setAttendanceMap] = useState({}); // { staffId: boolean }
   const [attendanceShift, setAttendanceShift] = useState('Day'); // 'Day' or 'Night'
 
-  // Attendance Log Filters
+  // UI & Feedback States
+  const [attendanceSavedMsg, setAttendanceSavedMsg] = useState(false);
+  const [confirmDeleteConfig, setConfirmDeleteConfig] = useState(null);
   const [filterAttDate, setFilterAttDate] = useState('');
   const [filterAttStaff, setFilterAttStaff] = useState('');
   const [filterAttShift, setFilterAttShift] = useState('All'); // 'All', 'Day', 'Night'
@@ -77,13 +80,25 @@ const UtilityLogs = ({ userRole }) => {
     fetchData();
   }, []);
 
+  // Sync attendanceMap dynamically when date, shift, staff, or attendanceLogs change
   useEffect(() => {
-    const initialMap = {};
-    staffList.forEach(s => {
-      initialMap[s.id] = (attendanceShift === 'Day');
-    });
-    setAttendanceMap(initialMap);
-  }, [attendanceShift, staffList]);
+    const existingMap = {};
+    const matchingLogs = attendanceLogs.filter(l => 
+      l.date === attendanceDate && (l.shift || 'Day') === attendanceShift
+    );
+
+    if (matchingLogs.length > 0) {
+      staffList.forEach(s => {
+        const log = matchingLogs.find(l => String(l.staffId) === String(s.id));
+        existingMap[s.id] = log ? (log.status === 'Present') : (attendanceShift === 'Day');
+      });
+    } else {
+      staffList.forEach(s => {
+        existingMap[s.id] = (attendanceShift === 'Day');
+      });
+    }
+    setAttendanceMap(existingMap);
+  }, [attendanceDate, attendanceShift, staffList, attendanceLogs]);
 
   // Housekeeping handlers
   const handleAddHousekeeping = async (e) => {
@@ -116,7 +131,6 @@ const UtilityLogs = ({ userRole }) => {
   };
 
   const handleDeleteHousekeeping = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this housekeeping log?")) return;
     try {
       const response = await fetch(`${API_BASE}/api/housekeeping/${id}`, {
         method: 'DELETE'
@@ -133,6 +147,10 @@ const UtilityLogs = ({ userRole }) => {
   const handleMarkAttendance = async (e) => {
     e.preventDefault();
     try {
+      const isAlreadyRegistered = attendanceLogs.some(l => 
+        l.date === attendanceDate && (l.shift || 'Day') === attendanceShift
+      );
+
       for (const staffId of Object.keys(attendanceMap)) {
         await fetch(`${API_BASE}/api/attendance`, {
           method: 'POST',
@@ -146,10 +164,24 @@ const UtilityLogs = ({ userRole }) => {
           })
         });
       }
-      alert('Attendance logs recorded successfully.');
+      setAttendanceSavedMsg(isAlreadyRegistered ? 'updated' : 'new');
+      setTimeout(() => setAttendanceSavedMsg(null), 4000);
       fetchData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteAttendance = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/attendance/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error("Failed to delete attendance:", err);
     }
   };
 
@@ -196,7 +228,6 @@ const UtilityLogs = ({ userRole }) => {
   };
 
   const handleDeleteWasteLog = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this waste log?")) return;
     try {
       const response = await fetch(`${API_BASE}/api/waste/${id}`, {
         method: 'DELETE'
@@ -269,7 +300,15 @@ const UtilityLogs = ({ userRole }) => {
                         <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
-                            onClick={() => handleDeleteHousekeeping(log.id)}
+                            onClick={() => setConfirmDeleteConfig({
+                              title: 'Delete Housekeeping Log',
+                              message: `Delete housekeeping record for "${log.placeName}" on ${log.date}?`,
+                              confirmText: 'Delete Record',
+                              onConfirm: () => {
+                                handleDeleteHousekeeping(log.id);
+                                setConfirmDeleteConfig(null);
+                              }
+                            })}
                             title="Delete Record"
                             style={{
                               background: 'rgba(225, 29, 72, 0.08)',
@@ -355,6 +394,10 @@ const UtilityLogs = ({ userRole }) => {
           return matchDate && matchStaff && matchShift && matchStatus;
         });
 
+        const isAlreadyMarkedForSelected = attendanceLogs.some(
+          l => l.date === attendanceDate && (l.shift || 'Day') === attendanceShift
+        );
+
         return (
           <div className="grid-2">
             <div className="card">
@@ -362,6 +405,27 @@ const UtilityLogs = ({ userRole }) => {
                 <Calendar size={20} style={{ color: 'var(--primary)' }} />
                 Active Staff Attendance Register
               </h3>
+
+              {isAlreadyMarkedForSelected && (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: '8px',
+                  marginBottom: '1.25rem',
+                  fontSize: '0.84rem',
+                  color: '#d97706',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <AlertCircle size={18} />
+                  <span>
+                    Attendance is already registered for <strong>{attendanceDate}</strong> ({attendanceShift} Shift). Saving again will update existing entries without creating duplicates.
+                  </span>
+                </div>
+              )}
 
               <form onSubmit={handleMarkAttendance}>
                 <div className="form-group">
@@ -427,6 +491,18 @@ const UtilityLogs = ({ userRole }) => {
                     </tbody>
                   </table>
                 </div>
+
+                {attendanceSavedMsg === 'new' && (
+                  <div style={{ padding: '0.65rem 1rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid #10b98140', color: '#10b981', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem' }}>
+                    <CheckCircle size={16} /> Attendance logs recorded successfully!
+                  </div>
+                )}
+
+                {attendanceSavedMsg === 'updated' && (
+                  <div style={{ padding: '0.65rem 1rem', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#d97706', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem' }}>
+                    <AlertCircle size={16} /> Attendance already registered! Existing records have been updated (No duplicates added).
+                  </div>
+                )}
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
                   ✓ Save Attendance Log
@@ -510,13 +586,14 @@ const UtilityLogs = ({ userRole }) => {
                         <th>Staff Name</th>
                         <th>Shift</th>
                         <th>Attendance</th>
+                        <th style={{ textAlign: 'center' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredAttendanceLogs.slice().reverse().map((log, index) => {
                         const s = staffList.find(st => st.id === log.staffId);
                         return (
-                          <tr key={index}>
+                          <tr key={log.id || index}>
                             <td>{log.date}</td>
                             <td>
                               <div style={{ fontWeight: 600 }}>{s ? s.name : `Staff #${log.staffId}`}</div>
@@ -533,6 +610,27 @@ const UtilityLogs = ({ userRole }) => {
                               }`}>
                                 {log.status}
                               </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {log.id && (
+                                <button
+                                  type="button"
+                                  className="btn-icon danger"
+                                  style={{ padding: '0.3rem', border: 'none', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
+                                  title="Delete Attendance Entry"
+                                  onClick={() => setConfirmDeleteConfig({
+                                    title: 'Delete Attendance Record',
+                                    message: `Delete ${s?.name || 'Staff'} attendance record for ${log.date} (${log.shift || 'Day'} Shift)?`,
+                                    confirmText: 'Delete Record',
+                                    onConfirm: () => {
+                                      handleDeleteAttendance(log.id);
+                                      setConfirmDeleteConfig(null);
+                                    }
+                                  })}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -593,7 +691,15 @@ const UtilityLogs = ({ userRole }) => {
                         <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
-                            onClick={() => handleDeleteWasteLog(w.id)}
+                            onClick={() => setConfirmDeleteConfig({
+                              title: 'Delete Waste Disposal Log',
+                              message: `Delete ${w.wasteType} log recorded on ${w.date}?`,
+                              confirmText: 'Delete Record',
+                              onConfirm: () => {
+                                handleDeleteWasteLog(w.id);
+                                setConfirmDeleteConfig(null);
+                              }
+                            })}
                             title="Delete Record"
                             style={{
                               background: 'rgba(225, 29, 72, 0.08)',
@@ -683,6 +789,18 @@ const UtilityLogs = ({ userRole }) => {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDeleteConfig && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmDeleteConfig.title}
+          message={confirmDeleteConfig.message}
+          confirmText={confirmDeleteConfig.confirmText || 'Delete'}
+          type="danger"
+          onCancel={() => setConfirmDeleteConfig(null)}
+          onConfirm={confirmDeleteConfig.onConfirm}
+        />
       )}
     </div>
   );

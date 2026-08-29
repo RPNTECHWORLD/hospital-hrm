@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, DollarSign, Search, Trash2, Plus, Phone, Tag, MapPin, Activity } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -18,6 +19,7 @@ const DirectoryLedger = () => {
   const [details, setDetails] = useState('');
   const [amount, setAmount] = useState('');
   const [formError, setFormError] = useState('');
+  const [deleteTargetContact, setDeleteTargetContact] = useState(null);
 
   const handlePhoneChange = (e) => {
     const val = e.target.value.replace(/\D/g, '');
@@ -109,7 +111,6 @@ const DirectoryLedger = () => {
   };
 
   const handleDeleteContact = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
     try {
       const response = await fetch(`${API_BASE}/api/directory/${id}`, {
         method: 'DELETE'
@@ -254,7 +255,7 @@ const DirectoryLedger = () => {
                         </td>
                         <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.details || '--'}</td>
                         <td style={{ textAlign: 'right' }}>
-                          <button className="btn-logout" onClick={() => handleDeleteContact(c.id)} title="Delete Contact">
+                          <button className="btn-logout" onClick={() => setDeleteTargetContact(c)} title="Delete Contact">
                             <Trash2 size={16} />
                           </button>
                         </td>
@@ -447,6 +448,22 @@ const DirectoryLedger = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {deleteTargetContact && (
+        <ConfirmModal
+          isOpen={true}
+          title="Delete Contact Entry"
+          message="Are you sure you want to remove this contact from the directory?"
+          itemName={deleteTargetContact.name}
+          confirmText="Delete Contact"
+          type="danger"
+          onCancel={() => setDeleteTargetContact(null)}
+          onConfirm={() => {
+            handleDeleteContact(deleteTargetContact.id);
+            setDeleteTargetContact(null);
+          }}
+        />
       )}
     </div>
   );
