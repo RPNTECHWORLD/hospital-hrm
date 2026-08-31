@@ -23,7 +23,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
 
   const handleAcceptPendingAdmit = async (patientId, bedId) => {
-    setProcessedPatientIds(prev => [...prev, String(patientId)]);
+    const cleanPid = String(patientId || '').replace(/#/g, '').trim();
+    setProcessedPatientIds(prev => [...prev, String(patientId), cleanPid, `#${cleanPid}`]);
     setProcessingPatientId(patientId);
     // Instant optimistic assignment to local bed card
     setBeds(prev => prev.map(b => b.id === bedId ? { ...b, patientId } : b));
@@ -37,7 +38,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   };
 
   const handleDeclinePendingAdmit = async (patientId) => {
-    setProcessedPatientIds(prev => [...prev, String(patientId)]);
+    const cleanPid = String(patientId || '').replace(/#/g, '').trim();
+    setProcessedPatientIds(prev => [...prev, String(patientId), cleanPid, `#${cleanPid}`]);
     setProcessingPatientId(patientId);
     try {
       await onDischargePatient(patientId);
@@ -47,6 +49,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
       setProcessingPatientId(null);
     }
   };
+
 
 
   // Sync beds state when patients prop changes
@@ -292,7 +295,11 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
             {beds.map(bed => {
               const patient = patients.find(p => p.id === bed.patientId);
               const isOccupied = bed.patientId !== null;
-              const isPending = patient && (patient.bedAdmissionPending == 1 || patient.bedAdmissionPending === '1' || patient.bedAdmissionPending === true);
+              const isPending = patient && 
+                !processedPatientIds.includes(String(patient.id)) && 
+                !processedPatientIds.includes(String(patient.id).replace(/#/g, '')) && 
+                (patient.bedAdmissionPending == 1 || patient.bedAdmissionPending === '1' || patient.bedAdmissionPending === true);
+
 
               return (
                 <div 
