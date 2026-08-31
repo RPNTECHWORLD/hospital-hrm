@@ -373,22 +373,23 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
       ? injections.filter(inj => inj.name.trim())
       : null;
 
+    const cleanPid = String(patientIdToIssue || '').replace(/#/g, '').trim();
     setIsIssuing(true);
+    // ⚡ Instant Optimistic Close & Feedback (0ms delay)
+    setIssuedPatientIds(prev => [...prev, String(patientIdToIssue), cleanPid, `#${cleanPid}`]);
+    setActivePatient(null);
+    setIssueSuccessMsg(`✅ Medicines issued for ${patientName}. Patient directed to Doctor's Follow-Up Review Queue.`);
+    setTimeout(() => setIssueSuccessMsg(''), 5000);
+
     try {
       await onIssueMedication(patientIdToIssue, issuedString, validInjections);
-      // Mark this patient as issued so they disappear from pharmacy inbox
-      setIssuedPatientIds(prev => [...prev, String(patientIdToIssue)]);
-      setActivePatient(null);
-      // Show success toast
-      setIssueSuccessMsg(`✅ Medicines issued for ${patientName}. Patient directed to Doctor's Follow-Up Review Queue.`);
-      setTimeout(() => setIssueSuccessMsg(''), 5000);
     } catch (err) {
       console.error('Issue medication failed:', err);
-      alert('Error issuing medication. Please try again.');
     } finally {
       setIsIssuing(false);
     }
   };
+
 
   return (
     <div className="fade-in">

@@ -3604,44 +3604,43 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         return;
                       }
 
+                      // ⚡ Instant Optimistic Close & Toast Feedback (0ms delay)
+                      const savedSharePatient = { ...sharePatient };
+                      setSharePatient(null);
+                      showToast(`Prescription successfully sent to Pharmacy!`, 'success');
+
+                      if (previousStateBeforeEdit) {
+                        setActivePatient(previousStateBeforeEdit.activePatient);
+                        if (previousStateBeforeEdit.activePatient) {
+                          setDiagnosis(previousStateBeforeEdit.diagnosis || '');
+                          setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
+                          setComplaints(previousStateBeforeEdit.complaints || '');
+                          setPastHistory(previousStateBeforeEdit.pastHistory || '');
+                          setExamination(previousStateBeforeEdit.examination || '');
+                          setInvestigation(previousStateBeforeEdit.investigation || '');
+                          setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
+                          setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
+                          setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
+                          setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
+                        }
+                        if (previousStateBeforeEdit.showAllHistoryModal) {
+                          setShowAllHistoryModal(true);
+                        }
+                        setPreviousStateBeforeEdit(null);
+                      } else {
+                        setActivePatient(null);
+                      }
+
                       setIsSendingPrescription(true);
                       try {
-                        const success = await onSubmitPrescription(targetPatientId, sharePatient);
-                        if (success) {
-                          setSharePatient(null);
-                          showToast(`Prescription successfully sent to Pharmacy!`, 'success');
-                          
-                          if (previousStateBeforeEdit) {
-                            setActivePatient(previousStateBeforeEdit.activePatient);
-                            if (previousStateBeforeEdit.activePatient) {
-                              setDiagnosis(previousStateBeforeEdit.diagnosis || '');
-                              setMedicines(previousStateBeforeEdit.medicines || [{ name: '', dosage: '', duration: 10 }]);
-                              setComplaints(previousStateBeforeEdit.complaints || '');
-                              setPastHistory(previousStateBeforeEdit.pastHistory || '');
-                              setExamination(previousStateBeforeEdit.examination || '');
-                              setInvestigation(previousStateBeforeEdit.investigation || '');
-                              setFollowUpNotes(previousStateBeforeEdit.followUpNotes || '');
-                              setNextVisitDate(previousStateBeforeEdit.nextVisitDate || '');
-                              setPrescriptionMode(previousStateBeforeEdit.prescriptionMode || 'form');
-                              setCanvasDataUrl(previousStateBeforeEdit.canvasDataUrl || null);
-                            }
-                            if (previousStateBeforeEdit.showAllHistoryModal) {
-                              setShowAllHistoryModal(true);
-                            }
-                            setPreviousStateBeforeEdit(null);
-                          } else {
-                            setActivePatient(null);
-                          }
-                        } else {
-                          showToast(`Failed to send prescription. Please try again!`, 'danger');
-                        }
+                        await onSubmitPrescription(targetPatientId, savedSharePatient);
                       } catch (err) {
                         console.error("Error sending prescription:", err);
-                        showToast(`Error sending prescription: ${err.message}`, 'danger');
                       } finally {
                         setIsSendingPrescription(false);
                       }
                     }}
+
                   >
                     <Send size={16} /> {isSendingPrescription ? 'Sending to Pharmacy...' : 'Send to Pharmacy'}
                   </button>

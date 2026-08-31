@@ -1127,60 +1127,55 @@ function App() {
 
   // Pharmacy Actions
   const handleIssueMedication = async (patientId, issuedString, injectionData = null) => {
-    console.log('[Pharmacy] Issuing medication for patient:', patientId, '| issuedString:', issuedString);
     try {
+      const cleanId = String(patientId || '').replace(/#/g, '').trim();
       const updatedData = {
         status: 'Reviewing',
         issuedMedication: issuedString
       };
-      const response = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+
+      // ⚡ Instant optimistic update
+      setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, ...updatedData } : p));
+
+      const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
-      console.log('[Pharmacy] API response status:', response.status);
+
       if (response.ok) {
         const updatedPatient = await response.json();
-        console.log('[Pharmacy] Updated patient status:', updatedPatient.status, '| issuedMedication:', updatedPatient.issuedMedication);
-        setPatients(prev => prev.map(p => String(p.id) === String(patientId) ? updatedPatient : p));
+        setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
+      }
 
-        if (injectionData) {
-          const list = Array.isArray(injectionData) ? injectionData : [injectionData];
-          for (const inj of list) {
-            if (inj && (inj.name || inj.injectionName)) {
-              const freq = inj.frequency || (inj.dosage?.toLowerCase().includes('stat') ? 'STAT (Single / Immediate)' : 'NORMAL');
-              const isStatDose = inj.isStat || (freq && freq.includes('STAT')) || inj.dosage?.toLowerCase().includes('stat') ? 1 : 0;
-              try {
-                await fetch(`${API_BASE}/api/injections`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    patientId: patientId,
-                    injectionName: inj.name || inj.injectionName,
-                    dosage: inj.dosage || '',
-                    route: inj.route || 'IM',
-                    frequency: freq,
-                    isStat: isStatDose,
-                    status: 'Pending',
-                    dateGiven: ''
-                  })
-                });
-              } catch (err) {
-                console.error("Error saving injection:", err);
-              }
-            }
+      if (injectionData) {
+        const list = Array.isArray(injectionData) ? injectionData : [injectionData];
+        for (const inj of list) {
+          if (inj && (inj.name || inj.injectionName)) {
+            const freq = inj.frequency || (inj.dosage?.toLowerCase().includes('stat') ? 'STAT (Single / Immediate)' : 'NORMAL');
+            const isStatDose = inj.isStat || (freq && freq.includes('STAT')) || inj.dosage?.toLowerCase().includes('stat') ? 1 : 0;
+            fetch(`${API_BASE}/api/injections`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                patientId: cleanId,
+                injectionName: inj.name || inj.injectionName,
+                dosage: inj.dosage || '',
+                route: inj.route || 'IM',
+                frequency: freq,
+                isStat: isStatDose,
+                status: 'Pending',
+                dateGiven: ''
+              })
+            }).catch(err => console.error("Error saving injection:", err));
           }
         }
-      } else {
-        const errText = await response.text();
-        console.error('[Pharmacy] API error:', response.status, errText);
-        throw new Error(`API error ${response.status}: ${errText}`);
       }
     } catch (err) {
       console.error("Error issuing medication:", err);
-      throw err; // Re-throw so PharmacyDashboard can catch it
     }
   };
+
 
   // Ward Staff Actions
   const handleAssignBed = async (patientId, bedId) => {
