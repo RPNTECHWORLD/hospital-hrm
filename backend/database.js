@@ -652,7 +652,6 @@ export const initDB = async () => {
     )
   `);
   try { await dbRun(`ALTER TABLE lab_logs ADD COLUMN reportImg TEXT`); } catch (e) {}
-  try { await dbRun(`UPDATE lab_logs SET status = 'Report Delivered' WHERE status = 'Report Reviewed'`); } catch (e) {}
 
   // Create Vaccinations Log
   await dbRun(`

@@ -201,6 +201,31 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     });
   };
 
+  const parseDateClean = (d) => {
+    if (!d) return null;
+    if (typeof d === 'string' && d.includes('/')) {
+      const parts = d.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (Number(parts[0]) > 12) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        return new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+      }
+    }
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const isSameDayStr = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    if (String(d1).trim() === String(d2).trim()) return true;
+    const date1 = parseDateClean(d1);
+    const date2 = parseDateClean(d2);
+    if (!date1 || !date2) return false;
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
+
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
   const pendingPrescriptions = (patients || []).filter(p =>
     p.status !== 'Inactive' &&
@@ -209,7 +234,7 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
   );
   const completedIssues = (patients || []).filter(p =>
     ['Reviewing', 'Completed'].includes(p.status) &&
-    (p.registrationDate === todayStr || p.wardBedId || (p.history && p.history.length > 0))
+    (isSameDayStr(p.registrationDate, todayStr) || p.wardBedId || (p.history && p.history.length > 0))
   ).length;
 
   const docName = activePatient
@@ -217,7 +242,19 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     : 'Doctor';
 
   const handleSelectPatient = (patient) => {
-    setActivePatient(patient);
+    let parsedRx = patient?.prescription;
+    if (typeof parsedRx === 'string') {
+      try {
+        parsedRx = JSON.parse(parsedRx);
+      } catch (e) {
+        parsedRx = [];
+      }
+    }
+    const safePatient = {
+      ...patient,
+      prescription: Array.isArray(parsedRx) ? parsedRx : []
+    };
+    setActivePatient(safePatient);
     setIssueType('full');
     setShowPrevRx(false);
     setSelectedHistIdx(0);
@@ -226,9 +263,10 @@ const PharmacyDashboard = ({ patients = [], doctors = [], onIssueMedication, onP
     setNewMedDosage('1-0-1 - After Food');
     setNewMedDuration('5');
     setCustomMedDays({});
-    const firstMedDuration = patient.prescription?.[0]?.duration || 10;
+    const firstMedDuration = safePatient.prescription?.[0]?.duration || 10;
     setPartialDays(Math.max(1, Math.floor(firstMedDuration / 2)));
   };
+
 
   const handleMedicineDaysChange = (idx, newDays, maxDays) => {
     if (newDays === '' || newDays === null) {

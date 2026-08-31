@@ -284,7 +284,7 @@ const TvQueueDisplay = ({ patients = [], doctors = [], onExit }) => {
                       textAlign: 'center',
                       boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)'
                     }}>
-                      {String(nowConsulting.tokenNumber).padStart(2, '0')}
+                      {String(nowConsulting.tokenNumber || '--').padStart(2, '0')}
                     </div>
                     <div style={{ flexGrow: 1 }}>
                       <h3 className="tv-patient-name" style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
@@ -375,8 +375,9 @@ const TvQueueDisplay = ({ patients = [], doctors = [], onExit }) => {
                             minWidth: '40px',
                             textAlign: 'center'
                           }}>
-                            {String(patient.tokenNumber).padStart(2, '0')}
+                            {String(patient.tokenNumber || '--').padStart(2, '0')}
                           </span>
+
                           <span style={{
                             fontSize: '1.35rem',
                             fontWeight: 700,

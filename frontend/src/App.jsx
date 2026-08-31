@@ -313,52 +313,32 @@ function App() {
     }
   };
 
+  // ⚡ Live Real-Time Background Auto-Sync (Every 2.5 seconds + on Window Focus / Visibility Change)
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setLoading(true);
-        const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/api/patients`),
-          fetch(`${API_BASE}/api/doctors`),
-          fetch(`${API_BASE}/api/staff`),
-          fetch(`${API_BASE}/api/injections`),
-          fetch(`${API_BASE}/api/lab`)
-        ]);
+    if (!user) return;
 
-        if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
-          const patientsData = await patientsRes.value.json();
-          if (Array.isArray(patientsData)) setPatients(normalizeTokensForPatients(patientsData));
-        }
-        if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
-          const doctorsData = await doctorsRes.value.json();
-          if (Array.isArray(doctorsData) && doctorsData.length > 0) {
-            setDoctorsList(doctorsData);
-          }
-        }
-        if (staffRes.status === 'fulfilled' && staffRes.value.ok) {
-          const staffData = await staffRes.value.json();
-          if (Array.isArray(staffData) && staffData.length > 0) {
-            setStaffList(staffData);
-          }
-        }
-        if (injRes.status === 'fulfilled' && injRes.value.ok) {
-          const injData = await injRes.value.json();
-          if (Array.isArray(injData)) setInjectionsList(injData);
-        }
-        if (labRes.status === 'fulfilled' && labRes.value.ok) {
-          const labData = await labRes.value.json();
-          if (Array.isArray(labData)) setLabLogsList(labData);
-        }
-      } catch (err) {
-        console.error("Error loading data from server:", err);
-      } finally {
-        setLoading(false);
+    // 1. Initial Load
+    pollData().finally(() => setLoading(false));
+
+    // 2. Periodic background poll every 2.5 seconds
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        pollData();
       }
-    };
+    }, 2500);
 
-    if (user) {
-      loadInitialData();
-    }
+    // 3. Instant sync on tab focus or visibility return
+    const handleFocus = () => {
+      pollData();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, [user]);
 
   // ⚡ Instant live sync whenever the user navigates between modules / sidebar tabs
@@ -367,6 +347,7 @@ function App() {
       pollData();
     }
   }, [adminActiveView, currentStaffView]);
+
 
   const handleLogin = (userData) => {
     setUser(userData);

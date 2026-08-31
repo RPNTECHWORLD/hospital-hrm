@@ -883,20 +883,28 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const hasDeliveredLab = (patientId) => {
     if (!patientId) return false;
     const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
-    return allLabLogs.some(l =>
-      String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr &&
-      l.status === 'Report Delivered'
-    );
+    return allLabLogs.some(l => {
+      const matchId = String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr;
+      const isDelivered = l.status === 'Report Delivered';
+      const isTodayOrder = isSameDayStr(l.dateOrdered, todayStr) || isSameDayStr(l.date, todayStr);
+      return matchId && isDelivered && isTodayOrder;
+    });
   };
 
   const getDeliveredLabNames = (patientId) => {
     if (!patientId) return '';
     const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
     return allLabLogs
-      .filter(l => String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr && l.status === 'Report Delivered')
+      .filter(l => {
+        const matchId = String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr;
+        const isDelivered = l.status === 'Report Delivered';
+        const isTodayOrder = isSameDayStr(l.dateOrdered, todayStr) || isSameDayStr(l.date, todayStr);
+        return matchId && isDelivered && isTodayOrder;
+      })
       .map(l => l.testName)
       .join(', ');
   };
+
 
   const myPatients = patients.filter(p => {
     const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId);
@@ -916,14 +924,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   );
 
   const consultationQueue = myPatients
-    .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
+    .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered', 'Waiting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
-  // Dedicated Lab Reports Ready Queue (All patients with delivered lab reports awaiting doctor review)
+  // Dedicated Lab Reports Ready Queue (Patients awaiting lab report review who are not in the active initial consultation queue)
   const labReviewQueue = myPatients.filter(p =>
     hasDeliveredLab(p.id) &&
-    p.status !== 'Completed' &&
-    p.status !== 'Inactive'
+    !['In Queue', 'Registered', 'Consulting', 'Waiting', 'Completed', 'Inactive'].includes(p.status)
   );
 
   // Dedicated Pharmacy Dispensed Review Queue (All patients sent by Pharmacy to Doctor Review)
@@ -1382,23 +1389,8 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           {p.name}
-                          {hasDeliveredLab(p.id) && (
-                            <span style={{
-                              background: 'rgba(16, 185, 129, 0.15)',
-                              color: '#065f46',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
-                              borderRadius: '6px',
-                              fontSize: '0.68rem',
-                              fontWeight: 800,
-                              padding: '0.15rem 0.5rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}>
-                              🧪 Lab Report Ready
-                            </span>
-                          )}
                           {Number(p.specialInvestigation) === 1 && (
+
                             <span title="Special Investigation Required" style={{
                               background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(139, 92, 246, 0.12))',
                               color: '#a855f7',
@@ -3478,24 +3470,31 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               {isHistoryPreview ? (
                 <>
                   <button 
-                    type="button"
+                    type="button" 
                     className="btn btn-primary" 
-                    style={{ flexGrow: 1 }}
+                    style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                     onClick={() => {
-                      onPrintPrescription();
+                      if (typeof onPrintPrescription === 'function') {
+                        onPrintPrescription();
+                      } else {
+                        window.print();
+                      }
                     }}
                   >
                     <Printer size={16} /> Print Prescription
                   </button>
                   <button 
-                    type="button"
+                    type="button" 
                     className="btn btn-secondary"
                     style={{
                       flexGrow: 1,
                       borderColor: 'var(--primary)',
                       color: 'var(--primary)',
                       fontWeight: 700,
-                      gap: '0.35rem'
+                      gap: '0.35rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                     onClick={() => {
                       if (sharePatient) {
@@ -3514,20 +3513,45 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           canvasDataUrl
                         });
 
-                        const existingPatient = patients.find(p => p.id === sharePatient.id || String(p.id) === String(sharePatient.id));
+                        const cleanTargetId = String(sharePatient.id || sharePatient.patientId || '').replace(/#/g, '').trim().toUpperCase();
+                        const existingPatient = (patients || []).find(p => String(p.id).replace(/#/g, '').trim().toUpperCase() === cleanTargetId);
+
+                        // Robust parsing of medicines whether string, JSON, array or nested
+                        let rawPrescription = sharePatient.prescription || existingPatient?.prescription;
+                        let parsedMeds = [];
+                        if (typeof rawPrescription === 'string') {
+                          try {
+                            parsedMeds = JSON.parse(rawPrescription);
+                          } catch (e) {
+                            parsedMeds = [];
+                          }
+                        } else if (Array.isArray(rawPrescription)) {
+                          try {
+                            parsedMeds = JSON.parse(JSON.stringify(rawPrescription));
+                          } catch (e) {
+                            parsedMeds = rawPrescription;
+                          }
+                        }
+
+                        if (!Array.isArray(parsedMeds) || parsedMeds.length === 0 || typeof parsedMeds === 'string') {
+                          parsedMeds = [{ name: '', dosage: '', duration: 3, category: 'tablets', frequency: '1-0-1 (Twice daily - Morning & Night)', mealTiming: 'After Food' }];
+                        } else {
+                          parsedMeds = parsedMeds.map(m => typeof m === 'string' ? { name: m, dosage: '', duration: 3, category: 'tablets' } : { ...m, duration: m.duration || 3 });
+                        }
+
                         const targetPatient = {
                           ...(existingPatient || sharePatient),
                           status: 'Consulting',
-                          diagnosis: sharePatient.diagnosis || (existingPatient?.diagnosis) || '',
-                          prescription: (sharePatient.prescription && sharePatient.prescription.length > 0)
-                            ? sharePatient.prescription
-                            : (existingPatient?.prescription || [])
+                          diagnosis: sharePatient.diagnosis || existingPatient?.diagnosis || '',
+                          prescription: parsedMeds
                         };
 
+                        if (onStartConsultation) {
+                          onStartConsultation(targetPatient.id || cleanTargetId);
+                        }
+
                         setActivePatient(targetPatient);
-                        setMedicines((targetPatient.prescription && targetPatient.prescription.length > 0)
-                          ? JSON.parse(JSON.stringify(targetPatient.prescription))
-                          : [{ name: '', dosage: '', duration: 10 }]);
+                        setMedicines(parsedMeds);
                         setDiagnosis(targetPatient.diagnosis || '');
                         setComplaints(sharePatient.complaints || targetPatient.complaints || '');
                         setPastHistory(sharePatient.pastHistory || targetPatient.pastHistory || '');
@@ -3541,7 +3565,11 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setSharePatient(null);
                         setIsHistoryPreview(false);
                         setShowAllHistoryModal(false);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                        setTimeout(() => {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }, 60);
+
                         showToast('Prescription loaded into Doctor Consultation form. You can add, edit, or remove medicines now.', 'info');
                       }
                     }}
@@ -3549,7 +3577,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     <Plus size={16} /> Edit / Add Medicines
                   </button>
                   <button 
-                    type="button"
+                    type="button" 
                     className="btn btn-secondary"
                     style={{ flexGrow: 1 }}
                     onClick={() => {
@@ -3561,6 +3589,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   </button>
                 </>
               ) : (
+
                 <>
                   <button 
                     type="button"

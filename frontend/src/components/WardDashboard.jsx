@@ -3,6 +3,7 @@ import { Bed, UserCheck, ShieldAlert, LogOut, CheckCircle, Plus, Loader2 } from 
 
 const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   const [processingPatientId, setProcessingPatientId] = useState(null);
+  const [processedPatientIds, setProcessedPatientIds] = useState([]);
   // Let's configure a list of mock rooms and beds
   // 10 beds: Room 101 (Beds A, B), Room 102 (Beds A, B), Room 103 (Beds A, B), Room 104 (Beds A, B), Room 105 (Beds A, B)
   const [beds, setBeds] = useState([
@@ -22,6 +23,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
 
   const handleAcceptPendingAdmit = async (patientId, bedId) => {
+    setProcessedPatientIds(prev => [...prev, String(patientId)]);
     setProcessingPatientId(patientId);
     // Instant optimistic assignment to local bed card
     setBeds(prev => prev.map(b => b.id === bedId ? { ...b, patientId } : b));
@@ -35,6 +37,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   };
 
   const handleDeclinePendingAdmit = async (patientId) => {
+    setProcessedPatientIds(prev => [...prev, String(patientId)]);
     setProcessingPatientId(patientId);
     try {
       await onDischargePatient(patientId);
@@ -44,6 +47,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
       setProcessingPatientId(null);
     }
   };
+
 
   // Sync beds state when patients prop changes
   React.useEffect(() => {
@@ -146,8 +150,10 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
       {(() => {
         const pendingRequests = (patients || []).filter(p => 
           p && p.status !== 'Inactive' && 
+          !processedPatientIds.includes(String(p.id)) &&
           (p.bedAdmissionPending == 1 || p.bedAdmissionPending === '1' || p.bedAdmissionPending === true || p.bedadmissionpending == 1)
         );
+
         if (pendingRequests.length === 0) return null;
         
         return (
