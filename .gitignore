@@ -25,3 +25,8 @@ dist-ssr
 
 .vercel
 .env*
+*.pem
+deploy_ec2.cjs
+check_types.cjs
+test_launch.cjs
+
