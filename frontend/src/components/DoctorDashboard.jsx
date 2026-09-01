@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope, LogOut } from 'lucide-react';
+import { User, UserPlus, UserCheck, Clipboard, Plus, Trash2, CheckCircle2, AlertCircle, FileText, Send, Printer, Mail, History, Check, Syringe, Bed, ExternalLink, FlaskConical, Microscope, LogOut, Pill } from 'lucide-react';
 import DrawingCanvas from './DrawingCanvas';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
@@ -2968,6 +2968,167 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     </div>
                   )}
 
+                  {/* Digital Prescription (Edit / Add Medicines during Review) */}
+                  <div style={{
+                    background: 'rgba(21, 115, 136, 0.04)',
+                    border: '1px solid rgba(21, 115, 136, 0.25)',
+                    borderRadius: '10px',
+                    padding: '1.25rem',
+                    marginTop: '1.5rem',
+                    marginBottom: '1.5rem'
+                  }} className="doc-review-prescription-section">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 700, margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Pill size={16} /> Digital Prescription & Medicines
+                        </label>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Add or adjust medication list for this review patient</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.35rem 0.6rem', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          onClick={handleAddMedicine}
+                        >
+                          <Plus size={13} /> Tablets
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary" 
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            fontSize: '0.78rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'rgba(15, 118, 110, 0.1)',
+                            color: '#0f766e',
+                            border: '1.5px solid rgba(15, 118, 110, 0.3)',
+                            fontWeight: 700
+                          }}
+                          onClick={handleAddSyrup}
+                        >
+                          <Plus size={13} /> Syrup
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary" 
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            fontSize: '0.78rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'rgba(225, 29, 72, 0.1)',
+                            color: '#e11d48',
+                            border: '1.5px solid rgba(225, 29, 72, 0.3)',
+                            fontWeight: 700
+                          }}
+                          onClick={handleAddInjection}
+                        >
+                          <Plus size={13} /> Injection
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary" 
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            fontSize: '0.78rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'rgba(147, 51, 234, 0.1)',
+                            color: '#9333ea',
+                            border: '1.5px solid rgba(147, 51, 234, 0.3)',
+                            fontWeight: 700
+                          }}
+                          onClick={handleAddNebulization}
+                        >
+                          <Plus size={13} /> Nebulization
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary" 
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            fontSize: '0.78rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            color: '#d97706',
+                            border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                            fontWeight: 700
+                          }}
+                          onClick={handleAddOthers}
+                        >
+                          <Plus size={13} /> Others
+                        </button>
+                      </div>
+                    </div>
+
+                    {medicines.length === 0 ? (
+                      <div style={{
+                        padding: '1rem',
+                        textAlign: 'center',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--border)',
+                        borderRadius: '8px',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.85rem'
+                      }}>
+                        No extra medicines added for this review. Click buttons above to add medicines.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {medicines.map((med, idx) => (
+                          <MedicineInputRow
+                            key={idx}
+                            med={med}
+                            idx={idx}
+                            onChange={handleMedicineChange}
+                            onRemove={handleRemoveMedicine}
+                            canRemove={true}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Button to send updated prescription to Pharmacy right during review */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#0f766e', border: 'none' }}
+                        onClick={async () => {
+                          const validMeds = medicines.filter(m => m.name && m.name.trim());
+                          if (validMeds.length === 0) {
+                            showToast('Please specify at least one medicine name.', 'warning');
+                            return;
+                          }
+                          try {
+                            const cleanId = String(activePatient.id).replace(/#/g, '').trim();
+                            await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                prescription: validMeds,
+                                pharmacyStatus: 'Pending Issue'
+                              })
+                            });
+                            showToast(`Updated prescription sent to Pharmacy for ${activePatient.name}! 💊`, 'success');
+                          } catch (err) {
+                            console.error("Error updating prescription during review:", err);
+                            showToast('Error updating prescription.', 'danger');
+                          }
+                        }}
+                      >
+                        <Send size={14} /> Send Updated Prescription to Pharmacy
+                      </button>
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
                     {reviewMode === 'lab' ? (
                       <button 
@@ -3536,17 +3697,24 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           parsedMeds = parsedMeds.map(m => typeof m === 'string' ? { name: m, dosage: '', duration: 3, category: 'tablets' } : { ...m, duration: m.duration || 3 });
                         }
 
+                        const isReviewPatient = activePatient?.status === 'Reviewing' || activePatient?.status === 'Lab Review Pending' || !!reviewMode || sharePatient?.status === 'Reviewing' || existingPatient?.status === 'Reviewing';
+
+                        const targetStatus = isReviewPatient ? (activePatient?.status || existingPatient?.status || 'Reviewing') : 'Consulting';
+
                         const targetPatient = {
                           ...(existingPatient || sharePatient),
-                          status: 'Consulting',
+                          status: targetStatus,
                           diagnosis: sharePatient.diagnosis || existingPatient?.diagnosis || '',
                           prescription: parsedMeds
                         };
 
-                        if (onStartConsultation) {
-                          onStartConsultation(targetPatient.id || cleanTargetId);
-                        } else if (onUpdatePatientStatus) {
-                          onUpdatePatientStatus(targetPatient.id || cleanTargetId, 'Consulting');
+                        // NEVER switch review patient to 'Consulting' or put into Pending Consultation Queue!
+                        if (!isReviewPatient) {
+                          if (onStartConsultation) {
+                            onStartConsultation(targetPatient.id || cleanTargetId);
+                          } else if (onUpdatePatientStatus) {
+                            onUpdatePatientStatus(targetPatient.id || cleanTargetId, 'Consulting');
+                          }
                         }
 
                         setActivePatient(targetPatient);
@@ -3561,13 +3729,16 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setPrescriptionMode(sharePatient.prescriptionImg ? 'drawing' : 'form');
                         setCanvasDataUrl(sharePatient.prescriptionImg || null);
 
-                        setReviewMode(null); // Clear Reviewing / Lab mode so medicine consultation form is active!
+                        // If NOT a review patient, clear review mode. If review patient, preserve reviewMode!
+                        if (!isReviewPatient) {
+                          setReviewMode(null);
+                        }
                         setSharePatient(null);
                         setIsHistoryPreview(false);
                         setShowAllHistoryModal(false);
 
                         setTimeout(() => {
-                          const medSection = document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
+                          const medSection = document.querySelector('.doc-review-prescription-section') || document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
                           if (medSection) {
                             medSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           } else {
@@ -3575,7 +3746,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           }
                         }, 120);
 
-                        showToast('Opened Medicine Prescribing Terminal. You can now add/edit medicines and Send to Pharmacy.', 'info');
+                        showToast(isReviewPatient ? 'Prescription loaded into Review screen. Patient stays in Review Queue.' : 'Opened Medicine Prescribing Terminal.', 'info');
                       }
                     }}
                   >
