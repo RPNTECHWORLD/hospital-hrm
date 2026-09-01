@@ -689,12 +689,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     }
   }, [patients]);
 
-  // Continuous live polling for all lab logs so delivered lab reports appear instantly
+  // Continuous live polling for all lab logs so delivered lab reports appear instantly in real-time
   useEffect(() => {
+    let isMounted = true;
     const fetchAllLabLogs = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/lab`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const data = await res.json();
           if (Array.isArray(data)) {
             setAllLabLogs(data);
@@ -710,6 +711,11 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     };
 
     fetchAllLabLogs();
+    const interval = setInterval(fetchAllLabLogs, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [activePatient]);
 
   useEffect(() => {
@@ -889,31 +895,28 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const hasDeliveredLab = (patientId) => {
     if (!patientId) return false;
     const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
-    return allLabLogs.some(l => {
+    return (allLabLogs || []).some(l => {
       const matchId = String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr;
       const isDelivered = l.status === 'Report Delivered';
-      const isTodayOrder = isSameDayStr(l.dateOrdered, todayStr) || isSameDayStr(l.date, todayStr);
-      return matchId && isDelivered && isTodayOrder;
+      return matchId && isDelivered;
     });
   };
 
   const getDeliveredLabNames = (patientId) => {
     if (!patientId) return '';
     const pIdStr = String(patientId).replace(/#/g, '').trim().toUpperCase();
-    return allLabLogs
+    return (allLabLogs || [])
       .filter(l => {
         const matchId = String(l.patientId).replace(/#/g, '').trim().toUpperCase() === pIdStr;
         const isDelivered = l.status === 'Report Delivered';
-        const isTodayOrder = isSameDayStr(l.dateOrdered, todayStr) || isSameDayStr(l.date, todayStr);
-        return matchId && isDelivered && isTodayOrder;
+        return matchId && isDelivered;
       })
       .map(l => l.testName)
       .join(', ');
   };
 
-
-  const myPatients = patients.filter(p => {
-    const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId);
+  const myPatients = (patients || []).filter(p => {
+    const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId) || !p.assignedDoctorId;
     if (!matchesDoc || p.status === 'Inactive') return false;
 
     const isToday = isSameDayStr(p.registrationDate, todayStr);
@@ -933,11 +936,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     .filter(p => p.status !== 'Reviewing' && p.status !== 'Lab Review Pending' && p.status !== 'Completed' && (p.status === 'Consulting' || (['In Queue', 'Registered', 'Waiting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr))))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
-  // Dedicated Lab Reports Ready Queue (Patients awaiting lab report review who are not in the active initial consultation queue)
-  const labReviewQueue = myPatients.filter(p =>
-    hasDeliveredLab(p.id) &&
-    !['In Queue', 'Registered', 'Waiting', 'Completed', 'Inactive'].includes(p.status)
-  );
+  // Dedicated Lab Reports Ready Queue (All patients who have delivered unreviewed lab reports!)
+  const labReviewQueue = (patients || []).filter(p => {
+    if (!p || p.status === 'Inactive') return false;
+    const matchesDoc = Number(p.assignedDoctorId) === Number(doctorId) || String(p.assignedDoctorId) === String(doctorId) || !p.assignedDoctorId;
+    return matchesDoc && hasDeliveredLab(p.id);
+  });
 
   // Dedicated Pharmacy Dispensed Review Queue (All patients sent by Pharmacy to Doctor Review)
   const pharmacyReviewQueue = myPatients.filter(p =>
