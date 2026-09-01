@@ -62,7 +62,9 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
   // Open Administer Modal
   const openAdministerModal = (inj) => {
     setActiveInjection(inj);
-    const defaultNurse = currentUser?.name || currentUser?.email || 'Injection Desk Nurse';
+    const defaultNurse = currentUser?.name 
+      ? (currentUser.name.toLowerCase().includes('nurse') ? currentUser.name : `${currentUser.name} (Nurse)`)
+      : 'Staff Nurse';
     setNurseName(defaultNurse);
     setShowAdministerModal(true);
   };
@@ -71,6 +73,10 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
   const handleConfirmAdminister = async () => {
     if (!activeInjection) return;
     try {
+      const fallbackNurse = currentUser?.name 
+        ? (currentUser.name.toLowerCase().includes('nurse') ? currentUser.name : `${currentUser.name} (Nurse)`)
+        : 'Staff Nurse';
+
       const response = await fetch(`${API_BASE}/api/injections/${activeInjection.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -80,7 +86,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
             dateStyle: 'short',
             timeStyle: 'medium'
           }),
-          administeredBy: nurseName || 'Injection Nurse'
+          administeredBy: nurseName.trim() || fallbackNurse
         })
       });
 
@@ -185,6 +191,10 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
   // Quick Direct Administer
   const handleQuickAdminister = async (inj) => {
     try {
+      const fallbackNurse = currentUser?.name 
+        ? (currentUser.name.toLowerCase().includes('nurse') ? currentUser.name : `${currentUser.name} (Nurse)`)
+        : 'Staff Nurse';
+
       const response = await fetch(`${API_BASE}/api/injections/${inj.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -194,7 +204,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
             dateStyle: 'short',
             timeStyle: 'medium'
           }),
-          administeredBy: currentUser?.name || currentUser?.email || 'Injection Desk Nurse'
+          administeredBy: fallbackNurse
         })
       });
 
@@ -544,7 +554,7 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--success)' }}>
                               <UserCheck size={14} />
-                              {inj.administeredBy || 'Nurse'}
+                              {inj.administeredBy ? (inj.administeredBy.toLowerCase().includes('nurse') || inj.administeredBy.toLowerCase().includes('dr') ? inj.administeredBy : `${inj.administeredBy} (Nurse)`) : 'Staff Nurse'}
                             </div>
                             <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
                               {inj.dateGiven}

@@ -27,6 +27,7 @@ import {
   deleteHousekeeping,
   getMedicalWaste,
   addMedicalWaste,
+  deleteMedicalWaste,
   getPharmacyLedger,
   addPharmacyLedger,
   getLabLogs,
@@ -371,6 +372,14 @@ app.post('/api/waste', async (req, res) => {
   try {
     const waste = await addMedicalWaste(req.body);
     res.status(201).json(waste);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.delete('/api/waste/:id', async (req, res) => {
+  try {
+    await deleteMedicalWaste(req.params.id);
+    res.json({ message: 'Waste record deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

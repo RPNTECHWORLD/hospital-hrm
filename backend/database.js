@@ -1370,6 +1370,7 @@ export const addMedicalWaste = async (waste) => {
   );
   return { id: result.lastID, ...waste };
 };
+export const deleteMedicalWaste = (id) => dbRun(`DELETE FROM medical_waste WHERE id = ?`, [id]);
 
 // Pharmacy Ledger
 export const getPharmacyLedger = () => dbAll(`SELECT * FROM pharmacy_ledger`);
