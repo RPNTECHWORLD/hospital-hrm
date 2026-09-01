@@ -57,6 +57,9 @@ let pgPool = null;
 if (connectionString) {
   pgPool = new pg.Pool({
     connectionString,
+    max: 15,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 10000,
     ssl: connectionString.includes('supabase.co') || connectionString.includes('supabase.com') || connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : false
   });
   console.log("Connected to PostgreSQL Database (Supabase Production)");
@@ -403,62 +406,39 @@ export const initDB = async () => {
       )`
     ];
 
-    for (const tSql of tables) {
-      try { await pgPool.query(tSql); } catch (e) { console.error("Postgres table init error:", e.message); }
+    // Execute table definitions, column additions and indexes in combined batches to eliminate latency
+    const allSchemaSql = `
+      ${tables.join(';\n')};
+      ${pgAlterColumns.join(';\n')};
+      CREATE INDEX IF NOT EXISTS idx_patients_status ON patients(status);
+      CREATE INDEX IF NOT EXISTS idx_patients_assigneddoc ON patients(assigneddoctorid);
+      CREATE INDEX IF NOT EXISTS idx_patients_regdate ON patients(registrationdate);
+      CREATE INDEX IF NOT EXISTS idx_history_patid ON patient_history(patientid);
+      CREATE INDEX IF NOT EXISTS idx_injections_patid ON injections_log(patientid);
+      CREATE INDEX IF NOT EXISTS idx_lab_patid ON lab_logs(patientid);
+    `;
+
+    try {
+      await pgPool.query(allSchemaSql);
+    } catch (e) {
+      console.warn("PostgreSQL batch schema init:", e.message);
     }
 
     // Ensure injection and lab default staff accounts exist in PostgreSQL
     try {
       await pgPool.query(
-        `INSERT INTO staff (name, email, role, password) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING`,
-        ['Injection Desk Nurse', 'injection@vijayas.com', 'injection', 'password123']
-      );
-      await pgPool.query(
-        `INSERT INTO staff (name, email, role, password) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING`,
-        ['Lab Investigation Staff', 'lab@vijayas.com', 'lab', 'password123']
+        `INSERT INTO staff (name, email, role, password) VALUES 
+         ('Injection Desk Nurse', 'injection@vijayas.com', 'injection', 'password123'),
+         ('Lab Investigation Staff', 'lab@vijayas.com', 'lab', 'password123')
+         ON CONFLICT (email) DO NOTHING`
       );
     } catch (e) {}
 
-    // Ensure all optional columns exist in PostgreSQL
-    const pgAlterColumns = [
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS email TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS motherOrGuardianName TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS bedAdmissionPending INTEGER DEFAULT 0`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS paidAmount NUMERIC DEFAULT 0`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS feeBreakdown TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS isChild INTEGER DEFAULT 0`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childGa TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childBirthDate TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childBirthWeight TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childPlaceOfBirth TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childDeliveryType TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS childNicuHistory TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS specialInvestigation INTEGER DEFAULT 0`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS specialInvestigationNotes TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS dob TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS respiratoryRate TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS painScale TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS headCircumference TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS avpu TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS pharmacyStatus TEXT DEFAULT 'N/A'`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS injectionStatus TEXT DEFAULT 'N/A'`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS trackingHistory TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS previousDoctor TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS pendingReassignment TEXT`,
-      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS reassignmentDeclined TEXT`,
-      `ALTER TABLE doctors ADD COLUMN IF NOT EXISTS lastLoginDate TEXT`
-    ];
-    for (const sql of pgAlterColumns) {
-      try { await pgPool.query(sql); } catch (e) {}
-    }
-
-    // Reset sequences for all serial tables to prevent ID collisions
+    // Reset sequences in parallel
     const serialTables = ['doctors', 'staff', 'patient_history', 'staff_attendance', 'directory_ledger', 'housekeeping_checklist', 'medical_waste', 'pharmacy_ledger', 'lab_logs', 'vaccinations_log', 'injections_log'];
-    for (const st of serialTables) {
-      try {
-        await pgPool.query(`SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM ${st}`, [st]);
-      } catch (e) {}
-    }
+    await Promise.allSettled(
+      serialTables.map(st => pgPool.query(`SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM ${st}`, [st]))
+    );
     return;
   }
 

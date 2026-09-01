@@ -117,6 +117,18 @@ const INITIAL_PATIENTS = [
   }
 ];
 
+const isSameId = (a, b) => {
+  if (a === undefined || a === null || b === undefined || b === null) return false;
+  if (a === b || String(a) === String(b)) return true;
+  const strA = String(a).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const strB = String(b).toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (strA === strB) return true;
+  const numA = parseInt(String(a).replace(/\D/g, ''), 10);
+  const numB = parseInt(String(b).replace(/\D/g, ''), 10);
+  if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numA === numB) return true;
+  return false;
+};
+
 function App() {
   const [user, setUser] = useState(() => {
     try {
@@ -215,12 +227,19 @@ function App() {
 
       // Instant optimistic update so Ward Module badge & request banner appear immediately
       setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? { ...p, ...updatedData } : p));
+      setToastConfig({ message: `Patient admitted to Bed ${bedId} successfully!`, type: 'success' });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
+        body: JSON.stringify(updatedData),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         const updatedPatient = await response.json();
         setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? updatedPatient : p));
@@ -232,9 +251,11 @@ function App() {
 
   const handleConfirmWardAdmit = async () => {
     if (!wardAdmitPatient || !wardAdmitBedId) return;
-    await handleRequestWardAdmit(wardAdmitPatient.id, wardAdmitBedId);
+    const pat = wardAdmitPatient;
+    const bed = wardAdmitBedId;
     setWardAdmitPatient(null);
     setWardAdmitBedId('');
+    await handleRequestWardAdmit(pat.id, bed);
   };
 
   // Sync user state to sessionStorage
@@ -246,15 +267,24 @@ function App() {
     }
   }, [user]);
 
+  const isPollingRef = React.useRef(false);
+
   // Fetch initial data and start polling from Backend Node API
   const pollData = async () => {
+    if (isPollingRef.current) return;
+    isPollingRef.current = true;
+
+    const controller = new AbortController();
+    const pollTimeout = setTimeout(() => controller.abort(), 6000);
+
     try {
+      const fetchOpts = { signal: controller.signal };
       const [patientsRes, doctorsRes, staffRes, injRes, labRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/patients`),
-        fetch(`${API_BASE}/api/doctors`),
-        fetch(`${API_BASE}/api/staff`),
-        fetch(`${API_BASE}/api/injections`),
-        fetch(`${API_BASE}/api/lab`)
+        fetch(`${API_BASE}/api/patients`, fetchOpts),
+        fetch(`${API_BASE}/api/doctors`, fetchOpts),
+        fetch(`${API_BASE}/api/staff`, fetchOpts),
+        fetch(`${API_BASE}/api/injections`, fetchOpts),
+        fetch(`${API_BASE}/api/lab`, fetchOpts)
       ]);
 
       if (patientsRes.status === 'fulfilled' && patientsRes.value.ok) {
@@ -309,23 +339,28 @@ function App() {
         }
       }
     } catch (err) {
-      console.error("Error polling data:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Error polling data:", err);
+      }
+    } finally {
+      clearTimeout(pollTimeout);
+      isPollingRef.current = false;
     }
   };
 
-  // ⚡ Live Real-Time Background Auto-Sync (Every 2.5 seconds + on Window Focus / Visibility Change)
+  // ⚡ Live Real-Time Background Auto-Sync (Every 3.5 seconds + on Window Focus / Visibility Change)
   useEffect(() => {
     if (!user) return;
 
     // 1. Initial Load
     pollData().finally(() => setLoading(false));
 
-    // 2. Periodic background poll every 2.5 seconds
+    // 2. Periodic background poll every 3.5 seconds
     const interval = setInterval(() => {
       if (!document.hidden) {
         pollData();
       }
-    }, 2500);
+    }, 3500);
 
     // 3. Instant sync on tab focus or visibility return
     const handleFocus = () => {
@@ -621,6 +656,9 @@ function App() {
 
   // Receptionist Actions
   const handleRegisterPatient = async (newPatientData) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     try {
       const docId = parseInt(newPatientData.assignedDoctorId);
       const todayStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
@@ -645,8 +683,11 @@ function App() {
       const response = await fetch(`${API_BASE}/api/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patientWithToken)
+        body: JSON.stringify(patientWithToken),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         const newPatient = await response.json();
         setPatients(prev => normalizeTokensForPatients([...prev, newPatient]));
@@ -658,12 +699,19 @@ function App() {
         throw new Error(msg);
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error("Error registering patient:", err);
+      if (err.name === 'AbortError') {
+        throw new Error("Registration timed out after 12s. Please check server/internet connection and try again.");
+      }
       throw err;
     }
   };
 
   const handleReRegisterPatient = async (patientId, doctorId, vitalsData = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     try {
       const patient = patients.find(p => p.id === patientId);
       if (!patient) throw new Error("Patient record not found.");
@@ -736,8 +784,10 @@ function App() {
       const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedPatientData)
+        body: JSON.stringify(updatedPatientData),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const updatedPatient = await response.json();
@@ -750,7 +800,11 @@ function App() {
         throw new Error(msg);
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error("Error re-registering patient:", err);
+      if (err.name === 'AbortError') {
+        throw new Error("Re-registration timed out after 12s. Please check server/internet connection and try again.");
+      }
       throw err;
     }
   };
@@ -890,18 +944,6 @@ function App() {
     } catch (err) {
       console.error("Error starting consultation:", err);
     }
-  };
-
-  const isSameId = (a, b) => {
-    if (a === undefined || a === null || b === undefined || b === null) return false;
-    if (a === b || String(a) === String(b)) return true;
-    const strA = String(a).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const strB = String(b).toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (strA === strB) return true;
-    const numA = parseInt(String(a).replace(/\D/g, ''), 10);
-    const numB = parseInt(String(b).replace(/\D/g, ''), 10);
-    if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numA === numB) return true;
-    return false;
   };
 
   const handleReassignDoctor = async (patientId, newDoctorId, reassignInfo = {}) => {
