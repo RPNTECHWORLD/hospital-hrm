@@ -569,18 +569,49 @@ const ReceptionistDashboard = ({
     if (e && e.preventDefault) e.preventDefault();
     setFormSubmitted(true);
 
-    const isNameValid = !!name.trim();
-    const isDoctorValid = !!assignedDoctorId;
+    if (!name.trim()) {
+      alert("Please enter Patient Full Name.");
+      const nameInput = document.querySelector('input[placeholder*="patient full name"]');
+      if (nameInput) {
+        nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameInput.focus();
+      }
+      return;
+    }
 
-    if (!isNameValid || !isDoctorValid) {
+    if (receptionistTab !== 'child' && (!age || isNaN(parseInt(age)))) {
+      alert("Please enter Patient Age or Date of Birth.");
+      const ageInput = document.querySelector('input[placeholder="Age"]');
+      if (ageInput) {
+        ageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ageInput.focus();
+      }
+      return;
+    }
+
+    if (contact && contact.replace(/\D/g, '').length !== 10) {
+      alert("Please enter a valid 10-digit mobile number.");
+      const phoneInput = document.querySelector('input[placeholder="10-digit number"]');
+      if (phoneInput) {
+        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneInput.focus();
+      }
       return;
     }
 
     if (alternatePhone) {
       const cleanAlt = alternatePhone.replace(/\D/g, '');
       if (cleanAlt.length !== 10) {
+        alert("Alternate Phone Number must be exactly 10 digits.");
         return;
       }
+    }
+
+    if (!assignedDoctorId) {
+      alert("Please select an Available Doctor to queue the patient.");
+      const docSelect = document.querySelector('select[value="' + assignedDoctorId + '"]');
+      if (docSelect) docSelect.focus();
+      return;
     }
 
     const cleanContact = contact ? contact.replace(/\D/g, '') : '';
@@ -986,7 +1017,7 @@ const ReceptionistDashboard = ({
                 )}
               </h3>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} noValidate>
                 <div className="form-group" style={{ position: 'relative' }}>
                   <label className="form-label">Full Name</label>
                   <input
