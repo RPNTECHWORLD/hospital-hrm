@@ -255,11 +255,13 @@ function App() {
     const pat = wardAdmitPatient;
     const bed = wardAdmitBedId;
 
-    // 1. In-memory check against active patients
+    // 1. In-memory check against active already-admitted patients
     const occupiedPatient = patients.find(p =>
       p.wardBedId === bed &&
       !isSameId(p.id, pat.id) &&
-      p.status !== 'Inactive'
+      p.status !== 'Inactive' &&
+      !p.bedAdmissionPending &&
+      p.bedAdmissionPending != 1
     );
 
     if (occupiedPatient) {
@@ -281,7 +283,9 @@ function App() {
           const freshConflict = freshList.find(p =>
             p.wardBedId === bed &&
             !isSameId(p.id, pat.id) &&
-            p.status !== 'Inactive'
+            p.status !== 'Inactive' &&
+            !p.bedAdmissionPending &&
+            p.bedAdmissionPending != 1
           );
           if (freshConflict) {
             const docName = (doctorsList || []).find(d => isSameId(d.id, freshConflict.assignedDoctorId))?.name || freshConflict.assignedDoctorName || freshConflict.doctorName || 'another Doctor';
@@ -1269,11 +1273,13 @@ function App() {
       const patient = patients.find(p => isSameId(p.id, patientId));
       if (!patient) return;
 
-      // Bed conflict check against already occupied beds
+      // Bed conflict check ONLY against patients who are ACTUALLY ADMITTED (not pending requests)
       const occupiedPatient = patients.find(p =>
         p.wardBedId === bedId &&
         !isSameId(p.id, patientId) &&
-        p.status !== 'Inactive'
+        p.status !== 'Inactive' &&
+        !p.bedAdmissionPending &&
+        p.bedAdmissionPending != 1
       );
 
       if (occupiedPatient) {
@@ -1363,7 +1369,7 @@ function App() {
 
       const cleanId = String(patientId || '').replace(/#/g, '').trim();
 
-      // Instant optimistic update
+      // Instant optimistic update: mark accepted patient as admitted with bedAdmissionPending = 0
       setPatients(prev => prev.map(p => isSameId(p.id, patientId) ? {
         ...p,
         wardBedId: bedId,
@@ -1371,6 +1377,11 @@ function App() {
         wardHistory: currentWardHistory,
         trackingHistory: updatedHistory
       } : p));
+
+      setToastConfig({
+        message: `✅ Patient ${patient.name} admitted to ${bedLabel} successfully!`,
+        type: 'success'
+      });
 
       const response = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
