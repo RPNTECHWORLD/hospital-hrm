@@ -43,8 +43,9 @@ const sqliteDbPath = path.join(__dirname, 'hospital.db');
 const isVercel = !!process.env.VERCEL;
 const isProd = process.env.NODE_ENV === 'production';
 const usePostgresExplicitly = process.env.USE_POSTGRES === 'true';
+const hasDatabaseUrl = !!(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() && !process.env.DATABASE_URL.includes('sqlite'));
 
-let rawConnectionString = (isVercel || isProd || usePostgresExplicitly)
+let rawConnectionString = (isVercel || isProd || usePostgresExplicitly || hasDatabaseUrl)
   ? (process.env.DATABASE_URL || 'postgresql://postgres.keofupiarihqkxnnmloy:rpntechworld24@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres')
   : null;
 
