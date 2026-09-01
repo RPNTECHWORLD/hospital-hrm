@@ -3529,13 +3529,24 @@ input[type=number].no-spin {
 }
 
 .dashboard-header {
-  flex-wrap: wrap;
-  gap: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.dashboard-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .header-title {
-  font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+  font-size: clamp(1.3rem, 2.2vw, 2rem);
   word-break: break-word;
+  line-height: 1.25;
 }
 
 .header-subtitle {
@@ -3546,7 +3557,10 @@ input[type=number].no-spin {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-left: auto;
 }
 
 .header-btn {
