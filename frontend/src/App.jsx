@@ -254,6 +254,49 @@ function App() {
     if (!wardAdmitPatient || !wardAdmitBedId) return;
     const pat = wardAdmitPatient;
     const bed = wardAdmitBedId;
+
+    // 1. In-memory check against active patients
+    const occupiedPatient = patients.find(p =>
+      p.wardBedId === bed &&
+      !isSameId(p.id, pat.id) &&
+      p.status !== 'Inactive'
+    );
+
+    if (occupiedPatient) {
+      const docName = (doctorsList || []).find(d => isSameId(d.id, occupiedPatient.assignedDoctorId))?.name || occupiedPatient.assignedDoctorName || occupiedPatient.doctorName || 'another Doctor';
+      setToastConfig({
+        message: `⚠️ Bed Conflict Warning! Bed ${bed} is already occupied by patient ${occupiedPatient.name} (#${occupiedPatient.id}) under ${docName}. Please choose another available bed.`,
+        type: 'danger'
+      });
+      return;
+    }
+
+    // 2. Real-time fetch verification to prevent simultaneous race conditions between multiple doctors
+    try {
+      const res = await fetch(`${API_BASE}/api/patients`);
+      if (res.ok) {
+        const freshList = await res.json();
+        if (Array.isArray(freshList)) {
+          setPatients(freshList);
+          const freshConflict = freshList.find(p =>
+            p.wardBedId === bed &&
+            !isSameId(p.id, pat.id) &&
+            p.status !== 'Inactive'
+          );
+          if (freshConflict) {
+            const docName = (doctorsList || []).find(d => isSameId(d.id, freshConflict.assignedDoctorId))?.name || freshConflict.assignedDoctorName || freshConflict.doctorName || 'another Doctor';
+            setToastConfig({
+              message: `⚠️ Bed Conflict Warning! Bed ${bed} was just occupied by patient ${freshConflict.name} (#${freshConflict.id}) under ${docName}. Please choose another bed.`,
+              type: 'danger'
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not verify live bed status:", e);
+    }
+
     setWardAdmitPatient(null);
     setWardAdmitBedId('');
     await handleRequestWardAdmit(pat.id, bed);
@@ -1225,6 +1268,22 @@ function App() {
     try {
       const patient = patients.find(p => isSameId(p.id, patientId));
       if (!patient) return;
+
+      // Bed conflict check against already occupied beds
+      const occupiedPatient = patients.find(p =>
+        p.wardBedId === bedId &&
+        !isSameId(p.id, patientId) &&
+        p.status !== 'Inactive'
+      );
+
+      if (occupiedPatient) {
+        const docName = (doctorsList || []).find(d => isSameId(d.id, occupiedPatient.assignedDoctorId))?.name || occupiedPatient.assignedDoctorName || occupiedPatient.doctorName || 'another Doctor';
+        setToastConfig({
+          message: `⚠️ Bed Conflict Warning! Bed ${bedId} is already occupied by patient ${occupiedPatient.name} (#${occupiedPatient.id}) under ${docName}. Please choose another bed.`,
+          type: 'danger'
+        });
+        return;
+      }
 
       const now = new Date();
       const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -2344,11 +2403,13 @@ function App() {
 
       {/* ===== GLOBAL WARD ADMIT MODAL ===== */}
       {wardAdmitPatient && (() => {
-        const occupiedBedIds = new Set(
-          patients
-            .filter(p => p.wardBedId && p.id !== wardAdmitPatient.id && p.status !== 'Inactive')
-            .map(p => p.wardBedId)
-        );
+        const occupiedBedMap = new Map();
+        patients
+          .filter(p => p.wardBedId && !isSameId(p.id, wardAdmitPatient.id) && p.status !== 'Inactive')
+          .forEach(p => {
+            occupiedBedMap.set(p.wardBedId, p);
+          });
+
         return (
           <div
             onClick={() => setWardAdmitPatient(null)}
@@ -2414,30 +2475,45 @@ function App() {
                 {/* Bed Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
                   {BEDS_CONFIG.map(bed => {
-                    const isOccupied = occupiedBedIds.has(bed.id);
+                    const occupant = occupiedBedMap.get(bed.id);
+                    const isOccupied = Boolean(occupant);
                     const isSelected = wardAdmitBedId === bed.id;
+                    const occupantDocName = isOccupied
+                      ? ((doctorsList || []).find(d => isSameId(d.id, occupant.assignedDoctorId))?.name || occupant.assignedDoctorName || occupant.doctorName || 'Dr. Assigned')
+                      : '';
+
                     return (
                       <button
                         key={bed.id}
-                        disabled={isOccupied}
-                        onClick={() => !isOccupied && setWardAdmitBedId(bed.id)}
+                        type="button"
+                        onClick={() => {
+                          if (isOccupied) {
+                            setToastConfig({
+                              message: `⚠️ Bed Conflict Warning! Bed ${bed.id} (Room ${bed.room} - ${bed.name}) is already occupied by patient ${occupant.name} (#${occupant.id}) under ${occupantDocName}. Please select another available bed.`,
+                              type: 'danger'
+                            });
+                          } else {
+                            setWardAdmitBedId(bed.id);
+                          }
+                        }}
                         style={{
                           padding: '1rem',
                           borderRadius: '12px',
                           border: isSelected
                             ? '2.5px solid var(--primary)'
-                            : isOccupied ? '1.5px solid rgba(239, 68, 68, 0.4)' : '1.5px solid var(--border)',
+                            : isOccupied ? '1.5px solid rgba(239, 68, 68, 0.45)' : '1.5px solid var(--border)',
                           background: isSelected
                             ? 'rgba(56, 189, 248, 0.15)'
-                            : isOccupied ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-card, #111c30)',
-                          cursor: isOccupied ? 'not-allowed' : 'pointer',
+                            : isOccupied ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-card, #111c30)',
+                          cursor: 'pointer',
                           textAlign: 'left',
                           transition: 'all 0.15s',
-                          opacity: isOccupied ? 0.65 : 1,
                           position: 'relative'
                         }}
                       >
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room {bed.room}</div>
+                        <div style={{ fontSize: '0.7rem', color: isOccupied ? '#ef4444' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: isOccupied ? 700 : 500 }}>
+                          Room {bed.room}
+                        </div>
                         <div style={{ fontWeight: 700, fontSize: '1rem', color: isOccupied ? '#ef4444' : isSelected ? 'var(--primary)' : 'var(--text-primary)', marginTop: '0.15rem' }}>
                           🛏 {bed.name}
                         </div>
@@ -2449,8 +2525,13 @@ function App() {
                           display: 'flex', alignItems: 'center', gap: '0.3rem'
                         }}>
                           <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOccupied ? '#ef4444' : '#10b981', display: 'inline-block' }} />
-                          {isOccupied ? 'Occupied' : 'Available'}
+                          {isOccupied ? `Occupied: ${occupant.name}` : 'Available'}
                         </div>
+                        {isOccupied && (
+                          <div style={{ fontSize: '0.68rem', color: '#dc2626', marginTop: '0.2rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            🩺 {occupantDocName}
+                          </div>
+                        )}
                         {isSelected && (
                           <div style={{
                             position: 'absolute', top: '8px', right: '10px',
