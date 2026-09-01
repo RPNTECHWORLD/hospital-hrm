@@ -1426,13 +1426,25 @@ export const addVaccine = async (vac) => {
 export const getInjections = async () => {
   const list = await dbAll(`SELECT * FROM injections_log ORDER BY id DESC`);
   return list.map(inj => {
-    const isStat = inj.isStat === 1 || inj.isStat === true || (inj.frequency && inj.frequency.includes('STAT'));
+    const isStat = inj.isStat === 1 || inj.isStat === true || inj.isstat === 1 || (inj.frequency && inj.frequency.includes('STAT'));
     const frequency = inj.frequency || (isStat ? 'STAT (Single / Immediate)' : 'OD (Once Daily)');
+    const adminBy = inj.administeredBy || inj.administeredby || '';
+    const dateGiven = inj.dateGiven || inj.dategiven || '';
+    const patientId = inj.patientId || inj.patientid || '';
+    const injectionName = inj.injectionName || inj.injectionname || '';
     return {
       ...inj,
+      id: inj.id,
+      patientId,
+      injectionName,
+      dosage: inj.dosage || '',
       route: inj.route || 'IV',
       frequency: frequency,
-      isStat: isStat ? 1 : 0
+      isStat: isStat ? 1 : 0,
+      administeredBy: adminBy,
+      dateGiven: dateGiven,
+      notes: inj.notes || '',
+      status: inj.status || 'Pending'
     };
   });
 };

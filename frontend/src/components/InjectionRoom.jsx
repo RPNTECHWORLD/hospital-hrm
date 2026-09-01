@@ -554,10 +554,10 @@ const InjectionRoom = ({ patients = [], currentUser }) => {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--success)' }}>
                               <UserCheck size={14} />
-                              {inj.administeredBy ? (inj.administeredBy.toLowerCase().includes('nurse') || inj.administeredBy.toLowerCase().includes('dr') ? inj.administeredBy : `${inj.administeredBy} (Nurse)`) : 'Staff Nurse'}
+                              {inj.administeredBy || inj.administeredby || 'Nurse'}
                             </div>
                             <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                              {inj.dateGiven}
+                              {inj.dateGiven || inj.dategiven}
                             </div>
                           </div>
                         ) : inj.status === 'Cancelled' ? (
