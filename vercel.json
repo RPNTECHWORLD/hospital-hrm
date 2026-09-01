@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm run --prefix frontend build",
+  "outputDirectory": "frontend/dist"
+}
