@@ -433,6 +433,7 @@ export const initDB = async () => {
       `ALTER TABLE patients ADD COLUMN IF NOT EXISTS previousDoctor TEXT`,
       `ALTER TABLE patients ADD COLUMN IF NOT EXISTS pendingReassignment TEXT`,
       `ALTER TABLE patients ADD COLUMN IF NOT EXISTS reassignmentDeclined TEXT`,
+      `ALTER TABLE patients ADD COLUMN IF NOT EXISTS wardHistory TEXT`,
       `ALTER TABLE doctors ADD COLUMN IF NOT EXISTS lastLoginDate TEXT`
     ];
 
