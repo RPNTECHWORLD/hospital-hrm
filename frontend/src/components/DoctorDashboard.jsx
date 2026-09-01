@@ -2254,736 +2254,373 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                 );
               })()}
 
-              {/* Consultation flow (Registered/Consulting status) */}
-              {(!reviewMode && (activePatient.status === 'Registered' || activePatient.status === 'Consulting')) && (
-                <form onSubmit={handlePrescriptionSubmit}>
-                  <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Doctor Consultation</h4>
-
-                  {/* Order Lab Investigation */}
-                  <div style={{
-                    background: 'rgba(15, 118, 110, 0.05)',
-                    border: '1px solid rgba(15, 118, 110, 0.2)',
-                    borderRadius: '10px',
-                    padding: '1.25rem',
-                    marginBottom: '1.5rem'
-                  }}>
-                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
-                      <FlaskConical size={18} />
-                      Order Lab Investigation / Test
-                    </label>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0.75rem 0' }}>
-                      Test ordered will go directly as a notification to the Laboratory queue.
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder="e.g. CBC Blood Test, X-Ray, ECG"
-                        value={orderTestName}
-                        onChange={(e) => {
-                          setOrderTestName(e.target.value);
-                          if (labOrderError) setLabOrderError('');
-                          if (labOrderSuccess) setLabOrderSuccess('');
-                        }}
-                        style={{ flexGrow: 1 }}
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-primary"
-                        onClick={handleOrderLabTest}
-                        style={{ background: 'var(--primary)', border: 'none', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <Plus size={16} /> Order
-                      </button>
+              {/* Doctor Consultation & Prescribing Form (Unified for Consultation, Lab Review, and Pharmacy Review) */}
+              <form onSubmit={handlePrescriptionSubmit}>
+                {/* Review Informational Banner (if in Review mode) */}
+                {(reviewMode === 'lab' || hasDeliveredLab(activePatient.id)) ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(16, 185, 129, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', marginBottom: '1.5rem' }}>
+                    <FlaskConical size={22} style={{ color: '#10b981', flexShrink: 0 }} />
+                    <div style={{ fontSize: '0.9rem' }}>
+                      <strong style={{ color: '#10b981' }}>🧪 Lab Report Ready Review:</strong> Reviewing completed laboratory findings for <strong>{activePatient.name}</strong> {getDeliveredLabNames(activePatient.id) && <span>({getDeliveredLabNames(activePatient.id)})</span>}.
                     </div>
-
-                    {/* Inline Error & Success message right below the input box */}
-                    {labOrderError && (
-                      <div style={{
-                        marginTop: '0.65rem',
-                        padding: '0.6rem 0.85rem',
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        borderRadius: '8px',
-                        color: '#ef4444',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        animation: 'fadeIn 0.2s ease'
-                      }}>
-                        <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                        <span>{labOrderError}</span>
-                      </div>
-                    )}
-
-                    {labOrderSuccess && (
-                      <div style={{
-                        marginTop: '0.65rem',
-                        padding: '0.6rem 0.85rem',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
-                        borderRadius: '8px',
-                        color: '#10b981',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        animation: 'fadeIn 0.2s ease'
-                      }}>
-                        <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                        <span>{labOrderSuccess}</span>
-                      </div>
-                    )}
                   </div>
+                ) : (reviewMode === 'pharmacy' || activePatient.status === 'Reviewing' || activePatient.issuedMedication) ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', marginBottom: '1.5rem' }}>
+                    <AlertCircle size={20} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                    <div style={{ fontSize: '0.9rem' }}>
+                      <strong style={{ color: '#d97706' }}>💊 Pharmacy Medication Dispensation Review:</strong> Pharmacy issued <strong>{activePatient.issuedMedication || 'prescribed medicines'}</strong> for <strong>{activePatient.name}</strong>.
+                    </div>
+                  </div>
+                ) : (
+                  <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Doctor Consultation</h4>
+                )}
 
-                  <div className="form-group">
-                    <label className="form-label">Diagnosis & Clinical Notes</label>
-                    <textarea 
+                {/* Order Lab Investigation */}
+                <div style={{
+                  background: 'rgba(15, 118, 110, 0.05)',
+                  border: '1px solid rgba(15, 118, 110, 0.2)',
+                  borderRadius: '10px',
+                  padding: '1.25rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
+                    <FlaskConical size={18} />
+                    Order Lab Investigation / Test
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0.75rem 0' }}>
+                    Test ordered will go directly as a notification to the Laboratory queue.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input 
+                      type="text" 
                       className="form-input" 
-                      rows="3" 
-                      placeholder={prescriptionMode === 'drawing' ? "Enter optional notes (or write everything directly on the board below)..." : "Enter patient diagnosis, findings, and symptoms..."}
-                      value={diagnosis}
-                      onChange={(e) => setDiagnosis(e.target.value)}
-                      required={prescriptionMode === 'form'}
+                      placeholder="e.g. CBC Blood Test, X-Ray, ECG"
+                      value={orderTestName}
+                      onChange={(e) => {
+                        setOrderTestName(e.target.value);
+                        if (labOrderError) setLabOrderError('');
+                        if (labOrderSuccess) setLabOrderSuccess('');
+                      }}
+                      style={{ flexGrow: 1 }}
                     />
+                    <button 
+                      type="button" 
+                      className="btn btn-primary"
+                      onClick={handleOrderLabTest}
+                      style={{ background: 'var(--primary)', border: 'none', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    >
+                      <Plus size={16} /> Order
+                    </button>
                   </div>
 
-                  {/* Ward Admission Selector */}
-                  {(() => {
-                    const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
-                    const assignedWardBedId = livePat?.wardBedId || activePatient?.wardBedId;
+                  {/* Inline Error & Success message right below the input box */}
+                  {labOrderError && (
+                    <div style={{
+                      marginTop: '0.65rem',
+                      padding: '0.6rem 0.85rem',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      borderRadius: '8px',
+                      color: '#ef4444',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      animation: 'fadeIn 0.2s ease'
+                    }}>
+                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                      <span>{labOrderError}</span>
+                    </div>
+                  )}
 
-                    if (assignedWardBedId) {
-                      return (
-                        <div className="form-group" style={{ 
-                          background: 'rgba(16, 185, 129, 0.08)', 
-                          border: '1.5px solid rgba(16, 185, 129, 0.35)', 
-                          borderRadius: '10px', 
-                          padding: '1.25rem',
-                          marginBottom: '1.75rem'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ 
-                                background: 'rgba(16, 185, 129, 0.2)', 
-                                color: '#10b981', 
-                                width: '36px', 
-                                height: '36px', 
-                                borderRadius: '8px', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center' 
-                              }}>
-                                <Bed size={18} />
-                              </div>
-                              <div>
-                                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#10b981' }}>
-                                  ✓ Patient Already Admitted to Ward
-                                </div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                                  Assigned to: <strong style={{ color: 'var(--text-primary)' }}>Room {assignedWardBedId.slice(0, 3)} - Bed {assignedWardBedId.slice(3)}</strong>
-                                </div>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleDoctorDischargeFromWard}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                padding: '0.45rem 0.95rem',
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                border: '1.5px solid rgba(239, 68, 68, 0.35)',
-                                borderRadius: '8px',
-                                color: '#ef4444',
-                                fontWeight: 700,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                whiteSpace: 'nowrap'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#ef4444';
-                                e.currentTarget.style.color = '#ffffff';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                e.currentTarget.style.color = '#ef4444';
-                              }}
-                            >
-                              <LogOut size={15} /> Discharge Patient
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
+                  {labOrderSuccess && (
+                    <div style={{
+                      marginTop: '0.65rem',
+                      padding: '0.6rem 0.85rem',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      borderRadius: '8px',
+                      color: '#10b981',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      animation: 'fadeIn 0.2s ease'
+                    }}>
+                      <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                      <span>{labOrderSuccess}</span>
+                    </div>
+                  )}
+                </div>
 
-                    const allBeds = ['101A', '101B', '102A', '102B', '103A', '103B', '104A', '104B', '105A', '105B'];
-                    const occupiedBedIds = patients
-                      .filter(p => p.wardBedId && p.status !== 'Inactive')
-                      .map(p => p.wardBedId);
-                    const availableBeds = allBeds.filter(bedId => !occupiedBedIds.includes(bedId));
-
-                    return (
-                      <div className="form-group" style={{ 
-                        background: recommendAdmission ? 'rgba(21, 115, 136, 0.08)' : 'rgba(128, 128, 128, 0.04)', 
-                        border: recommendAdmission ? '1px solid rgba(21, 115, 136, 0.35)' : '1px solid var(--border)', 
-                        borderRadius: '10px', 
-                        padding: '1.25rem',
-                        marginBottom: '1.75rem',
-                        transition: 'all 0.25s ease'
-                      }}>
+                {/* Injection Approval Section */}
+                {patientInjections && patientInjections.length > 0 && (
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                      <Syringe size={16} style={{ color: 'var(--primary)' }} />
+                      <span>Prescribed Injection Details</span>
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {patientInjections.map(inj => (
                         <div 
-                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                          onClick={() => {
-                            setRecommendAdmission(!recommendAdmission);
-                            if (recommendAdmission) setTargetBedId('');
+                          key={inj.id} 
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '0.75rem 1rem', 
+                            background: 'rgba(21, 115, 136, 0.05)', 
+                            border: '1px solid rgba(21, 115, 136, 0.15)', 
+                            borderRadius: '8px' 
                           }}
                         >
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--primary)' }}>{inj.injectionName}</strong>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dosage: {inj.dosage}</span>
+                          </div>
+                          <div>
+                            {inj.status === 'Pending Approval' ? (
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                onClick={() => handleApproveInjection(inj.id)}
+                              >
+                                <Check size={14} /> Allow Injection Desk
+                              </button>
+                            ) : inj.status === 'Pending' ? (
+                              <span className="badge badge-pending" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                                Approved & Pending Desk
+                              </span>
+                            ) : (
+                              <span className="badge badge-success" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                                Administered ✅ ({inj.dateGiven})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Diagnosis & Clinical Notes</label>
+                  <textarea 
+                    className="form-input" 
+                    rows="3" 
+                    placeholder={prescriptionMode === 'drawing' ? "Enter optional notes (or write everything directly on the board below)..." : "Enter patient diagnosis, findings, and symptoms..."}
+                    value={diagnosis}
+                    onChange={(e) => setDiagnosis(e.target.value)}
+                    required={prescriptionMode === 'form'}
+                  />
+                </div>
+
+                {/* Ward Admission Selector */}
+                {(() => {
+                  const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
+                  const assignedWardBedId = livePat?.wardBedId || activePatient?.wardBedId;
+
+                  if (assignedWardBedId) {
+                    return (
+                      <div className="form-group" style={{ 
+                        background: 'rgba(16, 185, 129, 0.08)', 
+                        border: '1.5px solid rgba(16, 185, 129, 0.35)', 
+                        borderRadius: '10px', 
+                        padding: '1.25rem',
+                        marginBottom: '1.75rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ 
-                              background: recommendAdmission ? 'rgba(21, 115, 136, 0.15)' : 'rgba(128, 128, 128, 0.12)',
-                              color: recommendAdmission ? 'var(--primary)' : 'var(--text-secondary)',
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.25s'
+                              background: 'rgba(16, 185, 129, 0.2)', 
+                              color: '#10b981', 
+                              width: '36px', 
+                              height: '36px', 
+                              borderRadius: '8px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center' 
                             }}>
                               <Bed size={18} />
                             </div>
                             <div>
-                              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Recommend Ward Admission</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                                Request bed assignment for inpatient care
+                              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#10b981' }}>
+                                ✓ Patient Already Admitted to Ward
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                Assigned to: <strong style={{ color: 'var(--text-primary)' }}>Room {assignedWardBedId.slice(0, 3)} - Bed {assignedWardBedId.slice(3)}</strong>
                               </div>
                             </div>
                           </div>
-                          
-                          {/* Toggle switch visual */}
-                          <div style={{
-                            width: '44px',
-                            height: '24px',
-                            background: recommendAdmission ? 'var(--primary)' : 'rgba(100, 116, 139, 0.3)',
-                            border: recommendAdmission ? '1px solid var(--primary)' : '1.5px solid rgba(100, 116, 139, 0.45)',
-                            borderRadius: '16px',
-                            position: 'relative',
-                            transition: 'all 0.25s ease',
-                            flexShrink: 0
-                          }}>
-                            <div style={{
-                              width: '18px',
-                              height: '18px',
-                              background: '#ffffff',
-                              borderRadius: '50%',
-                              position: 'absolute',
-                              top: '1.5px',
-                              left: recommendAdmission ? '21px' : '2px',
-                              transition: 'left 0.25s ease',
-                              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.25)'
-                            }} />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={handleDoctorDischargeFromWard}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              padding: '0.45rem 0.95rem',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                              borderRadius: '8px',
+                              color: '#ef4444',
+                              fontWeight: 700,
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              whiteSpace: 'nowrap'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#ef4444';
+                              e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                              e.currentTarget.style.color = '#ef4444';
+                            }}
+                          >
+                            <LogOut size={15} /> Discharge Patient
+                          </button>
                         </div>
-
-                        {recommendAdmission && (
-                          <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }} className="fade-in">
-                            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
-                              Available Ward Beds ({availableBeds.length})
-                            </label>
-                            <select 
-                              className="form-input" 
-                              value={targetBedId}
-                              onChange={(e) => setTargetBedId(e.target.value)}
-                              required={recommendAdmission}
-                              style={{ fontSize: '0.9rem' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <option value="" disabled>-- Select Bed --</option>
-                              {availableBeds.map(bedId => (
-                                <option key={bedId} value={bedId}>
-                                  Room {bedId.slice(0, 3)} - Bed {bedId.slice(3)}
-                                </option>
-                              ))}
-                            </select>
-                            {availableBeds.length === 0 && (
-                              <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.5rem', margin: 0, fontWeight: 500 }}>
-                                ⚠️ No ward beds are currently available.
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     );
-                  })()}
+                  }
 
-                  {/* Prescription entry mode selector */}
-                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                    <label className="form-label">Prescription Entry Mode</label>
-                    <div className="doc-mode-switcher-grid" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className={`btn ${prescriptionMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
-                        onClick={() => setPrescriptionMode('form')}
-                      >
-                        Type Prescription List
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${prescriptionMode === 'drawing' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
-                        onClick={() => setPrescriptionMode('drawing')}
-                      >
-                        Draw on Screen Pad (Stylus/Pen)
-                      </button>
-                    </div>
-                  </div>
+                  const allBeds = ['101A', '101B', '102A', '102B', '103A', '103B', '104A', '104B', '105A', '105B'];
+                  const occupiedBedIds = patients
+                    .filter(p => p.wardBedId && p.status !== 'Inactive')
+                    .map(p => p.wardBedId);
+                  const availableBeds = allBeds.filter(bedId => !occupiedBedIds.includes(bedId));
 
-                  {prescriptionMode === 'drawing' ? (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      <label className="form-label">Digital Drawing Board (Write/Draw Prescription)</label>
-                      <DrawingCanvas onSave={setCanvasDataUrl} />
-                    </div>
-                  ) : (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        <label className="form-label" style={{ marginBottom: 0 }}>Digital Prescription</label>
-                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                            onClick={handleAddMedicine}
-                          >
-                            <Plus size={13} /> Tablets
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary" 
-                            style={{
-                              padding: '0.35rem 0.6rem',
-                              fontSize: '0.78rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              background: 'rgba(15, 118, 110, 0.1)',
-                              color: '#0f766e',
-                              border: '1.5px solid rgba(15, 118, 110, 0.3)',
-                              fontWeight: 700
-                            }}
-                            onClick={handleAddSyrup}
-                          >
-                            <Plus size={13} /> Syrup
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary" 
-                            style={{
-                              padding: '0.35rem 0.6rem',
-                              fontSize: '0.78rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              background: 'rgba(225, 29, 72, 0.1)',
-                              color: '#e11d48',
-                              border: '1.5px solid rgba(225, 29, 72, 0.3)',
-                              fontWeight: 700
-                            }}
-                            onClick={handleAddInjection}
-                          >
-                            <Plus size={13} /> Injection
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary" 
-                            style={{
-                              padding: '0.35rem 0.6rem',
-                              fontSize: '0.78rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              background: 'rgba(147, 51, 234, 0.1)',
-                              color: '#9333ea',
-                              border: '1.5px solid rgba(147, 51, 234, 0.3)',
-                              fontWeight: 700
-                            }}
-                            onClick={handleAddNebulization}
-                          >
-                            <Plus size={13} /> Nebulization
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary" 
-                            style={{
-                              padding: '0.35rem 0.6rem',
-                              fontSize: '0.78rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              background: 'rgba(245, 158, 11, 0.1)',
-                              color: '#d97706',
-                              border: '1.5px solid rgba(245, 158, 11, 0.3)',
-                              fontWeight: 700
-                            }}
-                            onClick={handleAddOthers}
-                          >
-                            <Plus size={13} /> Others
-                          </button>
+                  return (
+                    <div className="form-group" style={{ 
+                      background: recommendAdmission ? 'rgba(21, 115, 136, 0.08)' : 'rgba(128, 128, 128, 0.04)', 
+                      border: recommendAdmission ? '1px solid rgba(21, 115, 136, 0.35)' : '1px solid var(--border)', 
+                      borderRadius: '10px', 
+                      padding: '1.25rem',
+                      marginBottom: '1.75rem',
+                      transition: 'all 0.25s ease'
+                    }}>
+                      <div 
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                        onClick={() => {
+                          setRecommendAdmission(!recommendAdmission);
+                          if (recommendAdmission) setTargetBedId('');
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ 
+                            background: recommendAdmission ? 'rgba(21, 115, 136, 0.15)' : 'rgba(128, 128, 128, 0.12)',
+                            color: recommendAdmission ? 'var(--primary)' : 'var(--text-secondary)',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.25s'
+                          }}>
+                            <Bed size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Recommend Ward Admission</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                              Request bed assignment for inpatient care
+                            </div>
+                          </div>
                         </div>
-                      </div>
-
-                      {medicines.length === 0 ? (
+                        
+                        {/* Toggle switch visual */}
                         <div style={{
-                          padding: '1.25rem',
-                          textAlign: 'center',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          border: '1px dashed var(--border)',
-                          borderRadius: '10px',
-                          color: 'var(--text-muted)',
-                          fontSize: '0.88rem',
-                          marginBottom: '1rem'
+                          width: '44px',
+                          height: '24px',
+                          background: recommendAdmission ? 'var(--primary)' : 'rgba(100, 116, 139, 0.3)',
+                          border: recommendAdmission ? '1px solid var(--primary)' : '1.5px solid rgba(100, 116, 139, 0.45)',
+                          borderRadius: '16px',
+                          position: 'relative',
+                          transition: 'all 0.25s ease',
+                          flexShrink: 0
                         }}>
-                          <p style={{ margin: '0 0 0.65rem 0' }}>No medicines added to this prescription list.</p>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
-                              onClick={handleAddMedicine}
-                            >
-                              <Plus size={13} /> Add Tablet
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
-                              onClick={handleAddSyrup}
-                            >
-                              <Plus size={13} /> Add Syrup
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
-                              onClick={handleAddInjection}
-                            >
-                              <Plus size={13} /> Add Injection
-                            </button>
-                          </div>
+                          <div style={{
+                            width: '18px',
+                            height: '18px',
+                            background: '#ffffff',
+                            borderRadius: '50%',
+                            position: 'absolute',
+                            top: '1.5px',
+                            left: recommendAdmission ? '21px' : '2px',
+                            transition: 'left 0.25s ease',
+                            boxShadow: '0 2px 5px rgba(0, 0, 0, 0.25)'
+                          }} />
                         </div>
-                      ) : (
-                        medicines.map((med, idx) => (
-                          <MedicineInputRow
-                            key={idx}
-                            med={med}
-                            idx={idx}
-                            onChange={handleMedicineChange}
-                            onRemove={handleRemoveMedicine}
-                            canRemove={true}
-                          />
-                        ))
+                      </div>
+
+                      {recommendAdmission && (
+                        <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }} className="fade-in">
+                          <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                            Available Ward Beds ({availableBeds.length})
+                          </label>
+                          <select 
+                            className="form-input" 
+                            value={targetBedId}
+                            onChange={(e) => setTargetBedId(e.target.value)}
+                            required={recommendAdmission}
+                            style={{ fontSize: '0.9rem' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="" disabled>-- Select Bed --</option>
+                            {availableBeds.map(bedId => (
+                              <option key={bedId} value={bedId}>
+                                Room {bedId.slice(0, 3)} - Bed {bedId.slice(3)}
+                              </option>
+                            ))}
+                          </select>
+                          {availableBeds.length === 0 && (
+                            <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.5rem', margin: 0, fontWeight: 500 }}>
+                              ⚠️ No ward beds are currently available.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
+                  );
+                })()}
 
-                  <div className="doc-consult-submit-actions" style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                    <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
-                      <Send size={16} /> Send to Pharmacy
+                {/* Prescription entry mode selector */}
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label className="form-label">Prescription Entry Mode</label>
+                  <div className="doc-mode-switcher-grid" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={`btn ${prescriptionMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
+                      onClick={() => setPrescriptionMode('form')}
+                    >
+                      Type Prescription List
                     </button>
-                    {onAdmitToWard && (
-                      <button
-                        type="button"
-                        onClick={handleBottomAdmitClick}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.6rem 1.25rem',
-                          background: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15,118,110,0.1)',
-                          border: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1.5px solid rgba(15,118,110,0.35)',
-                          borderRadius: '8px',
-                          color: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '#10b981' : '#0f766e',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        <Bed size={15} />
-                        {(liveActivePatient?.wardBedId || activePatient?.wardBedId)
-                          ? `Admitted (Room ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(0, 3)} • ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(3)})`
-                          : (recommendAdmission && targetBedId
-                            ? `Bed Selected (Room ${targetBedId.slice(0, 3)} • ${targetBedId.slice(3)})`
-                            : 'Admit to Ward')}
-                      </button>
-                    )}
-                    <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
-                      Cancel
+                    <button
+                      type="button"
+                      className={`btn ${prescriptionMode === 'drawing' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexGrow: 1 }}
+                      onClick={() => setPrescriptionMode('drawing')}
+                    >
+                      Draw on Screen Pad (Stylus/Pen)
                     </button>
                   </div>
-                </form>
-              )}
+                </div>
 
-              {/* Review flow (Reviewing or Lab/Pharmacy Review mode) */}
-              {(reviewMode === 'lab' || reviewMode === 'pharmacy' || activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') && (
-                <form onSubmit={handleReviewSubmit}>
-                  {reviewMode === 'lab' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(16, 185, 129, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)', marginBottom: '1.5rem' }}>
-                      <FlaskConical size={22} style={{ color: '#10b981', flexShrink: 0 }} />
-                      <div style={{ fontSize: '0.9rem' }}>
-                        <strong style={{ color: '#10b981' }}>🧪 Lab Report Ready Review:</strong> Reviewing completed laboratory findings for <strong>{activePatient.name}</strong> {getDeliveredLabNames(activePatient.id) && <span>({getDeliveredLabNames(activePatient.id)})</span>}.
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', marginBottom: '1.5rem' }}>
-                      <AlertCircle size={20} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                      <div style={{ fontSize: '0.9rem' }}>
-                        <strong style={{ color: '#d97706' }}>💊 Pharmacy Medication Dispensation Review:</strong> Pharmacy issued <strong>{activePatient.issuedMedication || 'prescribed medicines'}</strong> for <strong>{activePatient.name}</strong>.
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 700, color: 'var(--primary)' }}>Previous Diagnosis & Clinical Notes</label>
-                    <div style={{ background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.95rem' }}>
-                      <div style={{ fontWeight: 700, marginBottom: '0.3rem', color: 'var(--text-primary)' }}>
-                        Diagnosis: <span style={{ fontWeight: 500 }}>
-                          {activePatient.diagnosis ||
-                            (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].diagnosis) ||
-                            'No prior diagnosis recorded'}
-                        </span>
-                      </div>
-                      {(activePatient.complaints || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].complaints)) && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                          <strong>Complaints:</strong> {activePatient.complaints || (activePatient.history && activePatient.history[activePatient.history.length - 1].complaints)}
-                        </div>
-                      )}
-                      {(activePatient.examination || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].examination)) && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          <strong>Examination:</strong> {activePatient.examination || (activePatient.history && activePatient.history[activePatient.history.length - 1].examination)}
-                        </div>
-                      )}
-                      {(activePatient.investigation || (activePatient.history && activePatient.history.length > 0 && activePatient.history[activePatient.history.length - 1].investigation)) && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          <strong>Investigation:</strong> {activePatient.investigation || (activePatient.history && activePatient.history[activePatient.history.length - 1].investigation)}
-                        </div>
-                      )}
-                    </div>
+                {prescriptionMode === 'drawing' ? (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label className="form-label">Digital Drawing Board (Write/Draw Prescription)</label>
+                    <DrawingCanvas onSave={setCanvasDataUrl} />
                   </div>
-
-                  {/* Order Lab Investigation */}
-                  <div style={{
-                    background: 'rgba(15, 118, 110, 0.05)',
-                    border: '1px solid rgba(15, 118, 110, 0.2)',
-                    borderRadius: '10px',
-                    padding: '1.25rem',
-                    marginBottom: '1.5rem'
-                  }}>
-                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
-                      <FlaskConical size={18} />
-                      Order Lab Investigation / Test
-                    </label>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0.75rem 0' }}>
-                      Test ordered will go directly as a notification to the Laboratory queue.
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder="e.g. CBC Blood Test, X-Ray, ECG"
-                        value={orderTestName}
-                        onChange={(e) => {
-                          setOrderTestName(e.target.value);
-                          if (labOrderError) setLabOrderError('');
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleOrderLabTest();
-                          }
-                        }}
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-primary"
-                        onClick={handleOrderLabTest}
-                        style={{ background: 'var(--primary)', border: 'none', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <Plus size={16} /> Order
-                      </button>
-                    </div>
-
-                    {labOrderError && (
-                      <div style={{
-                        marginTop: '0.65rem',
-                        padding: '0.6rem 0.85rem',
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        borderRadius: '8px',
-                        color: '#ef4444',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        animation: 'fadeIn 0.2s ease'
-                      }}>
-                        <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                        <span>{labOrderError}</span>
-                      </div>
-                    )}
-
-                    {labOrderSuccess && (
-                      <div style={{
-                        marginTop: '0.65rem',
-                        padding: '0.6rem 0.85rem',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
-                        borderRadius: '8px',
-                        color: '#10b981',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        animation: 'fadeIn 0.2s ease'
-                      }}>
-                        <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                        <span>{labOrderSuccess}</span>
-                      </div>
-                    )}
-
-                    {/* Ordered Lab Tests List */}
-                    {patientLabLogs && patientLabLogs.length > 0 && (
-                      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          Ordered Lab Tests ({patientLabLogs.length}):
-                        </div>
-                        {patientLabLogs.map(log => (
-                          <div 
-                            key={log.id} 
-                            style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center', 
-                              padding: '0.6rem 0.85rem', 
-                              background: 'rgba(0,0,0,0.02)', 
-                              border: '1px solid var(--border)', 
-                              borderRadius: '6px' 
-                            }}
-                          >
-                            <div>
-                              <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                                🧪 {log.testName}
-                              </strong>
-                              {log.reportNotes && (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>
-                                  Notes: {log.reportNotes}
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              {log.status === 'Report Delivered' ? (
-                                <>
-                                  <span className="badge badge-success" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
-                                    Report Delivered ✅
-                                  </span>
-                                  {log.reportImg && (
-                                    <button
-                                      type="button"
-                                      className="btn btn-secondary"
-                                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                      onClick={() => setPreviewLabImage(log.reportImg)}
-                                    >
-                                      <ExternalLink size={13} /> View Report
-                                    </button>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="badge badge-pending" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
-                                  {log.status || 'Ordered'} ⏳
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Injection Approval Section */}
-                  {patientInjections && patientInjections.length > 0 && (
-                    <div className="form-group" style={{ marginTop: '1.5rem' }}>
-                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
-                        <Syringe size={16} style={{ color: 'var(--primary)' }} />
-                        <span>Prescribed Injection Details</span>
-                      </label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {patientInjections.map(inj => (
-                          <div 
-                            key={inj.id} 
-                            style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center', 
-                              padding: '0.75rem 1rem', 
-                              background: 'rgba(21, 115, 136, 0.05)', 
-                              border: '1px solid rgba(21, 115, 136, 0.15)', 
-                              borderRadius: '8px' 
-                            }}
-                          >
-                            <div>
-                              <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--primary)' }}>{inj.injectionName}</strong>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dosage: {inj.dosage}</span>
-                            </div>
-                            <div>
-                              {inj.status === 'Pending Approval' ? (
-                                <button
-                                  type="button"
-                                  className="btn btn-primary"
-                                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                  onClick={() => handleApproveInjection(inj.id)}
-                                >
-                                  <Check size={14} /> Allow Injection Desk
-                                </button>
-                              ) : inj.status === 'Pending' ? (
-                                <span className="badge badge-pending" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
-                                  Approved & Pending Desk
-                                </span>
-                              ) : (
-                                <span className="badge badge-success" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
-                                  Administered ✅ ({inj.dateGiven})
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Digital Prescription (Edit / Add Medicines during Review) */}
-                  <div style={{
-                    background: 'rgba(21, 115, 136, 0.04)',
-                    border: '1px solid rgba(21, 115, 136, 0.25)',
-                    borderRadius: '10px',
-                    padding: '1.25rem',
-                    marginTop: '1.5rem',
-                    marginBottom: '1.5rem'
-                  }} className="doc-review-prescription-section">
+                ) : (
+                  <div style={{ marginBottom: '1.5rem' }} className="doc-prescription-edit-section">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <div>
-                        <label className="form-label" style={{ fontWeight: 700, margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <Pill size={16} /> Digital Prescription & Medicines
-                        </label>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Add or adjust medication list for this review patient</span>
-                      </div>
+                      <label className="form-label" style={{ marginBottom: 0, fontWeight: 700, color: 'var(--primary)' }}>Digital Prescription</label>
                       <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <button 
                           type="button" 
@@ -3070,139 +2707,142 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
                     {medicines.length === 0 ? (
                       <div style={{
-                        padding: '1rem',
+                        padding: '1.25rem',
                         textAlign: 'center',
                         background: 'rgba(255, 255, 255, 0.02)',
                         border: '1px dashed var(--border)',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         color: 'var(--text-muted)',
-                        fontSize: '0.85rem'
+                        fontSize: '0.88rem',
+                        marginBottom: '1rem'
                       }}>
-                        No extra medicines added for this review. Click buttons above to add medicines.
+                        <p style={{ margin: '0 0 0.65rem 0' }}>No medicines added to this prescription list.</p>
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                            onClick={handleAddMedicine}
+                          >
+                            <Plus size={13} /> Add Tablet
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                            onClick={handleAddSyrup}
+                          >
+                            <Plus size={13} /> Add Syrup
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                            onClick={handleAddInjection}
+                          >
+                            <Plus size={13} /> Add Injection
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {medicines.map((med, idx) => (
-                          <MedicineInputRow
-                            key={idx}
-                            med={med}
-                            idx={idx}
-                            onChange={handleMedicineChange}
-                            onRemove={handleRemoveMedicine}
-                            canRemove={true}
-                          />
-                        ))}
-                      </div>
+                      medicines.map((med, idx) => (
+                        <MedicineInputRow
+                          key={idx}
+                          med={med}
+                          idx={idx}
+                          onChange={handleMedicineChange}
+                          onRemove={handleRemoveMedicine}
+                          canRemove={true}
+                        />
+                      ))
                     )}
+                  </div>
+                )}
 
-                    {/* Button to send updated prescription to Pharmacy right during review */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#0f766e', border: 'none' }}
-                        onClick={async () => {
-                          const validMeds = medicines.filter(m => m.name && m.name.trim());
-                          if (validMeds.length === 0) {
-                            showToast('Please specify at least one medicine name.', 'warning');
-                            return;
-                          }
-                          try {
-                            const cleanId = String(activePatient.id).replace(/#/g, '').trim();
-                            await fetch(`${API_BASE}/api/patients/${encodeURIComponent(cleanId)}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                prescription: validMeds,
-                                pharmacyStatus: 'Pending Issue'
-                              })
-                            });
-                            showToast(`Updated prescription sent to Pharmacy for ${activePatient.name}! 💊`, 'success');
-                          } catch (err) {
-                            console.error("Error updating prescription during review:", err);
-                            showToast('Error updating prescription.', 'danger');
-                          }
-                        }}
-                      >
-                        <Send size={14} /> Send Updated Prescription to Pharmacy
-                      </button>
+                {/* Follow up notes if in review mode */}
+                {(reviewMode || activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Doctor's Review / Clinical Note</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Vitals normal, continue current prescription"
+                        value={followUpNotes}
+                        onChange={(e) => setFollowUpNotes(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Next Visit Date</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={nextVisitDate}
+                        onChange={(e) => setNextVisitDate(e.target.value)}
+                      />
                     </div>
                   </div>
+                )}
 
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
-                    {reviewMode === 'lab' ? (
-                      <button 
-                        type="submit" 
-                        className="btn btn-primary" 
-                        style={{ flexGrow: 1, fontWeight: 700 }}
-                      >
-                        <CheckCircle2 size={16} /> Complete Lab Report Review
-                      </button>
-                    ) : (
-                      <button 
-                        type="submit" 
-                        className="btn btn-primary" 
-                        style={{ flexGrow: 1, fontWeight: 700 }}
-                      >
-                        <CheckCircle2 size={16} /> Complete Pharmacy Review
-                      </button>
-                    )}
-                    {(liveActivePatient?.wardBedId || activePatient?.wardBedId) ? (
-                      <button
-                        type="button"
-                        onClick={handleDoctorDischargeFromWard}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.6rem 1.25rem',
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          border: '1.5px solid rgba(239, 68, 68, 0.4)',
-                          borderRadius: '8px',
-                          color: '#ef4444',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        <LogOut size={15} />
-                        Discharge Patient (Room {(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(0, 3)} • {(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(3)})
-                      </button>
-                    ) : (
-                      onAdmitToWard && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const livePat = (patients && activePatient) ? (patients.find(p => isSameId(p.id, activePatient.id)) || activePatient) : activePatient;
-                            onAdmitToWard(livePat || activePatient);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            padding: '0.6rem 1.25rem',
-                            background: 'rgba(15, 118, 110, 0.1)',
-                            border: '1.5px solid rgba(15, 118, 110, 0.35)',
-                            borderRadius: '8px',
-                            color: '#0f766e',
-                            fontWeight: 700,
-                            fontSize: '0.9rem',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          <Bed size={15} />
-                          Admit to Ward
-                        </button>
-                      )
-                    )}
-                    <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
-                      Cancel
+                <div className="doc-consult-submit-actions" style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flexGrow: 1, fontWeight: 700 }}>
+                    <Send size={16} /> Send to Pharmacy
+                  </button>
+                  
+                  {/* Complete Review Button for Review patients */}
+                  {(reviewMode === 'lab' || hasDeliveredLab(activePatient.id)) ? (
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      style={{ flexGrow: 1, fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
+                      onClick={handleCompleteLabReview}
+                    >
+                      <CheckCircle2 size={16} /> Complete Lab Report Review
                     </button>
-                  </div>
-                </form>
-              )}
+                  ) : (reviewMode === 'pharmacy' || activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') ? (
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      style={{ flexGrow: 1, fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
+                      onClick={handleCompletePharmacyReview}
+                    >
+                      <CheckCircle2 size={16} /> Complete Pharmacy Review
+                    </button>
+                  ) : null}
+
+                  {onAdmitToWard && (
+                    <button
+                      type="button"
+                      onClick={handleBottomAdmitClick}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.6rem 1.25rem',
+                        background: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15,118,110,0.1)',
+                        border: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '1.5px solid rgba(16, 185, 129, 0.4)' : '1.5px solid rgba(15,118,110,0.35)',
+                        borderRadius: '8px',
+                        color: (liveActivePatient?.wardBedId || activePatient?.wardBedId || (recommendAdmission && targetBedId)) ? '#10b981' : '#0f766e',
+                        fontWeight: 700,
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Bed size={15} />
+                      {(liveActivePatient?.wardBedId || activePatient?.wardBedId)
+                        ? `Admitted (Room ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(0, 3)} • ${(liveActivePatient?.wardBedId || activePatient?.wardBedId).slice(3)})`
+                        : (recommendAdmission && targetBedId
+                          ? `Bed Selected (Room ${targetBedId.slice(0, 3)} • ${targetBedId.slice(3)})`
+                          : 'Admit to Ward')}
+                    </button>
+                  )}
+                  
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelConsultation}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
         </div>
       )}
@@ -3738,7 +3378,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setShowAllHistoryModal(false);
 
                         setTimeout(() => {
-                          const medSection = document.querySelector('.doc-review-prescription-section') || document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
+                          const medSection = document.querySelector('.doc-prescription-edit-section') || document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
                           if (medSection) {
                             medSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           } else {
