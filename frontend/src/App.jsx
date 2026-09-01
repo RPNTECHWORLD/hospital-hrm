@@ -16,6 +16,7 @@ import UtilityLogs from './components/UtilityLogs';
 import ConfirmModal from './components/ConfirmModal';
 import ToastNotification from './components/ToastNotification';
 import { generateFullPrescriptionImage, capturePrescriptionDOMImage } from './components/PrescriptionTemplate';
+import { printPrescriptionDirectly } from './utils/printHelper';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 import {
@@ -1473,7 +1474,7 @@ function App() {
 
   // Printing & Email simulation helper functions
   const handlePrintPrescription = () => {
-    window.print();
+    printPrescriptionDirectly('printable-rx');
   };
 
   const handleEmailPrescription = async (sharePatient, customEmail = null) => {

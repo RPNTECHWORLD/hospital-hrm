@@ -5,6 +5,7 @@ import DrawingCanvas from './DrawingCanvas';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 import ConfirmModal from './ConfirmModal';
+import { printPrescriptionDirectly } from '../utils/printHelper';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -3474,11 +3475,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     className="btn btn-primary" 
                     style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                     onClick={() => {
-                      if (typeof onPrintPrescription === 'function') {
-                        onPrintPrescription();
-                      } else {
-                        window.print();
-                      }
+                      printPrescriptionDirectly('printable-rx');
                     }}
                   >
                     <Printer size={16} /> Print Prescription
@@ -3548,6 +3545,8 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
 
                         if (onStartConsultation) {
                           onStartConsultation(targetPatient.id || cleanTargetId);
+                        } else if (onUpdatePatientStatus) {
+                          onUpdatePatientStatus(targetPatient.id || cleanTargetId, 'Consulting');
                         }
 
                         setActivePatient(targetPatient);
@@ -3562,15 +3561,21 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setPrescriptionMode(sharePatient.prescriptionImg ? 'drawing' : 'form');
                         setCanvasDataUrl(sharePatient.prescriptionImg || null);
 
+                        setReviewMode(null); // Clear Reviewing / Lab mode so medicine consultation form is active!
                         setSharePatient(null);
                         setIsHistoryPreview(false);
                         setShowAllHistoryModal(false);
 
                         setTimeout(() => {
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }, 60);
+                          const medSection = document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
+                          if (medSection) {
+                            medSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          } else {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }, 120);
 
-                        showToast('Prescription loaded into Doctor Consultation form. You can add, edit, or remove medicines now.', 'info');
+                        showToast('Opened Medicine Prescribing Terminal. You can now add/edit medicines and Send to Pharmacy.', 'info');
                       }
                     }}
                   >
