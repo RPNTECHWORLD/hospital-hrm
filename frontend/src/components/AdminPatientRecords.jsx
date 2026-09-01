@@ -3,6 +3,7 @@ import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 import { resolvePatientLocation } from '../utils/locationHelper';
+import { printPrescriptionDirectly } from '../utils/printHelper';
 
 // Helper: extract city from address string "street | city | pincode" or free-form address
 const extractCity = (address) => {
@@ -1988,7 +1989,7 @@ const AdminPatientRecords = ({
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={() => window.print()}
+                    onClick={() => printPrescriptionDirectly('printable-rx')}
                     style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                   >
                     <Printer size={16} /> Print Prescription
