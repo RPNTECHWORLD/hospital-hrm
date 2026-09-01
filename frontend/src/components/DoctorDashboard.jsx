@@ -925,13 +925,13 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   );
 
   const consultationQueue = myPatients
-    .filter(p => p.status === 'Consulting' || (['In Queue', 'Registered', 'Waiting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr)))
+    .filter(p => p.status !== 'Reviewing' && p.status !== 'Lab Review Pending' && p.status !== 'Completed' && (p.status === 'Consulting' || (['In Queue', 'Registered', 'Waiting'].includes(p.status) && isSameDayStr(p.registrationDate, todayStr))))
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
 
   // Dedicated Lab Reports Ready Queue (Patients awaiting lab report review who are not in the active initial consultation queue)
   const labReviewQueue = myPatients.filter(p =>
     hasDeliveredLab(p.id) &&
-    !['In Queue', 'Registered', 'Consulting', 'Waiting', 'Completed', 'Inactive'].includes(p.status)
+    !['In Queue', 'Registered', 'Waiting', 'Completed', 'Inactive'].includes(p.status)
   );
 
   // Dedicated Pharmacy Dispensed Review Queue (All patients sent by Pharmacy to Doctor Review)
