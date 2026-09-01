@@ -3369,10 +3369,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setPrescriptionMode(sharePatient.prescriptionImg ? 'drawing' : 'form');
                         setCanvasDataUrl(sharePatient.prescriptionImg || null);
 
-                        // If NOT a review patient, clear review mode. If review patient, preserve reviewMode!
-                        if (!isReviewPatient) {
-                          setReviewMode(null);
-                        }
+                        setReviewMode(null); // Complete consultation review mode is hidden and Send to Pharmacy consultation form opens directly!
                         setSharePatient(null);
                         setIsHistoryPreview(false);
                         setShowAllHistoryModal(false);
@@ -3386,7 +3383,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                           }
                         }, 120);
 
-                        showToast(isReviewPatient ? 'Prescription loaded into Review screen. Patient stays in Review Queue.' : 'Opened Medicine Prescribing Terminal.', 'info');
+                        showToast('Opened Medicine Prescribing Terminal. You can now add/edit medicines and Send to Pharmacy.', 'info');
                       }
                     }}
                   >
