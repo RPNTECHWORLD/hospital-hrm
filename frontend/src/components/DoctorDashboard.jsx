@@ -770,6 +770,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
     );
 
     if (isDuplicate) {
+      setLabOrderSuccess('');
       setLabOrderError(`Lab Test "${orderTestName.trim()}" is already ordered/pending for this patient! Duplicate requests are not allowed.`);
       return;
     }
@@ -788,6 +789,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
       });
 
       if (response.ok) {
+        setLabOrderError('');
         setLabOrderSuccess(`✓ Lab Test "${orderTestName.trim()}" ordered successfully and sent to Laboratory queue!`);
         setOrderTestName('');
         const res = await fetch(`${API_BASE}/api/lab`);
@@ -798,10 +800,12 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
         }
       } else {
         const errData = await response.json().catch(() => ({}));
+        setLabOrderSuccess('');
         setLabOrderError(errData.message || 'Failed to order lab test.');
       }
     } catch (err) {
       console.error("Failed to order lab test:", err);
+      setLabOrderSuccess('');
       setLabOrderError('Network error ordering lab test. Please try again.');
     }
   };
