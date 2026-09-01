@@ -609,6 +609,7 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
   const [targetBedId, setTargetBedId] = useState('');
   const [sharePatient, setSharePatient] = useState(null);
   const [previousStateBeforeEdit, setPreviousStateBeforeEdit] = useState(null);
+  const [showPrescriptionEditorModal, setShowPrescriptionEditorModal] = useState(false);
 
   const handleCancelConsultation = () => {
     if (previousStateBeforeEdit) {
@@ -3369,21 +3370,10 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                         setPrescriptionMode(sharePatient.prescriptionImg ? 'drawing' : 'form');
                         setCanvasDataUrl(sharePatient.prescriptionImg || null);
 
-                        setReviewMode(null); // Complete consultation review mode is hidden and Send to Pharmacy consultation form opens directly!
                         setSharePatient(null);
                         setIsHistoryPreview(false);
                         setShowAllHistoryModal(false);
-
-                        setTimeout(() => {
-                          const medSection = document.querySelector('.doc-prescription-edit-section') || document.querySelector('.doc-mode-switcher-grid') || document.querySelector('form button[type="submit"]');
-                          if (medSection) {
-                            medSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          } else {
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }
-                        }, 120);
-
-                        showToast('Opened Medicine Prescribing Terminal. You can now add/edit medicines and Send to Pharmacy.', 'info');
+                        setShowPrescriptionEditorModal(true); // Open the Edit & Prescribe Medicines Popup Modal!
                       }
                     }}
                   >
@@ -3471,6 +3461,332 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
               )}
             </div>
 
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit & Prescribe Medicines Popup Modal */}
+      {showPrescriptionEditorModal && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '1rem'
+        }}>
+          <div className="card fade-in" style={{
+            maxWidth: '900px',
+            width: '100%',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            padding: 0,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+            border: '1px solid var(--border)',
+            borderRadius: '16px'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '1.25rem 1.5rem',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'var(--bg-card, #ffffff)'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                  💊 Edit & Prescribe Medicines
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {activePatient?.name} • {activePatient?.age} Yrs • ID: #{activePatient?.id}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{
+                  background: 'rgba(128, 128, 128, 0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }}
+                onClick={() => setShowPrescriptionEditorModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div style={{ padding: '1.5rem', overflowY: 'auto', maxHeight: 'calc(92vh - 140px)', background: 'var(--bg-dark, #f8fafc)' }}>
+              
+              {/* Diagnosis textarea */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Diagnosis & Clinical Notes</label>
+                <textarea 
+                  className="form-input" 
+                  rows="2" 
+                  placeholder="Enter diagnosis or notes..."
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                />
+              </div>
+
+              {/* Prescription entry mode selector */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Prescription Entry Mode</label>
+                <div className="doc-mode-switcher-grid" style={{ display: 'flex', gap: '1rem', marginTop: '0.35rem' }}>
+                  <button
+                    type="button"
+                    className={`btn ${prescriptionMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', flexGrow: 1, fontWeight: 700 }}
+                    onClick={() => setPrescriptionMode('form')}
+                  >
+                    Type Prescription List
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${prescriptionMode === 'drawing' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', flexGrow: 1, fontWeight: 700 }}
+                    onClick={() => setPrescriptionMode('drawing')}
+                  >
+                    Draw on Screen Pad (Stylus/Pen)
+                  </button>
+                </div>
+              </div>
+
+              {prescriptionMode === 'drawing' ? (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Digital Drawing Board (Write/Draw Prescription)</label>
+                  <DrawingCanvas onSave={setCanvasDataUrl} />
+                </div>
+              ) : (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <label className="form-label" style={{ marginBottom: 0, fontWeight: 700, color: 'var(--primary)' }}>Digital Prescription</label>
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{ padding: '0.35rem 0.6rem', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        onClick={handleAddMedicine}
+                      >
+                        <Plus size={13} /> Tablets
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{
+                          padding: '0.35rem 0.6rem',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'rgba(15, 118, 110, 0.1)',
+                          color: '#0f766e',
+                          border: '1.5px solid rgba(15, 118, 110, 0.3)',
+                          fontWeight: 700
+                        }}
+                        onClick={handleAddSyrup}
+                      >
+                        <Plus size={13} /> Syrup
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{
+                          padding: '0.35rem 0.6rem',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'rgba(225, 29, 72, 0.1)',
+                          color: '#e11d48',
+                          border: '1.5px solid rgba(225, 29, 72, 0.3)',
+                          fontWeight: 700
+                        }}
+                        onClick={handleAddInjection}
+                      >
+                        <Plus size={13} /> Injection
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{
+                          padding: '0.35rem 0.6rem',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'rgba(147, 51, 234, 0.1)',
+                          color: '#9333ea',
+                          border: '1.5px solid rgba(147, 51, 234, 0.3)',
+                          fontWeight: 700
+                        }}
+                        onClick={handleAddNebulization}
+                      >
+                        <Plus size={13} /> Nebulization
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{
+                          padding: '0.35rem 0.6rem',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          color: '#d97706',
+                          border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                          fontWeight: 700
+                        }}
+                        onClick={handleAddOthers}
+                      >
+                        <Plus size={13} /> Others
+                      </button>
+                    </div>
+                  </div>
+
+                  {medicines.length === 0 ? (
+                    <div style={{
+                      padding: '1.25rem',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px dashed var(--border)',
+                      borderRadius: '10px',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.88rem',
+                      marginBottom: '1rem'
+                    }}>
+                      <p style={{ margin: '0 0 0.65rem 0' }}>No medicines added to this prescription list.</p>
+                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                          onClick={handleAddMedicine}
+                        >
+                          <Plus size={13} /> Add Tablet
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                          onClick={handleAddSyrup}
+                        >
+                          <Plus size={13} /> Add Syrup
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}
+                          onClick={handleAddInjection}
+                        >
+                          <Plus size={13} /> Add Injection
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {medicines.map((med, idx) => (
+                        <MedicineInputRow
+                          key={idx}
+                          med={med}
+                          idx={idx}
+                          onChange={handleMedicineChange}
+                          onRemove={handleRemoveMedicine}
+                          canRemove={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div style={{
+              padding: '1rem 1.5rem',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--bg-card, #ffffff)',
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'flex-end',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flexGrow: 1, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                onClick={async () => {
+                  const validMeds = medicines.filter(m => m.name && m.name.trim());
+                  if (prescriptionMode === 'form' && validMeds.length === 0) {
+                    showToast('Please add at least one medicine to prescribe.', 'warning');
+                    return;
+                  }
+                  if (prescriptionMode === 'drawing' && !canvasDataUrl) {
+                    showToast('Please write/draw prescription on the board.', 'warning');
+                    return;
+                  }
+
+                  const targetPatId = activePatient?.id;
+                  if (!targetPatId) {
+                    showToast('Patient record not found.', 'danger');
+                    return;
+                  }
+
+                  const updatedPrescData = {
+                    ...activePatient,
+                    diagnosis: diagnosis || 'Prescription Updated',
+                    prescription: prescriptionMode === 'drawing' ? null : validMeds,
+                    prescriptionImg: prescriptionMode === 'drawing' ? canvasDataUrl : null,
+                    complaints,
+                    pastHistory,
+                    examination,
+                    investigation,
+                    wardBedId: activePatient.wardBedId || null,
+                    bedAdmissionPending: activePatient.bedAdmissionPending ?? 0
+                  };
+
+                  setShowPrescriptionEditorModal(false);
+                  showToast(`Updated prescription sent to Pharmacy for ${activePatient.name || 'patient'}! 💊`, 'success');
+
+                  if (onSubmitPrescription) {
+                    await onSubmitPrescription(targetPatId, updatedPrescData);
+                  }
+                  setActivePatient(null);
+                  setReviewMode(null);
+                }}
+              >
+                <Send size={16} /> Send to Pharmacy
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowPrescriptionEditorModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>,
         document.body
