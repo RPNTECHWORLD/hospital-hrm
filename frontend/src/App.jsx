@@ -1746,6 +1746,7 @@ function App() {
         return (
           <WardDashboard
             patients={patients}
+            doctors={doctorsList}
             onAssignBed={handleAssignBed}
             onDischargePatient={handleDischargePatient}
           />

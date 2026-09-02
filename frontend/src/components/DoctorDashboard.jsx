@@ -2799,7 +2799,16 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                   </button>
                   
                   {/* Complete Review Button for Review patients */}
-                  {(reviewMode === 'lab' || hasDeliveredLab(activePatient.id)) ? (
+                  {reviewMode === 'pharmacy' ? (
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      style={{ flexGrow: 1, fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
+                      onClick={handleCompletePharmacyReview}
+                    >
+                      <CheckCircle2 size={16} /> Complete Pharmacy Report Review
+                    </button>
+                  ) : (reviewMode === 'lab' || hasDeliveredLab(activePatient.id)) ? (
                     <button 
                       type="button" 
                       className="btn btn-primary" 
@@ -2808,14 +2817,14 @@ const DoctorDashboard = ({ patients, doctors = [], doctorEmail, userRole, onSubm
                     >
                       <CheckCircle2 size={16} /> Complete Lab Report Review
                     </button>
-                  ) : (reviewMode === 'pharmacy' || activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') ? (
+                  ) : (activePatient.status === 'Reviewing' || activePatient.status === 'Lab Review Pending') ? (
                     <button 
                       type="button" 
                       className="btn btn-primary" 
                       style={{ flexGrow: 1, fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
                       onClick={handleCompletePharmacyReview}
                     >
-                      <CheckCircle2 size={16} /> Complete Pharmacy Review
+                      <CheckCircle2 size={16} /> Complete Pharmacy Report Review
                     </button>
                   ) : null}
 

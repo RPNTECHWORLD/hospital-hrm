@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Bed, UserCheck, ShieldAlert, LogOut, CheckCircle, Plus, Loader2 } from 'lucide-react';
+import { Bed, UserCheck, ShieldAlert, LogOut, CheckCircle, Plus, Loader2, AlertTriangle, ArrowRight, X } from 'lucide-react';
 
-const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
+const WardDashboard = ({ patients = [], doctors = [], onAssignBed, onDischargePatient }) => {
   const [processingPatientId, setProcessingPatientId] = useState(null);
   const [processedPatientIds, setProcessedPatientIds] = useState([]);
+  const [bedConflictData, setBedConflictData] = useState(null);
   // Let's configure a list of mock rooms and beds
   // 10 beds: Room 101 (Beds A, B), Room 102 (Beds A, B), Room 103 (Beds A, B), Room 104 (Beds A, B), Room 105 (Beds A, B)
   const [beds, setBeds] = useState([
@@ -22,19 +23,66 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
   const [selectedBed, setSelectedBed] = useState(null);
   const [selectedPatientId, setSelectedPatientId] = useState('');
 
-  const handleAcceptPendingAdmit = async (patientId, bedId) => {
+  const formatDoctorDisplay = (docId) => {
+    if (!docId) return 'Assigned Doctor';
+    const d = (doctors || []).find(doc => String(doc.id) === String(docId));
+    if (!d || !d.name) return `Doctor (ID: ${docId})`;
+    const name = d.name.trim();
+    return name.toLowerCase().startsWith('dr.') || name.toLowerCase().startsWith('dr ') ? name : `Dr. ${name}`;
+  };
+
+  const getOccupiedBedInfo = (bedId, excludePatientId) => {
+    if (!bedId) return null;
+    return (patients || []).find(p => 
+      p &&
+      String(p.id) !== String(excludePatientId) &&
+      p.status !== 'Inactive' &&
+      p.wardBedId === bedId &&
+      (!p.bedAdmissionPending || p.bedAdmissionPending == 0 || p.bedAdmissionPending === '0' || p.bedAdmissionPending === false)
+    );
+  };
+
+  const handleConfirmAdmit = async (patientId, bedId) => {
     const cleanPid = String(patientId || '').replace(/#/g, '').trim();
     setProcessedPatientIds(prev => [...prev, String(patientId), cleanPid, `#${cleanPid}`]);
     setProcessingPatientId(patientId);
     // Instant optimistic assignment to local bed card
-    setBeds(prev => prev.map(b => b.id === bedId ? { ...b, patientId } : b));
+    setBeds(prev => prev.map(b => b.id === bedId ? { ...b, patientId } : (b.patientId === patientId ? { ...b, patientId: null } : b)));
     try {
       await onAssignBed(patientId, bedId);
     } catch (err) {
       console.error("Failed to assign bed:", err);
     } finally {
       setProcessingPatientId(null);
+      setBedConflictData(null);
     }
+  };
+
+  const handleAcceptPendingAdmit = async (patientId, bedId) => {
+    const cleanPid = String(patientId || '').replace(/#/g, '').trim();
+    const incomingPatient = (patients || []).find(p => String(p.id).replace(/#/g, '').trim() === cleanPid);
+
+    // Check if the requested bed is ALREADY occupied by another patient
+    const occupant = getOccupiedBedInfo(bedId, patientId);
+    if (occupant) {
+      // Compute truly available beds right now
+      const occupiedIds = (patients || [])
+        .filter(p => p.status !== 'Inactive' && p.wardBedId && (!p.bedAdmissionPending || p.bedAdmissionPending == 0 || p.bedAdmissionPending === '0' || p.bedAdmissionPending === false))
+        .map(p => p.wardBedId);
+      const freeBeds = beds.filter(b => !occupiedIds.includes(b.id));
+
+      setBedConflictData({
+        patient: incomingPatient || { id: patientId, name: 'Patient' },
+        requestedBedId: bedId,
+        occupant: occupant,
+        selectedNewBed: freeBeds.length > 0 ? freeBeds[0].id : '',
+        availableBeds: freeBeds
+      });
+      return;
+    }
+
+    // If bed is completely free, proceed directly
+    await handleConfirmAdmit(patientId, bedId);
   };
 
   const handleDeclinePendingAdmit = async (patientId) => {
@@ -179,6 +227,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {pendingRequests.map(p => {
                 const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'PT';
+                const conflictOccupant = getOccupiedBedInfo(p.wardBedId, p.id);
+
                 return (
                   <div 
                     key={p.id} 
@@ -189,7 +239,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                       background: 'var(--bg-card, #ffffff)',
                       padding: '1rem 1.25rem',
                       borderRadius: '10px',
-                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      border: conflictOccupant ? '1.5px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.25)',
                       flexWrap: 'wrap',
                       gap: '1rem',
                       boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
@@ -200,8 +250,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                         width: '42px', 
                         height: '42px', 
                         borderRadius: '50%', 
-                        background: 'rgba(245, 158, 11, 0.15)', 
-                        color: '#d97706', 
+                        background: conflictOccupant ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)', 
+                        color: conflictOccupant ? '#dc2626' : '#d97706', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
@@ -212,13 +262,32 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                       </div>
                       
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
-                          {p.name}
+                        <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span>{p.name}</span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({p.id})</span>
+                          {conflictOccupant && (
+                            <span style={{
+                              fontSize: '0.75rem',
+                              color: '#b45309',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              borderRadius: '6px',
+                              padding: '0.18rem 0.6rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem'
+                            }}>
+                              <AlertTriangle size={13} style={{ color: '#d97706' }} /> Bed {p.wardBedId} occupied by {conflictOccupant.name} ({formatDoctorDisplay(conflictOccupant.assignedDoctorId)})
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
                           <span>{p.age} Yrs • {p.gender}</span>
                           <span style={{ color: 'var(--border)' }}>•</span>
-                          <span>Requested: <strong style={{ color: 'var(--primary)' }}>Room {p.wardBedId?.slice(0, 3)} - Bed {p.wardBedId?.slice(3)}</strong></span>
+                          <span>Doctor: <strong style={{ color: 'var(--text-primary)' }}>{formatDoctorDisplay(p.assignedDoctorId)}</strong></span>
+                          <span style={{ color: 'var(--border)' }}>•</span>
+                          <span>Requested: <strong style={{ color: conflictOccupant ? '#d97706' : 'var(--primary)' }}>Room {p.wardBedId?.slice(0, 3)} - Bed {p.wardBedId?.slice(3)}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -230,7 +299,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                         style={{ 
                           padding: '0.5rem 1.25rem', 
                           fontSize: '0.82rem', 
-                          background: '#10b981', 
+                          background: conflictOccupant ? '#f59e0b' : '#10b981', 
                           border: 'none', 
                           color: '#fff',
                           borderRadius: '8px',
@@ -240,7 +309,7 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.35rem',
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                          boxShadow: conflictOccupant ? '0 2px 8px rgba(245, 158, 11, 0.3)' : '0 2px 8px rgba(16, 185, 129, 0.25)',
                           transition: 'all 0.15s ease'
                         }}
                         onClick={() => handleAcceptPendingAdmit(p.id, p.wardBedId)}
@@ -249,6 +318,8 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
                           <>
                             <Loader2 size={14} className="spin" /> Admitting...
                           </>
+                        ) : conflictOccupant ? (
+                          <>⚠️ Reassign & Admit Bed</>
                         ) : (
                           <>✓ Accept & Admit Bed</>
                         )}
@@ -476,6 +547,275 @@ const WardDashboard = ({ patients, onAssignBed, onDischargePatient }) => {
           )}
         </div>
       </div>
+
+      {/* Same Bed - Different Doctors: Bed Conflict Resolution Modal */}
+      {bedConflictData && (
+        <div 
+          className="modal-backdrop fade-in" 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.25rem'
+          }}
+          onClick={() => setBedConflictData(null)}
+        >
+          <div 
+            className="card fade-in" 
+            style={{
+              maxWidth: '580px',
+              width: '100%',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              background: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+              border: '1px solid #e2e8f0',
+              padding: '1.75rem',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: '#d97706',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <div style={{
+                    display: 'inline-block',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    color: '#92400e',
+                    background: '#fef3c7',
+                    border: '1px solid #fde68a',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    marginBottom: '0.3rem'
+                  }}>
+                    Bed Allocation Conflict
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+                    Bed Already Occupied
+                  </h3>
+                  <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                    Room {bedConflictData.requestedBedId?.slice(0, 3)} - Bed {bedConflictData.requestedBedId?.slice(3)} was selected by multiple doctors. Please assign an alternative bed.
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="close-btn" 
+                onClick={() => setBedConflictData(null)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.25rem' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Conflict Patient Comparison Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.5rem' }}>
+              {/* Occupied Bed Info (Clean Slate Grey Card) */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #64748b',
+                borderRadius: '12px',
+                padding: '1rem 1.15rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 800, color: '#475569', letterSpacing: '0.5px' }}>
+                    Current Occupant (Already Admitted)
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    color: '#334155', 
+                    background: '#e2e8f0', 
+                    padding: '0.15rem 0.55rem', 
+                    borderRadius: '6px' 
+                  }}>
+                    Room {bedConflictData.requestedBedId?.slice(0, 3)} • Bed {bedConflictData.requestedBedId?.slice(3)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>
+                      {bedConflictData.occupant?.name}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', marginLeft: '0.45rem' }}>
+                      ({bedConflictData.occupant?.id})
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                    Admitted by: <strong style={{ color: '#0f172a' }}>{formatDoctorDisplay(bedConflictData.occupant?.assignedDoctorId)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Incoming Patient Info (Hospital Brand Teal Card) */}
+              <div style={{
+                background: 'rgba(21, 115, 136, 0.05)',
+                border: '1px solid rgba(21, 115, 136, 0.22)',
+                borderLeft: '4px solid #157388',
+                borderRadius: '12px',
+                padding: '1rem 1.15rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 800, color: '#0f766e', letterSpacing: '0.5px' }}>
+                    Incoming Patient (Needs Bed Reassignment)
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    color: '#0369a1', 
+                    background: '#e0f2fe', 
+                    border: '1px solid #bae6fd',
+                    padding: '0.15rem 0.55rem', 
+                    borderRadius: '6px' 
+                  }}>
+                    Admission Pending
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>
+                      {bedConflictData.patient?.name}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', marginLeft: '0.45rem' }}>
+                      ({bedConflictData.patient?.id})
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                    Requested by: <strong style={{ color: '#0f172a' }}>{formatDoctorDisplay(bedConflictData.patient?.assignedDoctorId)}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Alternative Bed Selection */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <label className="form-label" style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.55rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Bed size={16} style={{ color: '#157388' }} />
+                Select Alternative Available Bed for {bedConflictData.patient?.name}:
+              </label>
+
+              {bedConflictData.availableBeds && bedConflictData.availableBeds.length > 0 ? (
+                <div>
+                  <select 
+                    className="form-input"
+                    value={bedConflictData.selectedNewBed}
+                    onChange={(e) => setBedConflictData(prev => ({ ...prev, selectedNewBed: e.target.value }))}
+                    style={{ 
+                      fontSize: '0.92rem', 
+                      fontWeight: 600, 
+                      padding: '0.75rem',
+                      borderColor: '#157388',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <option value="" disabled>-- Choose an Available Free Bed --</option>
+                    {bedConflictData.availableBeds.map(bed => (
+                      <option key={bed.id} value={bed.id}>
+                        Room {bed.room} - {bed.name} (Bed {bed.id}) — Available
+                      </option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '0.78rem', color: '#0f766e', marginTop: '0.45rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <CheckCircle size={14} /> {bedConflictData.availableBeds.length} other bed(s) are currently available in the ward.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ 
+                  background: '#fef2f2', 
+                  border: '1px solid #fecaca', 
+                  borderRadius: '8px', 
+                  padding: '0.85rem', 
+                  color: '#b91c1c', 
+                  fontSize: '0.85rem',
+                  fontWeight: 600 
+                }}>
+                  ⚠️ No other ward beds are currently available. Please discharge an admitted patient before admitting this patient.
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button 
+                type="button" 
+                className="btn"
+                onClick={() => setBedConflictData(null)}
+                style={{ 
+                  padding: '0.65rem 1.35rem', 
+                  fontSize: '0.88rem',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn"
+                disabled={!bedConflictData.selectedNewBed || processingPatientId === bedConflictData.patient?.id}
+                style={{ 
+                  padding: '0.65rem 1.6rem', 
+                  fontSize: '0.88rem', 
+                  background: 'linear-gradient(135deg, #0f766e 0%, #157388 100%)', 
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  cursor: (!bedConflictData.selectedNewBed || processingPatientId === bedConflictData.patient?.id) ? 'not-allowed' : 'pointer',
+                  opacity: (!bedConflictData.selectedNewBed || processingPatientId === bedConflictData.patient?.id) ? 0.6 : 1,
+                  boxShadow: '0 4px 14px rgba(21, 115, 136, 0.28)'
+                }}
+                onClick={() => handleConfirmAdmit(bedConflictData.patient.id, bedConflictData.selectedNewBed)}
+              >
+                {processingPatientId === bedConflictData.patient?.id ? (
+                  <>
+                    <Loader2 size={16} className="spin" /> Admitting to Bed {bedConflictData.selectedNewBed}...
+                  </>
+                ) : (
+                  <>
+                    ✓ Admit to Bed {bedConflictData.selectedNewBed || '...'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

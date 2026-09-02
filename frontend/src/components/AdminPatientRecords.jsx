@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer, Mail, X } from 'lucide-react';
+import { Search, Users, CheckCircle, AlertCircle, History, FileText, MapPin, Bed, Calendar, Clock, ShieldAlert, Pill, Eye, Filter, Stethoscope, Printer, Mail, X, Activity } from 'lucide-react';
 import PrescriptionTemplate from './PrescriptionTemplate';
 import ChildPrescriptionTemplate from './ChildPrescriptionTemplate';
 import { resolvePatientLocation } from '../utils/locationHelper';
@@ -331,9 +331,9 @@ const AdminPatientRecords = ({
 
   // Stats Calculations
   const totalCount = patients.length;
-  const activeCount = patients.filter(p => {
+  const activeInCareCount = patients.filter(p => {
     const s = (p.status || '').toLowerCase();
-    return s !== 'inactive' && s !== 'deleted';
+    return s !== 'completed' && s !== 'inactive' && s !== 'deleted';
   }).length;
   const paidCount = patients.filter(p => {
     const s = (p.paymentStatus || p.paymentstatus || '').toLowerCase().trim();
@@ -372,7 +372,7 @@ const AdminPatientRecords = ({
       const pStatus = (p.status || '').trim().toLowerCase();
       const matchesStatus = (() => {
         if (statusFilter === 'all') return true;
-        if (statusFilter === 'active') return pStatus !== 'inactive' && pStatus !== 'deleted';
+        if (statusFilter === 'active_care' || statusFilter === 'active') return pStatus !== 'completed' && pStatus !== 'inactive' && pStatus !== 'deleted';
         if (statusFilter === 'inactive') return pStatus === 'inactive' || pStatus === 'deleted';
         if (statusFilter === 'Reviewing') return pStatus === 'reviewing' || pStatus === 'review';
         if (statusFilter === 'In Queue') return pStatus === 'in queue' || pStatus === 'registered' || pStatus === 'waiting' || !p.status;
@@ -497,13 +497,13 @@ const AdminPatientRecords = ({
           </div>
         </div>
 
-        <div className="stat-card" style={{ cursor: 'pointer', border: statusFilter === 'active' ? '2px solid var(--success)' : '1px solid var(--border)' }} onClick={() => { handleResetFilters(); setStatusFilter('active'); }} title="Click to filter active patients">
-          <div className="stat-icon success">
-            <CheckCircle size={24} />
+        <div className="stat-card" style={{ cursor: 'pointer', border: statusFilter === 'active_care' || statusFilter === 'active' ? '2px solid #0284c7' : '1px solid var(--border)' }} onClick={() => { handleResetFilters(); setStatusFilter('active_care'); }} title="Click to filter patients currently in care">
+          <div className="stat-icon" style={{ color: '#0284c7', background: 'rgba(2, 132, 199, 0.12)' }}>
+            <Activity size={24} />
           </div>
           <div>
-            <div className="stat-value">{activeCount}</div>
-            <div className="stat-label">Active Patients</div>
+            <div className="stat-value">{activeInCareCount}</div>
+            <div className="stat-label">Active In Care</div>
           </div>
         </div>
 
